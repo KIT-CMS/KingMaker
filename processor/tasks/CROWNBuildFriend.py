@@ -86,8 +86,9 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         output = self.output()
         era = self.era
         sampletype = self.sampletype
-        _workdir = os.path.abspath("workdir")
-        ensure_dir(_workdir)
+        _workdir = os.path.abspath(f"quantities_map/{self.production_tag}")
+        if not os.path.exists(_workdir):
+            os.makedirs(_workdir)
         quantities_map = {}
         quantities_map[era] = {}
         quantities_map[era][sampletype] = {}
@@ -111,6 +112,7 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         local_filename = os.path.join(
             _workdir, "{}_{}_quantities_map.json".format(era, sampletype)
         )
+
         with open(local_filename, "w") as f:
             json.dump(quantities_map, f, indent=4)
         output.copy_from_local(local_filename)
