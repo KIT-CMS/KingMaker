@@ -5,6 +5,7 @@ from CROWNFriends import CROWNFriends
 from framework import console
 from law.task.base import WrapperTask
 from rich.table import Table
+import ast
 
 
 class ProduceFriends(WrapperTask):
@@ -50,6 +51,10 @@ class ProduceFriends(WrapperTask):
         table.add_column("Sampletype", justify="left")
 
         # sanitize the scopes information
+        try:
+            self.scopes = ast.literal_eval(self.scopes)
+        except:
+            self.scopes = self.scopes
         if isinstance(self.scopes, str):
             self.scopes = self.scopes.split(",")
         elif isinstance(self.scopes, list):
@@ -78,7 +83,7 @@ class ProduceFriends(WrapperTask):
         console.log(table)
 
         console.log(
-            f"Producing friends for {len(data['details'])} samples in {len(data['eras'])} eras and {len(self.scopes)} scopes"
+            f"Producing friends for {len(data['details'])} samples in {len(data['eras'])} eras and {len(self.scopes)} scopes: {self.scopes}"
         )
         console.rule("")
         requirements = {}
