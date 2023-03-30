@@ -117,10 +117,16 @@ class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):
         branches = {}
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
+        # Create jobs with one input file per task for 2017C and 2016B-ver2 as
+        # the trigger setup changed during these runs leading to crashes when
+        # multiple inputs are processed in a single job
+        files_per_task = self.files_per_task
+        if inputdata["sample_type"] == "data" and ("2018B" in self.nick or "2017C" in self.nick or "2016B-ver2" in self.nick):
+            files_per_task = 1
         for filecounter, filename in enumerate(inputdata["filelist"]):
-            if (int(filecounter / self.files_per_task)) not in branches:
-                branches[int(filecounter / self.files_per_task)] = []
-            branches[int(filecounter / self.files_per_task)].append(filename)
+            if (int(filecounter / files_per_task)) not in branches:
+                branches[int(filecounter / files_per_task)] = []
+            branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
             branch_map[branchcounter]["nick"] = self.nick
