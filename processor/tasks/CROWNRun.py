@@ -121,7 +121,9 @@ class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):
         # the trigger setup changed during these runs leading to crashes when
         # multiple inputs are processed in a single job
         files_per_task = self.files_per_task
-        if inputdata["sample_type"] == "data" and ("2018B" in self.nick or "2017C" in self.nick or "2016B-ver2" in self.nick):
+        if inputdata["sample_type"] == "data" and (
+            "2018B" in self.nick or "2017C" in self.nick or "2016B-ver2" in self.nick
+        ):
             files_per_task = 1
         for filecounter, filename in enumerate(inputdata["filelist"]):
             if (int(filecounter / files_per_task)) not in branches:
