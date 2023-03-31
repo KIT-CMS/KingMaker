@@ -35,6 +35,7 @@ class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):
     config = luigi.Parameter()
     production_tag = luigi.Parameter()
     files_per_task = luigi.IntParameter()
+    problematic_eras = luigi.ListParameter()
 
     def htcondor_output_directory(self):
         # Add identification-str to prevent interference between different tasks of the same class
@@ -117,10 +118,13 @@ class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):
         branches = {}
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
+        files_per_task = self.files_per_task
+        if inputdata["sampletype"] == "data" and any(era in self.nick for era in self.problematic_eras):
+            files_per_task = 1
         for filecounter, filename in enumerate(inputdata["filelist"]):
-            if (int(filecounter / self.files_per_task)) not in branches:
-                branches[int(filecounter / self.files_per_task)] = []
-            branches[int(filecounter / self.files_per_task)].append(filename)
+            if (int(filecounter / files_per_task)) not in branches:
+                branches[int(filecounter / files_per_task)] = []
+            branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
             branch_map[branchcounter]["nick"] = self.nick
