@@ -8,6 +8,7 @@ from rich.console import Console
 from law.util import merge_dicts, DotDict
 from datetime import datetime
 from law.contrib.htcondor.job import HTCondorJobManager
+from law.contrib.htcondor.job import HTCondorJobFileFactory
 from tempfile import mkdtemp
 from getpass import getuser
 from law.target.collection import flatten_collections
@@ -289,10 +290,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
     htcondor_user_proxy = law.wlcg.get_voms_proxy_file()
 
-    def htcondor_create_job_manager(self, **kwargs):
-        kwargs = merge_dicts(self.htcondor_job_manager_defaults, kwargs)
-        return HTCondorJobManager(**kwargs)
-
     def htcondor_output_directory(self):
         # Add identification-str to prevent interference between different tasks of the same class
         # Expand path to account for use of env variables (like $USER)
@@ -304,8 +301,23 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         )
 
     def htcondor_create_job_file_factory(self):
-        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory()
-        factory.is_tmp = False
+        task_name = self.__class__.__name__
+        identifier_str = "_".join(self.task_identifier)
+        if len(self.task_identifier) > 0:
+            identifier_str = "_".join(self.task_identifier)
+            task_name = "_".join([task_name, identifier_str])
+        _cfg = Config.instance()
+        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
+        job_files = os.path.join(
+            job_file_dir,
+            self.production_tag,
+            task_name,
+            "files",
+        )
+        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
+            dir=job_files, 
+            mkdtemp=False,
+        )
         # Print location of job dir
         console.log("HTCondor job directory is: {}".format(factory.dir))
         return factory
@@ -317,38 +329,19 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     def htcondor_job_config(self, config, job_num, branches):
         analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
-        _cfg = Config.instance()
-        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
-        logdir = os.path.join(
-            os.path.dirname(job_file_dir), "logs", self.production_tag
-        )
-        for file_ in ["Log", "Output", "Error"]:
-            os.makedirs(os.path.join(logdir, file_), exist_ok=True)
-        logfile = os.path.join(
-            logdir, "Log", "{}_{}to{}.txt".format(task_name, branches[0], branches[-1])
-        )
-        outfile = os.path.join(
-            logdir,
-            "Output",
-            "{}_{}to{}.txt".format(task_name, branches[0], branches[-1]),
-        )
-        errfile = os.path.join(
-            logdir,
-            "Error",
-            "{}_{}to{}.txt".format(task_name, branches[0], branches[-1]),
-        )
+        
+        config.log = os.path.join("../Log.txt")
+        config.stdout = os.path.join("../Output.txt")
+        config.stderr = os.path.join("../Error.txt")
 
         # Write job config file
         config.custom_content = []
         config.custom_content.append(
             ("accounting_group", self.htcondor_accounting_group)
         )
-        config.custom_content.append(("Log", logfile))
-        config.custom_content.append(("Output", outfile))
-        config.custom_content.append(("Error", errfile))
 
-        config.custom_content.append(("stream_error", "True"))  # Remove before commit
-        config.custom_content.append(("stream_output", "True"))  #
+        # config.custom_content.append(("stream_error", "True"))  # Remove before commit
+        # config.custom_content.append(("stream_output", "True"))  #
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("+RemoteJob", self.htcondor_remote_job))
