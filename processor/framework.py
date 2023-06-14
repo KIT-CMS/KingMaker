@@ -315,7 +315,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             "files",
         )
         factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
-            dir=job_files, 
+            dir=job_files,
             mkdtemp=False,
         )
         # Print location of job dir
@@ -329,7 +329,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     def htcondor_job_config(self, config, job_num, branches):
         analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
-        
+
         config.log = os.path.join("../Log.txt")
         config.stdout = os.path.join("../Output.txt")
         config.stderr = os.path.join("../Error.txt")
