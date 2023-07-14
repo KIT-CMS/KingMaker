@@ -48,10 +48,6 @@ class Task(law.Task):
         default="default/{}".format(startup_time),
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
-    task_identifier = luigi.ListParameter(
-        default=[],
-        description="List of values to distinguish a specific Task from other instances of the same Task. Only takes strings.",
-    )
     output_collection_cls = law.NestedSiblingFileCollection
 
     # Path of local targets. Composed from the analysis path set during the setup.sh,
@@ -297,7 +293,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # Add identification-str to prevent interference between different tasks of the same class
         # Expand path to account for use of env variables (like $USER)
         return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path("htcondor_files", "_".join(self.task_identifier)),
+            self.remote_path("htcondor_files", self.task_id),
             law.wlcg.WLCGFileSystem(
                 None, base="{}".format(os.path.expandvars(self.wlcg_path))
             ),
@@ -464,8 +460,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
 # Class to shorten lookup times for large amounts of output targets
 #    puppet_task: Task to be run
-#    task_identifier: parameters by which the Class instance can be differentiated
-#       from other PuppetMaster tasks that supervise Tasks with the same name
 # Output targets of puppet are saved to the checkfile after puppet is run
 # If output targets of puppet don't match with saved targets, checkfile is removed
 class PuppetMaster(Task):
@@ -482,7 +476,7 @@ class PuppetMaster(Task):
         puppet = self.puppet_task
         # Construct output filename from class name of puppet and identifier
         class_name = puppet.__class__.__name__
-        unique_par_str = "_".join([class_name] + list(self.task_identifier))
+        unique_par_str = "_".join([class_name, self.task_id])
         filename = unique_par_str + ".json"
         target = self.local_target(filename)
         # Check if existing file matches with new file
