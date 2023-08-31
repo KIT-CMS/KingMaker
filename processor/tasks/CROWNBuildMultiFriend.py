@@ -5,16 +5,17 @@ import subprocess
 from law.util import interruptable_popen
 from framework import Task
 from framework import console
-from QuantitiesMap import QuantitiesMap
+from FriendQuantitiesMap import FriendQuantitiesMap
 from helpers.helpers import convert_to_comma_seperated
 
 
-class CROWNBuildFriend(Task):
+class CROWNBuildMultiFriend(Task):
     """
     Gather and compile CROWN for friend tree production with the given configuration
     """
 
     # configuration variables
+    friend_dependencies = luigi.ListParameter(significant=False)
     scopes = luigi.ListParameter()
     all_sampletypes = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
@@ -36,7 +37,13 @@ class CROWNBuildFriend(Task):
     )
 
     def requires(self):
-        result = {"quantities_map": QuantitiesMap.req(self)}
+        result = {"quantities_map": FriendQuantitiesMap.req(self)}
+        # console.log(self)
+        # if self.friend_dependencies:
+        #     # in this case, we require multiple quantities maps
+        #     result["friend_dependencies"] = []
+        #     for friend_dependency in self.friend_dependencies:
+        #         result["friend_dependencies"].append(FriendQuantitiesMap.req(self))
         return result
 
     def output(self):

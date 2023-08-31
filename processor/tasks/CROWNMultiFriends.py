@@ -1,8 +1,9 @@
 import law
 import luigi
 import os
-from CROWNBuildFriend import CROWNBuildFriend
+from CROWNBuildMultiFriend import CROWNBuildMultiFriend
 from CROWNRun import CROWNRun
+from CROWNFriends import CROWNFriends
 import tarfile
 import subprocess
 import time
@@ -14,11 +15,8 @@ from helpers.helpers import create_abspath
 law.contrib.load("wlcg")
 
 
-class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
-    """
-    Gather and compile CROWN with the given configuration
-    """
-
+class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
+    friend_dependencies = luigi.ListParameter(significant=False)
     output_collection_cls = law.NestedSiblingFileCollection
 
     all_sampletypes = luigi.ListParameter(significant=False)
@@ -108,23 +106,41 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
             sampletype=self.sampletype,
             scopes=self.scopes,
         )
-        requirements["friend_tarball"] = CROWNBuildFriend.req(self)
+        requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
+        for friend in self.friend_dependencies:
+            requirements[f"CROWNFriends_{self.nick}_{friend}"] = CROWNFriends(
+                nick=self.nick,
+                analysis=self.analysis,
+                config=self.config,
+                production_tag=self.production_tag,
+                all_eras=self.all_eras,
+                shifts=self.shifts,
+                all_sampletypes=self.all_sampletypes,
+                era=self.era,
+                sampletype=self.sampletype,
+                scopes=self.scopes,
+                friend_name=friend,
+                friend_config=friend,
+            )
         return requirements
 
     def requires(self):
-        return {"friend_tarball": CROWNBuildFriend.req(self)}
+        return {"friend_tarball": CROWNBuildMultiFriend.req(self)}
 
     def create_branch_map(self):
-        """
-        The function `create_branch_map` creates a dictionary `branch_map` that maps file counters to
-        various attributes based on the input files.
-        :return: a dictionary called `branch_map`.
-        """
         branch_map = {}
         counter = 0
         inputs = self.input()["ntuples"]["collection"]
         branches = inputs._flat_target_list
+        friend_inputs = []
+        friend_branches = []
+        for friend in self.friend_dependencies:
+            friend_inputs.append(
+                self.input()[f"CROWNFriends_{self.nick}_{friend}"]["collection"]
+            )
+            friend_branches.append(friend_inputs[-1]._flat_target_list)
         # get all files from the dataset, including missing ones
+
         for inputfile in branches:
             if not inputfile.path.endswith(".root"):
                 continue
@@ -139,6 +155,13 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
                     "inputfile": os.path.expandvars(self.wlcg_path) + inputfile.path,
                     "filecounter": int(counter / len(self.scopes)),
                 }
+                # print(f"Total amount of friends: {len(self.friend_dependencies)}")
+                for friend_index, friend in enumerate(self.friend_dependencies):
+                    # console.log(f"friend_index: {friend_index}, counter: {counter}")
+                    branch_map[counter][f"inputfile_friend_{friend_index}"] = (
+                        os.path.expandvars(self.wlcg_path)
+                        + friend_branches[friend_index][counter].path
+                    )
                 counter += 1
         return branch_map
 
@@ -175,8 +198,8 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
 
     def run(self):
         """
-        The function runs a CROWN friend executable with specified input and output files, unpacking a
-        tarball if necessary, and logs the output and any errors.
+        The function runs a CROWN friend process, unpacking a tarball if necessary, setting the
+        environment, executing the process, and copying the output file.
         """
         outputs = self.output()
         output = outputs[0]
@@ -194,6 +217,9 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
         )
         create_abspath(_workdir)
         _inputfile = branch_data["inputfile"]
+        _friend_inputs = [
+            branch_data[input] for input in branch_data if "inputfile_friend_" in input
+        ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace("_{}.root".format(scope), ".root"))
         _abs_executable = "{}/{}_{}_{}".format(
@@ -224,12 +250,12 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
             os.remove(tempfile)
         # set environment using env script
         my_env = self.set_environment("{}/init.sh".format(_workdir))
-        _crown_args = [_outputfile] + [_inputfile]
+        _crown_args = [_outputfile] + [_inputfile] + _friend_inputs
         _executable = "./{}_{}_{}_{}".format(self.friend_config, sampletype, era, scope)
         # actual payload:
-        console.rule("Starting CROWNFriends")
+        console.rule("Starting CROWNMultiFriends")
         console.log("Executable: {}".format(_executable))
-        console.log("inputfile(s) {}".format(_inputfile))
+        console.log("inputfile(s) {} {}".format(_inputfile, _friend_inputs))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
         with subprocess.Popen(
@@ -291,4 +317,4 @@ class CROWNFriends(HTCondorWorkflow, law.LocalWorkflow):
                 )
                 # copy the generated quantities_map json to the output
                 outputfile.copy_from_local(local_outputfile)
-        console.rule("Finished CROWNFriends")
+        console.rule("Finished CROWNMultiFriends")

@@ -8,13 +8,8 @@ import subprocess
 import time
 from framework import console
 from law.config import Config
-
 from framework import Task, HTCondorWorkflow
-
-
-def create_abspath(file_path):
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
+from helpers.helpers import create_abspath
 
 
 class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):

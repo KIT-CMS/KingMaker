@@ -2,6 +2,7 @@ import luigi
 import yaml
 import law
 from CROWNFriends import CROWNFriends
+from CROWNMultiFriends import CROWNMultiFriends
 from framework import console
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -20,6 +21,7 @@ class ProduceFriends(WrapperTask):
     friend_name = luigi.Parameter()
     config = luigi.Parameter()
     dataset_database = luigi.Parameter(significant=False)
+    friend_dependencies = luigi.Parameter(significant=False)
     production_tag = luigi.Parameter()
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
@@ -70,6 +72,14 @@ class ProduceFriends(WrapperTask):
         if isinstance(self.shifts, list):
             self.shifts = self.shifts.join(",")
 
+        if self.friend_dependencies:
+            # in this case, the required friends require not only the ntuple, but also other friends,
+            # this means we have to add additional requirements to the task
+            if isinstance(self.friend_dependencies, str):
+                self.friend_dependencies = self.friend_dependencies.split(",")
+            elif isinstance(self.friend_dependencies, list):
+                self.friend_dependencies = self.friend_dependencies
+
         for i, nick in enumerate(samples):
             data["details"][nick] = {}
             # check if sample exists in datasets.yaml
@@ -99,22 +109,44 @@ class ProduceFriends(WrapperTask):
             f"Selected Shifts are {self.shifts} (self.shifts is of type {type(self.shifts)})"
         )
         console.rule("")
+
         requirements = {}
         for samplenick in data["details"]:
-            requirements[f"CROWNFriends_{samplenick}"] = CROWNFriends(
-                nick=samplenick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=data["eras"],
-                shifts=self.shifts,
-                all_sampletypes=data["sampletypes"],
-                scopes=self.scopes,
-                era=data["details"][samplenick]["era"],
-                sampletype=data["details"][samplenick]["sampletype"],
-                friend_config=self.friend_config,
-                friend_name=self.friend_name,
-            )
+            if self.friend_dependencies:
+                requirements[
+                    f"CROWNFriends_{samplenick}_{self.friend_name}"
+                ] = CROWNMultiFriends(
+                    nick=samplenick,
+                    analysis=self.analysis,
+                    config=self.config,
+                    production_tag=self.production_tag,
+                    all_eras=data["eras"],
+                    shifts=self.shifts,
+                    all_sampletypes=data["sampletypes"],
+                    scopes=self.scopes,
+                    era=data["details"][samplenick]["era"],
+                    sampletype=data["details"][samplenick]["sampletype"],
+                    friend_config=self.friend_config,
+                    friend_name=self.friend_name,
+                    friend_dependencies=self.friend_dependencies,
+                )
+            else:
+                requirements[
+                    f"CROWNFriends_{samplenick}_{self.friend_name}"
+                ] = CROWNFriends(
+                    nick=samplenick,
+                    analysis=self.analysis,
+                    config=self.config,
+                    production_tag=self.production_tag,
+                    all_eras=data["eras"],
+                    shifts=self.shifts,
+                    all_sampletypes=data["sampletypes"],
+                    scopes=self.scopes,
+                    era=data["details"][samplenick]["era"],
+                    sampletype=data["details"][samplenick]["sampletype"],
+                    friend_config=self.friend_config,
+                    friend_name=self.friend_name,
+                )
 
         return requirements
 
