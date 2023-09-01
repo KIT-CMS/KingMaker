@@ -131,16 +131,23 @@ class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
         branch_map = {}
         counter = 0
         inputs = self.input()["ntuples"]["collection"]
-        branches = inputs._flat_target_list
-        friend_inputs = []
-        friend_branches = []
-        for friend in self.friend_dependencies:
-            friend_inputs.append(
-                self.input()[f"CROWNFriends_{self.nick}_{friend}"]["collection"]
-            )
-            friend_branches.append(friend_inputs[-1]._flat_target_list)
-        # get all files from the dataset, including missing ones
-
+        branches = [
+            inputfile
+            for inputfile in inputs._flat_target_list
+            if inputfile.path.endswith(".root")
+        ]
+        friend_inputs = [
+            self.input()[f"CROWNFriends_{self.nick}_{friend}"]["collection"]
+            for friend in self.friend_dependencies
+        ]
+        friend_branches = [
+            [
+                friend_inputfile
+                for friend_inputfile in friend_input._flat_target_list
+                if friend_inputfile.path.endswith(".root")
+            ]
+            for friend_input in friend_inputs
+        ]
         for inputfile in branches:
             if not inputfile.path.endswith(".root"):
                 continue
@@ -155,13 +162,23 @@ class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
                     "inputfile": os.path.expandvars(self.wlcg_path) + inputfile.path,
                     "filecounter": int(counter / len(self.scopes)),
                 }
-                # print(f"Total amount of friends: {len(self.friend_dependencies)}")
+                filename = inputfile.path.split("/")[-1]
                 for friend_index, friend in enumerate(self.friend_dependencies):
-                    # console.log(f"friend_index: {friend_index}, counter: {counter}")
+                    if not friend_branches[friend_index][counter].path.endswith(
+                        ".root"
+                    ):
+                        break
                     branch_map[counter][f"inputfile_friend_{friend_index}"] = (
                         os.path.expandvars(self.wlcg_path)
                         + friend_branches[friend_index][counter].path
                     )
+                    friend_file_name = friend_branches[friend_index][
+                        counter
+                    ].path.split("/")[-1]
+                    if friend_file_name != filename:
+                        raise Exception(
+                            f"Friend file name {friend_file_name} does not match input file name {filename}"
+                        )
                 counter += 1
         return branch_map
 
