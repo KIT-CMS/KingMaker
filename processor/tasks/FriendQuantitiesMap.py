@@ -113,7 +113,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 inputfiles = self.input()["ntuples"][sample]._flat_target_list
                 # add all friend files to the inputfiles list
                 for friend in self.friend_dependencies:
-                    inputfiles.extend(self.input()[f"CROWNFriends_{friend}"][sample]._flat_target_list)
+                    inputfiles.extend(
+                        self.input()[f"CROWNFriends_{friend}"][sample]._flat_target_list
+                    )
                 for inputfile in inputfiles:
                     if inputfile.path.endswith("quantities_map.json"):
                         console.log(inputfile)
@@ -124,7 +126,10 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                             if scope not in quantities_map[era][sampletype].keys():
                                 quantities_map[era][sampletype][scope] = {}
                             for shift in update[era][sampletype][scope].keys():
-                                if shift not in quantities_map[era][sampletype][scope].keys():
+                                if (
+                                    shift
+                                    not in quantities_map[era][sampletype][scope].keys()
+                                ):
                                     quantities_map[era][sampletype][scope][shift] = []
                                 quantities_map[era][sampletype][scope][shift].extend(
                                     update[era][sampletype][scope][shift]
