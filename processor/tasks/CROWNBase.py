@@ -8,6 +8,7 @@ from framework import HTCondorWorkflow, Task
 from helpers.helpers import *
 from BuildCROWNLib import BuildCROWNLib
 
+
 class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     """
     Gather and compile CROWN with the given configuration
@@ -84,7 +85,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
 
 class CROWNBuildBase(Task):
-
     # configuration variables
     scopes = luigi.ListParameter()
     shifts = luigi.Parameter()
@@ -96,15 +96,7 @@ class CROWNBuildBase(Task):
     config = luigi.Parameter(significant=False)
     htcondor_request_cpus = luigi.IntParameter(default=1)
     production_tag = luigi.Parameter()
-
-    env_script = os.path.join(
-        os.path.dirname(__file__), "../../", "setup", "setup_crown_cmake.sh"
-    )
-
     threads = htcondor_request_cpus
-
-
-
 
     def setup_build_environment(self, build_dir, install_dir, crownlib):
         # create build directory
@@ -117,14 +109,13 @@ class CROWNBuildBase(Task):
         install_dir = os.path.abspath(install_dir)
 
         # localize crownlib to build directory
+        console.log(f"Localizing crownlib {crownlib.path} to {build_dir}")
         with crownlib.localize("r") as _file:
             _crownlib_file = _file.path
         # copy crownlib to build directory
-        shutil.copy(_crownlib_file, build_dir)
+        shutil.copy(_crownlib_file, os.path.join(build_dir, crownlib.basename))
 
-        # set environment variables
-        my_env = self.set_environment(self.env_script)
-        return my_env, build_dir, install_dir
+        return build_dir, install_dir
 
     # @timeout_decorator.timeout(10)
     def upload_tarball(self, output, path, timeout):

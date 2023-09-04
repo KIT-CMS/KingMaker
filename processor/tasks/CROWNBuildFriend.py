@@ -51,9 +51,7 @@ class CROWNBuildFriend(CROWNBuildBase):
             quantity_target = target
         if len(quantity_target) != 1:
             raise Exception(
-                "There should be only one quantities map file, but found {} \n Full map: {}".format(
-                    len(quantity_target), quantity_target
-                )
+                f"There should be only one quantities map file, but found {len(quantity_target)} \n Full map: \n {quantity_target}"
             )
         with quantity_target[0].localize("r") as _file:
             _quantities_map_file = _file.path
@@ -66,59 +64,42 @@ class CROWNBuildFriend(CROWNBuildBase):
         _friend_config = str(self.friend_config)
         _friend_name = str(self.friend_name)
         # also use the tag for the local tarball creation
-        _tag = "{}/CROWNFriends_{}_{}_{}_{}_{}".format(
-            self.production_tag,
-            _analysis,
-            _friend_config,
-            _friend_name,
-            _sampletype,
-            _era,
-        )
+        _tag = f"{self.production_tag}/CROWNFriends_{_analysis}_{_friend_config}_{_friend_name}_{_sampletype}_{_era}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
         _compile_script = os.path.join(
-            str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown_friends.sh"
+            str(os.path.abspath("processor")),
+            "tasks",
+            "scripts",
+            "compile_crown_friends.sh",
         )
 
         if os.path.exists(output.path):
-            console.log("tarball already existing in {}".format(output.path))
-
+            console.log(f"tarball already existing in {output.path}")
         elif os.path.exists(os.path.join(_install_dir, output.basename)):
-            console.log(
-                "tarball already existing in tarball directory {}".format(_install_dir)
-            )
-            console.log("Copying to remote: {}".format(output.path))
+            console.log(f"tarball already existing in tarball directory {_install_dir}")
+            console.log(f"Copying to remote: {output.path}")
             output.copy_from_local(os.path.join(_install_dir, output.basename))
         else:
             console.rule(f"Building new CROWN Friend tarball for {self.friend_name}")
-            my_env, _build_dir, _install_dir = self.setup_build_environment(
+            _build_dir, _install_dir = self.setup_build_environment(
                 _build_dir, _install_dir, crownlib
             )
-            # checking cmake path
-            code, _cmake_executable, error = interruptable_popen(
-                ["which", "cmake"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=my_env,
-            )
             # actual payload:
-            console.rule(
-                "Starting cmake step for CROWN Friends {}".format(self.friend_name)
-            )
-            console.log("Using cmake {}".format(_cmake_executable.replace("\n", "")))
-            console.log("Using CROWN {}".format(_crown_path))
-            console.log("Using build_directory {}".format(_build_dir))
-            console.log("Using install directory {}".format(_install_dir))
+            console.rule(f"Starting cmake step for CROWN Friends {self.friend_name}")
+            console.log(f"Using CROWN {_crown_path}")
+            console.log(f"Using build_directory {_build_dir}")
+            console.log(f"Using install directory {_install_dir}")
             console.log("Settings used: ")
-            console.log("Analysis: {}".format(_analysis))
-            console.log("Friend Config: {}".format(_friend_config))
-            console.log("Friend Name: {}".format(_friend_name))
-            console.log("Sampletype: {}".format(_sampletype))
-            console.log("Era: {}".format(_era))
-            console.log("Scopes: {}".format(_scopes))
-            console.log("Shifts: {}".format(_shifts))
-            console.log("Quantities map: {}".format(_quantities_map_file))
+            console.log(f"Analysis: {_analysis}")
+            console.log(f"Friend Config: {_friend_config}")
+            console.log(f"Friend Name: {_friend_name}")
+            console.log(f"Sampletype: {_sampletype}")
+            console.log(f"Era: {_era}")
+            console.log(f"Scopes: {_scopes}")
+            console.log(f"Shifts: {_shifts}")
+            console.log(f"Quantities map: {_quantities_map_file}")
             console.rule("")
 
             # run crown compilation script

@@ -6,16 +6,7 @@ from framework import Task
 from framework import console
 from BuildCROWNLib import BuildCROWNLib
 from CROWNBase import CROWNBuildBase
-
-
-
-def convert_to_comma_seperated(list):
-    if isinstance(list, str):
-        return list
-    elif len(list) == 1:
-        return list[0]
-    else:
-        return ",".join(list)
+from helpers.helpers import convert_to_comma_seperated
 
 
 class CROWNBuild(CROWNBuildBase):
@@ -28,9 +19,7 @@ class CROWNBuild(CROWNBuildBase):
         return result
 
     def output(self):
-        target = self.remote_target(
-            "crown_{}_{}.tar.gz".format(self.analysis, self.config)
-        )
+        target = self.remote_target(f"crown_{self.analysis}_{self.config}.tar.gz")
         return target
 
     def run(self):
@@ -46,7 +35,7 @@ class CROWNBuild(CROWNBuildBase):
         _config = str(self.config)
         _threads = str(self.threads)
         # also use the tag for the local tarball creation
-        _tag = "{}/CROWN_{}_{}".format(self.production_tag, _analysis, _config)
+        _tag = f"{self.production_tag}/CROWN_{_analysis}_{_config}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
@@ -54,39 +43,29 @@ class CROWNBuild(CROWNBuildBase):
             str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown.sh"
         )
         if os.path.exists(os.path.join(_install_dir, output.basename)):
-            console.log(
-                "tarball already existing in tarball directory {}".format(_install_dir)
-            )
+            console.log(f"tarball already existing in tarball directory {_install_dir}")
             self.upload_tarball(
                 output, os.path.join(os.path.abspath(_install_dir), output.basename), 10
             )
         else:
             console.rule("Building new CROWN tarball")
-            my_env, _build_dir, _install_dir = self.setup_build_environment(
+            _build_dir, _install_dir = self.setup_build_environment(
                 _build_dir, _install_dir, crownlib
             )
 
-            # checking cmake path
-            code, _cmake_executable, error = interruptable_popen(
-                ["which", "cmake"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=my_env,
-            )
             # actual payload:
             console.rule("Starting cmake step for CROWN")
-            console.log("Using cmake {}".format(_cmake_executable.replace("\n", "")))
-            console.log("Using CROWN {}".format(_crown_path))
-            console.log("Using build_directory {}".format(_build_dir))
-            console.log("Using install directory {}".format(_install_dir))
+            console.log(f"Using CROWN {_crown_path}")
+            console.log(f"Using build_directory {_build_dir}")
+            console.log(f"Using install directory {_install_dir}")
             console.log("Settings used: ")
-            console.log("Threads: {}".format(_threads))
-            console.log("Analysis: {}".format(_analysis))
-            console.log("Config: {}".format(_config))
-            console.log("Sampletypes: {}".format(_all_sampletypes))
-            console.log("Eras: {}".format(_all_eras))
-            console.log("Scopes: {}".format(_scopes))
-            console.log("Shifts: {}".format(_shifts))
+            console.log(f"Threads: {_threads}")
+            console.log(f"Analysis: {_analysis}")
+            console.log(f"Config: {_config}")
+            console.log(f"Sampletypes: {_all_sampletypes}")
+            console.log(f"Eras: {_all_eras}")
+            console.log(f"Scopes: {_scopes}")
+            console.log(f"Shifts: {_shifts}")
             console.rule("")
 
             # run crown compilation script
@@ -108,5 +87,3 @@ class CROWNBuild(CROWNBuildBase):
             self.run_command_readable(command)
             console.rule("Finished CROWNBuild")
             self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
-
-
