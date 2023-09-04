@@ -1,50 +1,33 @@
 import luigi
 import law
 import os
+import shutil
 import subprocess
 from law.util import interruptable_popen
 from framework import Task
 from framework import console
 from FriendQuantitiesMap import FriendQuantitiesMap
 from helpers.helpers import convert_to_comma_seperated
+from BuildCROWNLib import BuildCROWNLib
+from CROWNBase import CROWNBuildBase
 
-
-class CROWNBuildMultiFriend(Task):
+class CROWNBuildMultiFriend(CROWNBuildBase):
     """
     Gather and compile CROWN for friend tree production with the given configuration
     """
 
-    # configuration variables
-    friend_dependencies = luigi.ListParameter(significant=False)
-    scopes = luigi.ListParameter()
-    all_sampletypes = luigi.ListParameter(significant=False)
-    all_eras = luigi.ListParameter(significant=False)
-    shifts = luigi.Parameter()
-    build_dir = luigi.Parameter()
-    install_dir = luigi.Parameter()
-    era = luigi.Parameter()
-    sampletype = luigi.Parameter()
-    analysis = luigi.Parameter()
+    # additional configuration variables
     friend_config = luigi.Parameter()
     friend_name = luigi.Parameter()
+    era = luigi.Parameter()
+    sampletype = luigi.Parameter()
     nick = luigi.Parameter(significant=False)
-    config = luigi.Parameter(significant=False)
-    htcondor_request_cpus = luigi.IntParameter(default=1)
-    production_tag = luigi.Parameter()
-
-    env_script = os.path.join(
-        os.path.dirname(__file__), "../../", "setup", "setup_crown_cmake.sh"
-    )
+    friend_dependencies = luigi.ListParameter(significant=False)
 
     def requires(self):
-        result = {"quantities_map": FriendQuantitiesMap.req(self)}
-        # console.log(self)
-        # if self.friend_dependencies:
-        #     # in this case, we require multiple quantities maps
-        #     result["friend_dependencies"] = []
-        #     for friend_dependency in self.friend_dependencies:
-        #         result["friend_dependencies"].append(FriendQuantitiesMap.req(self))
-        return result
+        results = {"quantities_map": FriendQuantitiesMap.req(self)}
+        results["crownlib"] = BuildCROWNLib.req(self)
+        return results
 
     def output(self):
         target = self.remote_target(
@@ -59,6 +42,7 @@ class CROWNBuildMultiFriend(Task):
         return target
 
     def run(self):
+        crownlib = self.input()["crownlib"]
         # get output file path
         output = self.output()
         quantity_target = []
@@ -94,7 +78,7 @@ class CROWNBuildMultiFriend(Task):
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
         _compile_script = os.path.join(
-            str(os.path.abspath("processor")), "tasks", "compile_crown_friends.sh"
+            str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown_friends.sh"
         )
 
         if os.path.exists(output.path):
@@ -108,18 +92,9 @@ class CROWNBuildMultiFriend(Task):
             output.copy_from_local(os.path.join(_install_dir, output.basename))
         else:
             console.rule(f"Building new CROWN Friend tarball for {self.friend_name}")
-            # create build directory
-            if not os.path.exists(_build_dir):
-                os.makedirs(_build_dir)
-            _build_dir = os.path.abspath(_build_dir)
-            # same for the install directory
-            if not os.path.exists(_install_dir):
-                os.makedirs(_install_dir)
-            _install_dir = os.path.abspath(_install_dir)
-
-            # set environment variables
-            my_env = self.set_environment(self.env_script)
-
+            my_env, _build_dir, _install_dir = self.setup_build_environment(
+                _build_dir, _install_dir, crownlib
+            )
             # checking cmake path
             code, _cmake_executable, error = interruptable_popen(
                 ["which", "cmake"],
@@ -163,12 +138,5 @@ class CROWNBuildMultiFriend(Task):
                 _quantities_map_file,  # QUANTITIESMAP=$11
             ]
             self.run_command_readable(command)
-            console.log(
-                "Copying from local: {}".format(
-                    os.path.join(_install_dir, output.basename)
-                )
-            )
-            output.parent.touch()
-            console.log("Copying to remote: {}".format(output.path))
-            output.copy_from_local(os.path.join(_install_dir, output.basename))
+            self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
         console.rule("Finished CROWNBuildFriend")

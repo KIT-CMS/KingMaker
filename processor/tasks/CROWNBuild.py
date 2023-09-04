@@ -4,10 +4,9 @@ import subprocess
 from law.util import interruptable_popen
 from framework import Task
 from framework import console
+from BuildCROWNLib import BuildCROWNLib
+from CROWNBase import CROWNBuildBase
 
-# import time
-# import timeout_decorator
-# from multiprocessing import Process
 
 
 def convert_to_comma_seperated(list):
@@ -19,27 +18,14 @@ def convert_to_comma_seperated(list):
         return ",".join(list)
 
 
-class CROWNBuild(Task):
+class CROWNBuild(CROWNBuildBase):
     """
     Gather and compile CROWN with the given configuration
     """
 
-    # configuration variables
-    scopes = luigi.ListParameter()
-    shifts = luigi.Parameter()
-    build_dir = luigi.Parameter()
-    install_dir = luigi.Parameter()
-    all_eras = luigi.ListParameter()
-    all_sampletypes = luigi.ListParameter()
-    analysis = luigi.Parameter()
-    config = luigi.Parameter()
-    htcondor_request_cpus = luigi.IntParameter(default=1)
-    threads = htcondor_request_cpus
-    production_tag = luigi.Parameter()
-
-    env_script = os.path.join(
-        os.path.dirname(__file__), "../../", "setup", "setup_crown_cmake.sh"
-    )
+    def requires(self):
+        result = {"crownlib": BuildCROWNLib.req(self)}
+        return result
 
     def output(self):
         target = self.remote_target(
@@ -48,6 +34,7 @@ class CROWNBuild(Task):
         return target
 
     def run(self):
+        crownlib = self.input()["crownlib"]
         # get output file path
         output = self.output()
         # convert list to comma separated strings
@@ -64,7 +51,7 @@ class CROWNBuild(Task):
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
         _compile_script = os.path.join(
-            str(os.path.abspath("processor")), "tasks", "compile_crown.sh"
+            str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown.sh"
         )
         if os.path.exists(os.path.join(_install_dir, output.basename)):
             console.log(
@@ -75,17 +62,9 @@ class CROWNBuild(Task):
             )
         else:
             console.rule("Building new CROWN tarball")
-            # create build directory
-            if not os.path.exists(_build_dir):
-                os.makedirs(_build_dir)
-            _build_dir = os.path.abspath(_build_dir)
-            # same for the install directory
-            if not os.path.exists(_install_dir):
-                os.makedirs(_install_dir)
-            _install_dir = os.path.abspath(_install_dir)
-
-            # set environment variables
-            my_env = self.set_environment(self.env_script)
+            my_env, _build_dir, _install_dir = self.setup_build_environment(
+                _build_dir, _install_dir, crownlib
+            )
 
             # checking cmake path
             code, _cmake_executable, error = interruptable_popen(
@@ -130,13 +109,4 @@ class CROWNBuild(Task):
             console.rule("Finished CROWNBuild")
             self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
 
-    # @timeout_decorator.timeout(10)
-    def upload_tarball(self, output, path, timeout):
-        console.log("Copying from local: {}".format(path))
-        output.parent.touch()
-        timeout = 10
-        console.log(
-            f"Copying to remote with a {timeout} second timeout : {output.path}"
-        )
-        output.copy_from_local(path)
-        return True
+
