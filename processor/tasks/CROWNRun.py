@@ -10,84 +10,15 @@ from framework import console
 from law.config import Config
 from framework import Task, HTCondorWorkflow
 from helpers.helpers import create_abspath
+from CROWNBase import CROWNExecuteBase
 
 
-class CROWNRun(HTCondorWorkflow, law.LocalWorkflow):
+class CROWNRun(CROWNExecuteBase):
     """
     Gather and compile CROWN with the given configuration
     """
 
-    output_collection_cls = law.NestedSiblingFileCollection
-
-    scopes = luigi.ListParameter()
-    all_sampletypes = luigi.ListParameter(significant=False)
-    all_eras = luigi.ListParameter(significant=False)
-    nick = luigi.Parameter()
-    sampletype = luigi.Parameter()
-    era = luigi.Parameter()
-    shifts = luigi.Parameter()
-    analysis = luigi.Parameter()
-    config = luigi.Parameter()
-    production_tag = luigi.Parameter()
-    files_per_task = luigi.IntParameter()
     problematic_eras = luigi.ListParameter()
-
-    def htcondor_output_directory(self):
-        # Add identification-str to prevent interference between different tasks of the same class
-        # Expand path to account for use of env variables (like $USER)
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path(f"htcondor_files/{self.nick}"),
-            law.wlcg.WLCGFileSystem(
-                None, base="{}".format(os.path.expandvars(self.wlcg_path))
-            ),
-        )
-
-    def htcondor_create_job_file_factory(self):
-        task_name = self.__class__.__name__
-        task_name = "_".join([task_name, self.nick])
-        _cfg = Config.instance()
-        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
-        job_files = os.path.join(
-            job_file_dir,
-            self.production_tag,
-            task_name,
-            "files",
-        )
-        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
-            dir=job_files,
-            mkdtemp=False,
-        )
-        return factory
-
-    def htcondor_job_config(self, config, job_num, branches):
-        config = super().htcondor_job_config(config, job_num, branches)
-        config.custom_content.append(
-            (
-                "JobBatchName",
-                f"{self.nick}-{self.analysis}-{self.config}-{self.production_tag}",
-            )
-        )
-        for type in ["Log", "Output", "Error"]:
-            logfilepath = ""
-            for param in config.custom_content:
-                if param[0] == type:
-                    logfilepath = param[1]
-                    break
-            # split the filename, and add the sample nick as an additional folder
-            logfolder = logfilepath.split("/")[:-1]
-            logfile = logfilepath.split("/")[-1]
-            logfolder.append(self.nick)
-            # create the new path
-            os.makedirs("/".join(logfolder), exist_ok=True)
-            config.custom_content.append((type, "/".join(logfolder) + "/" + logfile))
-        return config
-
-    def modify_polling_status_line(self, status_line):
-        """
-        Hook to modify the status line that is printed during polling.
-        """
-        name = f"{self.nick} (Analysis: {self.analysis} Config: {self.config} Tag: {self.production_tag})"
-        return f"{status_line} - {law.util.colored(name, color='light_cyan')}"
 
     def workflow_requires(self):
         requirements = {}

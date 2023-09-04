@@ -11,86 +11,19 @@ from framework import console
 from framework import HTCondorWorkflow
 from law.config import Config
 from helpers.helpers import create_abspath
+from CROWNBase import CROWNExecuteBase
 
 law.contrib.load("wlcg")
 
 
-class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
+class CROWNMultiFriends(CROWNExecuteBase):
     friend_dependencies = luigi.ListParameter(significant=False)
-    output_collection_cls = law.NestedSiblingFileCollection
-
-    all_sampletypes = luigi.ListParameter(significant=False)
-    all_eras = luigi.ListParameter(significant=False)
-    scopes = luigi.ListParameter()
-    shifts = luigi.Parameter()
-    analysis = luigi.Parameter()
     friend_config = luigi.Parameter()
     config = luigi.Parameter(significant=False)
     friend_name = luigi.Parameter()
     nick = luigi.Parameter()
-    sampletype = luigi.Parameter()
-    era = luigi.Parameter()
+    analysis = luigi.Parameter()
     production_tag = luigi.Parameter()
-    files_per_task = luigi.IntParameter()
-
-    def htcondor_output_directory(self):
-        # Add identification-str to prevent interference between different tasks of the same class
-        # Expand path to account for use of env variables (like $USER)
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path(f"htcondor_files/{self.nick}_{self.friend_name}"),
-            law.wlcg.WLCGFileSystem(
-                None, base="{}".format(os.path.expandvars(self.wlcg_path))
-            ),
-        )
-
-    def htcondor_create_job_file_factory(self):
-        task_name = self.__class__.__name__
-        task_name = "_".join([task_name, self.nick, self.friend_name])
-        _cfg = Config.instance()
-        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
-        job_files = os.path.join(
-            job_file_dir,
-            self.production_tag,
-            task_name,
-            "files",
-        )
-        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
-            dir=job_files,
-            mkdtemp=False,
-        )
-        return factory
-
-    def htcondor_job_config(self, config, job_num, branches):
-        config = super().htcondor_job_config(config, job_num, branches)
-        config.custom_content.append(
-            (
-                "JobBatchName",
-                f"{self.nick}-{self.analysis}-{self.friend_name}-{self.production_tag}",
-            )
-        )
-        # update the log file paths
-        for type in ["Log", "Output", "Error"]:
-            logfilepath = ""
-            for param in config.custom_content:
-                if param[0] == type:
-                    logfilepath = param[1]
-                    break
-            # split the filename, and add the sample nick as an additional folder
-            logfolder = logfilepath.split("/")[:-1]
-            logfile = logfilepath.split("/")[-1]
-            logfile.replace("_", f"_{self.friend_name}_")
-            logfolder.append(self.nick)
-            # create the new path folder if it does not exist
-            os.makedirs("/".join(logfolder), exist_ok=True)
-            config.custom_content.append((type, "/".join(logfolder) + "/" + logfile))
-        return config
-
-    def modify_polling_status_line(self, status_line):
-        """
-        Hook to modify the status line that is printed during polling.
-        """
-        name = f"{self.nick} (Analysis: {self.analysis} FriendName: {self.friend_name} Tag: {self.production_tag})"
-        return f"{status_line} - {law.util.colored(name, color='light_blue')}"
 
     def workflow_requires(self):
         requirements = {}
@@ -138,7 +71,7 @@ class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
         ]
         friend_inputs = [
             self.input()[f"CROWNFriends_{self.nick}_{friend}"]["collection"]
-            for friend in self.friend_dependencies
+            for friend in self.friend_dependencies  # type: ignore
         ]
         friend_branches = [
             [
@@ -159,7 +92,8 @@ class CROWNMultiFriends(HTCondorWorkflow, law.LocalWorkflow):
                     "nick": self.nick,
                     "era": self.era,
                     "sampletype": self.sampletype,
-                    "inputfile": os.path.expandvars(self.wlcg_path) + inputfile.path,
+                    "inputfile": os.path.expandvars(str(self.wlcg_path))
+                    + inputfile.path,
                     "filecounter": int(counter / len(self.scopes)),
                 }
                 filename = inputfile.path.split("/")[-1]
