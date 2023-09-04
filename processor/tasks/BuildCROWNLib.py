@@ -1,7 +1,5 @@
 import luigi
 import os
-import subprocess
-from law.util import interruptable_popen
 from framework import Task
 from framework import console
 
@@ -15,9 +13,6 @@ class BuildCROWNLib(Task):
     build_dir = luigi.Parameter()
     install_dir = luigi.Parameter()
     production_tag = luigi.Parameter()
-    # env_script = os.path.join(
-    #     os.path.dirname(__file__), "../../", "setup", "setup_crown_cmake.sh"
-    # )
 
     def output(self):
         target = self.remote_target("libCROWNLIB.so")

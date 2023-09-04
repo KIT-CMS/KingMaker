@@ -6,7 +6,6 @@ from framework import console
 from law.config import Config
 from framework import HTCondorWorkflow, Task
 from helpers.helpers import *
-from BuildCROWNLib import BuildCROWNLib
 
 
 class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
