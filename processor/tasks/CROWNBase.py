@@ -10,6 +10,8 @@ from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import *
 import ast
+# import timeout_decorator
+import time
 
 
 class ProduceBase(WrapperTask):
@@ -27,6 +29,14 @@ class ProduceBase(WrapperTask):
     scopes = luigi.Parameter()
 
     def parse_samplelist(self, sample_list):
+        """
+        The function `parse_samplelist` takes a sample list as input and returns a list of samples, handling
+        different input formats.
+        
+        :param sample_list: The `sample_list` parameter is the input that the function takes. It can be
+        either a string, a list of strings, or a file path pointing to a text file
+        :return: a list of samples.
+        """
         if str(sample_list).endswith(".txt"):
             with open(str(sample_list)) as file:
                 samples = [nick.replace("\n", "") for nick in file.readlines()]
@@ -37,6 +47,10 @@ class ProduceBase(WrapperTask):
         return samples
 
     def sanitize_scopes(self):
+        """
+        The function sanitizes the scopes information by converting it to a list if it is a string or
+        leaving it unchanged if it is already a list.
+        """
         # sanitize the scopes information
         try:
             self.scopes = ast.literal_eval(str(self.scopes))
@@ -48,6 +62,10 @@ class ProduceBase(WrapperTask):
             self.scopes = self.scopes
 
     def sanitize_shifts(self):
+        """
+        The function sanitizes the shifts information by converting it to a list if possible and handling
+        any exceptions.
+        """
         # sanitize the shifts information
         try:
             self.shifts = ast.literal_eval(str(self.shifts))
@@ -59,6 +77,10 @@ class ProduceBase(WrapperTask):
             self.shifts = self.shifts.join(",")
 
     def sanitize_friend_dependencies(self):
+        """
+        The function `sanitize_friend_dependencies` checks the type of `self.friend_dependencies` and
+        converts it to a list if it is a string.
+        """
         # in this case, the required friends require not only the ntuple, but also other friends,
         # this means we have to add additional requirements to the task
         if isinstance(self.friend_dependencies, str):
@@ -67,6 +89,18 @@ class ProduceBase(WrapperTask):
             self.friend_dependencies = self.friend_dependencies
 
     def set_sample_data(self, samples):
+        """
+        The function `set_sample_data` sets up sample data by extracting information from a dataset database
+        and organizing it into a dictionary and printing a rich table.
+        
+        :param samples: The `samples` parameter is a list of sample nicknames. Each nickname represents a
+        sample that will be processed in the code
+        :return: a dictionary named "data" which contains the following keys:
+        - "sampletypes": a set of sample types
+        - "eras": a set of eras
+        - "details": a dictionary containing details about each sample, where the keys are the sample
+        nicknames and the values are dictionaries containing the era and sample type of each sample.
+        """
         data = {}
         data["sampletypes"] = set()
         data["eras"] = set()
@@ -119,6 +153,11 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     files_per_task = luigi.IntParameter()
 
     def htcondor_output_directory(self):
+        """
+        The function `htcondor_output_directory` returns a WLCGDirectoryTarget object that represents a
+        directory in the WLCG file system.
+        :return: The code is returning a `law.wlcg.WLCGDirectoryTarget` object.
+        """
         # Add identification-str to prevent interference between different tasks of the same class
         # Expand path to account for use of env variables (like $USER)
         return law.wlcg.WLCGDirectoryTarget(
@@ -129,6 +168,11 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         )
 
     def htcondor_create_job_file_factory(self):
+        """
+        The function `htcondor_create_job_file_factory` creates a job file factory for HTCondor workflows.
+        :return: The method is returning the factory object that is created by calling the
+        `htcondor_create_job_file_factory` method of the superclass `HTCondorWorkflow`.
+        """
         class_name = self.__class__.__name__
         if "Friend" in class_name:
             task_name = [class_name + self.nick, self.friend_name]
@@ -159,7 +203,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
                 f"{self.nick}-{self.analysis}-{self.config}-{self.production_tag}"
             )
         config = super().htcondor_job_config(config, job_num, branches)
-        config.custom_content.append(("JobBatchName", self.condor_batch_name_pattern))
+        config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
         for type in ["Log", "Output", "Error"]:
             logfilepath = ""
             for param in config.custom_content:
@@ -177,7 +221,13 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     def modify_polling_status_line(self, status_line):
         """
-        Hook to modify the status line that is printed during polling.
+        The function `modify_polling_status_line` modifies the status line that is printed during polling by
+        appending additional information based on the class name.
+        
+        :param status_line: The `status_line` parameter is a string that represents the current status line
+        during polling
+        :return: The modified status line with additional information about the class name, analysis,
+        configuration, and production tag.
         """
         class_name = self.__class__.__name__
         if "Friend" in class_name:
@@ -202,6 +252,17 @@ class CROWNBuildBase(Task):
     threads = htcondor_request_cpus
 
     def setup_build_environment(self, build_dir, install_dir, crownlib):
+        """
+        The function sets up the build environment by creating build and install directories, localizing a
+        crownlib file, and copying it to the build directory.
+        
+        :param build_dir: The `build_dir` parameter is the directory where the build files will be
+        generated. It is the location where the code will be compiled and built into an executable or
+        library
+        :param install_dir: The `install_dir` parameter is the directory where the built files will be
+        installed
+        :param crownlib: The `crownlib` parameter is the crownlib file that will be copied to the build directory
+        """
         # create build directory
         if not os.path.exists(build_dir):
             os.makedirs(build_dir)
@@ -221,12 +282,33 @@ class CROWNBuildBase(Task):
         return build_dir, install_dir
 
     # @timeout_decorator.timeout(10)
-    def upload_tarball(self, output, path, timeout):
+    def copy_from_local_with_timeout(self, output, path):
+        output.copy_from_local(path)
+
+    def upload_tarball(self, output, path, retries=3):
+        """
+        The `upload_tarball` function attempts to copy a file from a local path to a remote location with a
+        specified number of retries.
+        
+        :param output: The `output` parameter is the destination path where the tarball will be copied to on
+        the remote server
+        :param path: The `path` parameter in the `upload_tarball` method represents the local path of the
+        tarball file that needs to be uploaded
+        :param retries: The `retries` parameter is an optional parameter that specifies the number of times
+        the upload should be retried in case of failure. By default, it is set to 3, meaning that the upload
+        will be attempted up to 3 times before giving up, defaults to 3 (optional)
+        :return: The function `upload_tarball` returns a boolean value. It returns `True` if the tarball is
+        successfully uploaded, and `False` if the upload fails after the specified number of retries.
+        """
         console.log("Copying from local: {}".format(path))
         output.parent.touch()
-        timeout = 10
-        console.log(
-            f"Copying to remote with a {timeout} second timeout : {output.path}"
-        )
-        output.copy_from_local(path)
-        return True
+        for i in range(retries):
+            try:
+                console.log(f"Copying to remote (attempt {i+1}): {output.path}")
+                self.copy_from_local_with_timeout(output, path)
+                return True
+            except Exception as e:
+                console.log(f"Upload failed (attempt {i+1}): {e}")
+                time.sleep(1)
+        console.log(f"Upload failed after {retries} attempts.")
+        return False

@@ -43,7 +43,7 @@ class CROWNBuildFriend(CROWNBuildBase):
         quantity_target = []
         # get quantities map
         for target in self.input()["quantities_map"]["collection"]._iter_flat():
-            quantity_target = target
+            quantity_target = target[1]
         if len(quantity_target) != 1:
             raise Exception(
                 f"There should be only one quantities map file, but found {len(quantity_target)} \n Full map: \n {quantity_target}"
