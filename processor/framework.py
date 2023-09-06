@@ -287,7 +287,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     )
 
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
-    htcondor_user_proxy = law.wlcg.get_voms_proxy_file()
+    htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
 
     def htcondor_create_job_manager(self, **kwargs):
         kwargs = merge_dicts(self.htcondor_job_manager_defaults, kwargs)

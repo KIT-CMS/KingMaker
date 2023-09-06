@@ -10,6 +10,7 @@ from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import *
 import ast
+
 # import timeout_decorator
 import time
 
@@ -32,7 +33,7 @@ class ProduceBase(WrapperTask):
         """
         The function `parse_samplelist` takes a sample list as input and returns a list of samples, handling
         different input formats.
-        
+
         :param sample_list: The `sample_list` parameter is the input that the function takes. It can be
         either a string, a list of strings, or a file path pointing to a text file
         :return: a list of samples.
@@ -92,7 +93,7 @@ class ProduceBase(WrapperTask):
         """
         The function `set_sample_data` sets up sample data by extracting information from a dataset database
         and organizing it into a dictionary and printing a rich table.
-        
+
         :param samples: The `samples` parameter is a list of sample nicknames. Each nickname represents a
         sample that will be processed in the code
         :return: a dictionary named "data" which contains the following keys:
@@ -223,7 +224,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         """
         The function `modify_polling_status_line` modifies the status line that is printed during polling by
         appending additional information based on the class name.
-        
+
         :param status_line: The `status_line` parameter is a string that represents the current status line
         during polling
         :return: The modified status line with additional information about the class name, analysis,
@@ -255,7 +256,7 @@ class CROWNBuildBase(Task):
         """
         The function sets up the build environment by creating build and install directories, localizing a
         crownlib file, and copying it to the build directory.
-        
+
         :param build_dir: The `build_dir` parameter is the directory where the build files will be
         generated. It is the location where the code will be compiled and built into an executable or
         library
@@ -289,7 +290,7 @@ class CROWNBuildBase(Task):
         """
         The `upload_tarball` function attempts to copy a file from a local path to a remote location with a
         specified number of retries.
-        
+
         :param output: The `output` parameter is the destination path where the tarball will be copied to on
         the remote server
         :param path: The `path` parameter in the `upload_tarball` method represents the local path of the
