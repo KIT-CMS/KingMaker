@@ -121,7 +121,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                     )
                 for inputfile in inputfiles:
                     if inputfile.path.endswith("quantities_map.json"):
-                        console.log(inputfile)
                         with inputfile.localize("r") as _file:
                             # open file and update quantities map
                             update = json.load(open(_file.path, "r"))
