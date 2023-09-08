@@ -1,20 +1,20 @@
 import os
 
 
-def convert_to_comma_seperated(list):
+def convert_to_comma_seperated(listobject):
     """
     The function converts a list of elements into a comma-separated string.
 
-    :param list: The parameter "list" is a variable that represents a list of elements
+    :param listobject: The parameter "listobject" is a variable that represents a list of elements
     :return: a comma-separated string if the input is a list, or the input itself if it is a string or a
     list with only one element.
     """
-    if isinstance(list, str):
-        return list
-    elif len(list) == 1:
-        return list[0]
+    if isinstance(listobject, str):
+        return listobject
+    elif len(listobject) == 1:
+        return listobject[0]
     else:
-        return ",".join(list)
+        return ",".join(listobject)
 
 
 def ensure_dir(file_path):

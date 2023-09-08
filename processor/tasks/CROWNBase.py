@@ -53,14 +53,9 @@ class ProduceBase(WrapperTask):
         leaving it unchanged if it is already a list.
         """
         # sanitize the scopes information
-        try:
-            self.scopes = ast.literal_eval(str(self.scopes))
-        except:
-            self.scopes = self.scopes
-        if isinstance(self.scopes, str):
+        if not isinstance(self.scopes, list):
             self.scopes = self.scopes.split(",")
-        elif isinstance(self.scopes, list):
-            self.scopes = self.scopes
+        self.scopes = [scope.strip() for scope in self.scopes]
 
     def sanitize_shifts(self):
         """
@@ -68,14 +63,14 @@ class ProduceBase(WrapperTask):
         any exceptions.
         """
         # sanitize the shifts information
-        try:
-            self.shifts = ast.literal_eval(str(self.shifts))
-        except:
-            self.shifts = self.shifts
+        if not isinstance(self.shifts, list):
+            self.shifts = self.shifts.split(",")
+        self.shifts = [shift.strip() for shift in self.shifts]
         if self.shifts is None:
             self.shifts = "None"
-        if isinstance(self.shifts, list):
-            self.shifts = self.shifts.join(",")
+        else:
+            # now convert the list to a comma separated string
+            self.shifts = convert_to_comma_seperated(self.shifts)
 
     def sanitize_friend_dependencies(self):
         """
