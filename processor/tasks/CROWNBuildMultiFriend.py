@@ -19,6 +19,7 @@ class CROWNBuildMultiFriend(CROWNBuildBase):
     sampletype = luigi.Parameter()
     nick = luigi.Parameter(significant=False)
     friend_dependencies = luigi.ListParameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def requires(self):
         results = {"quantities_map": FriendQuantitiesMap.req(self)}

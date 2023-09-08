@@ -96,7 +96,7 @@ class ProduceBase(WrapperTask):
         each friend in `friend_dependencies` is present in `friend_mapping` and raises an exception if not.
         """
         data = {}
-        if self.friend_mapping is {}:
+        if len(self.friend_mapping.keys()) == 0:
             for friend in self.friend_dependencies:
                 data[friend] = friend
         else:

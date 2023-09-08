@@ -18,6 +18,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     config = luigi.Parameter(significant=False)
     nick = luigi.Parameter(significant=False)
     friend_dependencies = luigi.ListParameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def workflow_requires(self):
         requirements = {}
@@ -33,7 +34,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             scopes=self.scopes,
         )
         for friend in self.friend_dependencies:
-            requirements[f"CROWNFriends_{friend}"] = CROWNFriends(
+            requirements[
+                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
+            ] = CROWNFriends(
                 nick=self.nick,
                 analysis=self.analysis,
                 config=self.config,
@@ -43,7 +46,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 era=self.era,
                 sampletype=self.sampletype,
                 scopes=self.scopes,
-                friend_name=friend,
+                friend_name=self.friend_mapping[friend],
                 friend_config=friend,
             )
         return requirements
