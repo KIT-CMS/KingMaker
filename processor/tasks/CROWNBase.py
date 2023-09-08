@@ -89,6 +89,26 @@ class ProduceBase(WrapperTask):
         elif isinstance(self.friend_dependencies, list):
             self.friend_dependencies = self.friend_dependencies
 
+    def validate_friend_mapping(self):
+        """
+        The function `validate_friend_mapping` checks if the `friend_mapping` dictionary is empty, and if
+        so, creates a new dictionary with `friend_dependencies` as keys and values, otherwise it checks if
+        each friend in `friend_dependencies` is present in `friend_mapping` and raises an exception if not.
+        """
+        data = {}
+        if self.friend_mapping is {}:
+            for friend in self.friend_dependencies:
+                data[friend] = friend
+        else:
+            for friend in self.friend_dependencies:
+                if friend in self.friend_mapping:
+                    data[friend] = self.friend_mapping[friend]
+                else:
+                    raise Exception(
+                        f"Friend {friend} not found in friend mapping {self.friend_mapping}"
+                    )
+        self.friend_mapping = data
+
     def set_sample_data(self, samples):
         """
         The function `set_sample_data` sets up sample data by extracting information from a dataset database

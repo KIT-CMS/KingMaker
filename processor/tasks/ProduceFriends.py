@@ -14,12 +14,14 @@ class ProduceFriends(ProduceBase):
     friend_config = luigi.Parameter()
     friend_name = luigi.Parameter()
     friend_dependencies = luigi.Parameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def requires(self):
         self.sanitize_scopes()
         self.sanitize_shifts()
         if self.friend_dependencies:
             self.sanitize_friend_dependencies()
+            self.validate_friend_mapping()
 
         console.rule("")
         console.log(f"Production tag: {self.production_tag}")
@@ -30,6 +32,7 @@ class ProduceFriends(ProduceBase):
         console.log(f"Scopes: {self.scopes}")
         if self.friend_dependencies:
             console.log(f"Friend Dependencies: {self.friend_dependencies}")
+            console.log(f"Friend Mapping: {self.friend_mapping}")
         console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
@@ -55,6 +58,7 @@ class ProduceFriends(ProduceBase):
                     friend_config=self.friend_config,
                     friend_name=self.friend_name,
                     friend_dependencies=self.friend_dependencies,
+                    friend_mapping=self.friend_mapping,
                 )
             else:
                 requirements[

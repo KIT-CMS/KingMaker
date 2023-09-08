@@ -18,6 +18,7 @@ law.contrib.load("wlcg")
 
 class CROWNMultiFriends(CROWNExecuteBase):
     friend_dependencies = luigi.ListParameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
     friend_config = luigi.Parameter()
     config = luigi.Parameter(significant=False)
     friend_name = luigi.Parameter()
@@ -52,7 +53,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
                 era=self.era,
                 sampletype=self.sampletype,
                 scopes=self.scopes,
-                friend_name=friend,
+                friend_name=self.friend_mapping[friend],
                 friend_config=friend,
             )
         return requirements
