@@ -418,9 +418,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 console.rule("Successful tar of framework tarball !")
             # Copy new tarball to remote
             tarball.parent.touch()
-            tarball.copy_from_local(
-                src=tarball_local.path
-            )
+            tarball.copy_from_local(src=tarball_local.path)
             console.rule("Framework tarball uploaded!")
             os.chdir(prevdir)
         # Check if env of this task was found in cvmfs
