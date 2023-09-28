@@ -11,7 +11,7 @@ action() {
     fi
 
     # Check if current machine is an etp portal machine.
-    PORTAL_LIST=("bms1.etp.kit.edu" "bms2.etp.kit.edu" "bms3.etp.kit.edu" "portal1.etp.kit.edu" "bms1-centos7" "bms2-centos7" "bms3-centos7" "portal1-centos7")
+    PORTAL_LIST=("bms1.etp.kit.edu" "bms2.etp.kit.edu" "bms3.etp.kit.edu" "portal1.etp.kit.edu" "bms1-centos7.etp.kit.edu" "bms2-centos7.etp.kit.edu" "bms3-centos7.etp.kit.edu" "portal1-centos7.etp.kit.edu")
     CURRENT_HOST=$(hostname --long)
     if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then  
         echo "Current host (${CURRENT_HOST}) not in list of allowed machines:"
@@ -66,16 +66,29 @@ action() {
         fi
     fi
 
-    #Determine which environment to use based on the luigi.cfg file
-    ENV_NAMES=($(grep '^ENV_NAME' lawluigi_configs/${ANA_NAME}_luigi.cfg | sed 's@ENV_NAME\s*=\s*\([^\s]*\)\s*@\1@g'))
-    export ENV_NAMES_LIST=""
-    for ENV_NAME in ${ENV_NAMES[@]}; do
-        # Remember first env in lugi config file (usually in [DEFAULT])
-        if [[ -z ${STARTING_ENV} ]]; then
-            export STARTING_ENV=${ENV_NAME}
-        fi
+    # Parse the necessary environments from the luigi config files.
+    PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
+    PARSED_ENVS_STATUS=$?
+    if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
+        IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
+        for i in "${ADDR[@]}"; do
+            echo $i
+        done    
+        echo "Parsing of required envs failed with the above error."
+        return 1
+    fi
 
-        #Check if necessary environment is present in cvmfs
+    # First listed is env of DEFAULT and will be used as the starting env
+    export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
+    # All others are set up but not sourced for now
+    ENV_LIST=$(echo ${PARSED_ENVS} | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')
+    echo "The following envs will be set up: ${ENV_LIST}"
+    echo "The ${STARTING_ENV} will be sourced as the starting env."
+    export ENV_NAMES_LIST=""
+    for ENV_NAME in ${ENV_LIST}; do
+        # Check if necessary environment is present in cvmfs
+        # Try to install and export env via miniconda if not
+        # NOTE: HTCondor jobs that rely on exported miniconda envs might need additional scratch space
         if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/envs/${ENV_NAME}" ]]; then
             echo "${ENV_NAME} environment found in cvmfs."
             CVMFS_ENV_PRESENT="True"
@@ -84,12 +97,13 @@ action() {
             # Install conda if necessary
             if [ ! -f "miniconda/bin/activate" ]; then
                 # Miniconda version used for all environments
-                MINICONDA_VERSION="Miniconda3-py39_4.10.3-Linux-x86_64"
+                # MINICONDA_VERSION="Miniconda3-py39_4.10.3-Linux-x86_64"
+                MINICONDA_VERSION="Miniconda3-latest-Linux-x86_64"
                 echo "conda could not be found, installing conda ..."
                 echo "More information can be found in"
                 echo "https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html"
                 curl -O https://repo.anaconda.com/miniconda/${MINICONDA_VERSION}.sh
-                bash ${MINICONDA_VERSION}.sh -b -p miniconda
+                bash ${MINICONDA_VERSION}.sh -b -s -p miniconda
                 rm -f ${MINICONDA_VERSION}.sh
             fi
             # source base env of conda
@@ -119,6 +133,10 @@ action() {
                 mkdir -p "tarballs/conda_envs"
                 conda activate ${ENV_NAME}
                 conda pack -n ${ENV_NAME} --output tarballs/conda_envs/${ENV_NAME}.tar.gz
+                if [[ "$?" -eq "1" ]]; then
+                    echo "Conda pack failed. Does the env contain conda-pack?"
+                    return 1
+                fi
                 conda deactivate
             fi
             CVMFS_ENV_PRESENT="False"
@@ -209,6 +227,10 @@ action() {
     _addpy "${BASE_DIR}/law"
     _addbin "${BASE_DIR}/law/bin"
     source "$( law completion )"
+    if [[ "$?" -eq "1" ]]; then
+        echo "Law completion failed."
+        return 1
+    fi
 
     # tasks
     _addpy "${BASE_DIR}/processor"
@@ -217,10 +239,15 @@ action() {
     # Create law index for analysis if not previously done
     if [[ ! -f "${LAW_HOME}/index" ]]; then
         law index --verbose
+        if [[ "$?" -eq "1" ]]; then
+            echo "Law index failed."
+            return 1
+        fi
     fi
 
-    export LAW_IS_SET_UP="True"
     # set an alias for the sample manager
     alias sample_manager="python3 sample_database/manager.py"
+
+    export LAW_IS_SET_UP="True"
 }
 action "$@"

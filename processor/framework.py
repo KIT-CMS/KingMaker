@@ -395,7 +395,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "--exclude",
                 "*.git",
                 "-czf",
-                "{}/{}/processor.tar.gz".format(tarball_dir, task_name),
+                tarball_local.path,
                 "processor",
                 "lawluigi_configs/{}_luigi.cfg".format(analysis_name),
                 "lawluigi_configs/{}_law.cfg".format(analysis_name),
@@ -412,14 +412,14 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 console.log("Output: {}".format(out))
                 console.log("tar returned non-zero exit status {}".format(code))
                 console.rule()
-                os.remove("/{}/processor.tar.gz".format(tarball_dir, task_name))
+                os.remove(tarball_local.path)
                 raise Exception("tar failed")
             else:
                 console.rule("Successful tar of framework tarball !")
             # Copy new tarball to remote
             tarball.parent.touch()
             tarball.copy_from_local(
-                src="{}/{}/processor.tar.gz".format(tarball_dir, task_name)
+                src=tarball_local.path
             )
             console.rule("Framework tarball uploaded!")
             os.chdir(prevdir)
@@ -436,7 +436,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             if not tarball_env.exists():
                 tarball_env.parent.touch()
                 tarball_env.copy_from_local(
-                    src="tarballs/conda_envs/{}.tar.gz".format(self.ENV_NAME)
+                    src=os.path.abspath(
+                        "tarballs/conda_envs/{}.tar.gz".format(self.ENV_NAME)
+                    )
                 )
         config.render_variables["USER"] = self.local_user
         config.render_variables["ANA_NAME"] = os.getenv("ANA_NAME")
