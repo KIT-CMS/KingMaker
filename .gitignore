@@ -9,6 +9,7 @@ logs/
 *.tar.gz
 *.txt
 miniconda/
+quantities_map/
 output/
 CROWN/
 .nfs*

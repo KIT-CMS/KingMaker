@@ -288,7 +288,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     )
 
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
-    htcondor_user_proxy = law.wlcg.get_voms_proxy_file()
+    htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
 
     def htcondor_output_directory(self):
         # Add identification-str to prevent interference between different tasks of the same class

@@ -82,6 +82,10 @@ action(){
     export LOCAL_PWD="{{LOCAL_PWD}}"
 
     export ANALYSIS_DATA_PATH=$(pwd)
+
+    # start a luigid scheduler using $LUIGIPORT
+    echo "Starting luigid scheduler on port $LUIGIPORT"
+    luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
 }
 
 action

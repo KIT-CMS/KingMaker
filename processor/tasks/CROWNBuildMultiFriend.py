@@ -1,13 +1,13 @@
 import luigi
 import os
 from framework import console
-from QuantitiesMap import QuantitiesMap
+from FriendQuantitiesMap import FriendQuantitiesMap
 from helpers.helpers import convert_to_comma_seperated
-from CROWNBase import CROWNBuildBase
 from BuildCROWNLib import BuildCROWNLib
+from CROWNBase import CROWNBuildBase
 
 
-class CROWNBuildFriend(CROWNBuildBase):
+class CROWNBuildMultiFriend(CROWNBuildBase):
     """
     Gather and compile CROWN for friend tree production with the given configuration
     """
@@ -18,21 +18,17 @@ class CROWNBuildFriend(CROWNBuildBase):
     era = luigi.Parameter()
     sampletype = luigi.Parameter()
     nick = luigi.Parameter(significant=False)
+    friend_dependencies = luigi.ListParameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def requires(self):
-        results = {"quantities_map": QuantitiesMap.req(self)}
+        results = {"quantities_map": FriendQuantitiesMap.req(self)}
         results["crownlib"] = BuildCROWNLib.req(self)
         return results
 
     def output(self):
         target = self.remote_target(
-            "crown_friends_{}_{}_{}_{}_{}.tar.gz".format(
-                self.analysis,
-                self.friend_config,
-                self.friend_name,
-                self.sampletype,
-                self.era,
-            )
+            f"crown_friends_{self.analysis}_{self.friend_config}_{self.friend_name}_{self.sampletype}_{self.era}.tar.gz"
         )
         return target
 
@@ -72,6 +68,7 @@ class CROWNBuildFriend(CROWNBuildBase):
 
         if os.path.exists(output.path):
             console.log(f"tarball already existing in {output.path}")
+
         elif os.path.exists(os.path.join(_install_dir, output.basename)):
             console.log(f"tarball already existing in tarball directory {_install_dir}")
             console.log(f"Copying to remote: {output.path}")
@@ -89,7 +86,7 @@ class CROWNBuildFriend(CROWNBuildBase):
             console.log("Settings used: ")
             console.log(f"Analysis: {_analysis}")
             console.log(f"Friend Config: {_friend_config}")
-            console.log(f"Friend Name: {_friend_name}")
+            console.log(f"Friend Names: {_friend_name}")
             console.log(f"Sampletype: {_sampletype}")
             console.log(f"Era: {_era}")
             console.log(f"Scopes: {_scopes}")

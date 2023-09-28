@@ -1,8 +1,9 @@
 import law
 import luigi
 import os
-from CROWNBuildFriend import CROWNBuildFriend
+from CROWNBuildMultiFriend import CROWNBuildMultiFriend
 from CROWNRun import CROWNRun
+from CROWNFriends import CROWNFriends
 import tarfile
 import subprocess
 import time
@@ -15,11 +16,9 @@ from CROWNBase import CROWNExecuteBase
 law.contrib.load("wlcg")
 
 
-class CROWNFriends(CROWNExecuteBase):
-    """
-    Gather and compile CROWN with the given configuration
-    """
-
+class CROWNMultiFriends(CROWNExecuteBase):
+    friend_dependencies = luigi.ListParameter(significant=False)
+    friend_mapping = luigi.DictParameter(significant=False, default={})
     friend_config = luigi.Parameter()
     config = luigi.Parameter(significant=False)
     friend_name = luigi.Parameter()
@@ -41,23 +40,50 @@ class CROWNFriends(CROWNExecuteBase):
             sampletype=self.sampletype,
             scopes=self.scopes,
         )
-        requirements["friend_tarball"] = CROWNBuildFriend.req(self)
+        requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
+        for friend in self.friend_dependencies:
+            requirements[
+                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
+            ] = CROWNFriends(
+                nick=self.nick,
+                analysis=self.analysis,
+                config=self.config,
+                production_tag=self.production_tag,
+                all_eras=self.all_eras,
+                shifts=self.shifts,
+                all_sampletypes=self.all_sampletypes,
+                era=self.era,
+                sampletype=self.sampletype,
+                scopes=self.scopes,
+                friend_name=self.friend_mapping[friend],
+                friend_config=friend,
+            )
         return requirements
 
     def requires(self):
-        return {"friend_tarball": CROWNBuildFriend.req(self)}
+        return {"friend_tarball": CROWNBuildMultiFriend.req(self)}
 
     def create_branch_map(self):
-        """
-        The function `create_branch_map` creates a dictionary `branch_map` that maps file counters to
-        various attributes based on the input files.
-        :return: a dictionary called `branch_map`.
-        """
         branch_map = {}
         counter = 0
         inputs = self.input()["ntuples"]["collection"]
-        branches = inputs._flat_target_list
-        # get all files from the dataset, including missing ones
+        branches = [
+            inputfile
+            for inputfile in inputs._flat_target_list
+            if inputfile.path.endswith(".root")
+        ]
+        friend_inputs = [
+            self.input()[f"CROWNFriends_{self.nick}_{friend}"]["collection"]
+            for friend in self.friend_dependencies  # type: ignore
+        ]
+        friend_branches = [
+            [
+                friend_inputfile
+                for friend_inputfile in friend_input._flat_target_list
+                if friend_inputfile.path.endswith(".root")
+            ]
+            for friend_input in friend_inputs
+        ]
         for inputfile in branches:
             if not inputfile.path.endswith(".root"):
                 continue
@@ -69,9 +95,27 @@ class CROWNFriends(CROWNExecuteBase):
                     "nick": self.nick,
                     "era": self.era,
                     "sampletype": self.sampletype,
-                    "inputfile": os.path.expandvars(self.wlcg_path) + inputfile.path,
+                    "inputfile": os.path.expandvars(str(self.wlcg_path))
+                    + inputfile.path,
                     "filecounter": int(counter / len(self.scopes)),
                 }
+                filename = inputfile.path.split("/")[-1]
+                for friend_index, friend in enumerate(self.friend_dependencies):
+                    if not friend_branches[friend_index][counter].path.endswith(
+                        ".root"
+                    ):
+                        break
+                    branch_map[counter][f"inputfile_friend_{friend_index}"] = (
+                        os.path.expandvars(self.wlcg_path)
+                        + friend_branches[friend_index][counter].path
+                    )
+                    friend_file_name = friend_branches[friend_index][
+                        counter
+                    ].path.split("/")[-1]
+                    if friend_file_name != filename:
+                        raise Exception(
+                            f"Friend file name {friend_file_name} does not match input file name {filename}"
+                        )
                 counter += 1
         return branch_map
 
@@ -108,8 +152,8 @@ class CROWNFriends(CROWNExecuteBase):
 
     def run(self):
         """
-        The function runs a CROWN friend executable with specified input and output files, unpacking a
-        tarball if necessary, and logs the output and any errors.
+        The function runs a CROWN friend process, unpacking a tarball if necessary, setting the
+        environment, executing the process, and copying the output file.
         """
         outputs = self.output()
         output = outputs[0]
@@ -127,6 +171,9 @@ class CROWNFriends(CROWNExecuteBase):
         )
         create_abspath(_workdir)
         _inputfile = branch_data["inputfile"]
+        _friend_inputs = [
+            branch_data[input] for input in branch_data if "inputfile_friend_" in input
+        ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace("_{}.root".format(scope), ".root"))
         _abs_executable = "{}/{}_{}_{}".format(
@@ -157,12 +204,12 @@ class CROWNFriends(CROWNExecuteBase):
             os.remove(tempfile)
         # set environment using env script
         my_env = self.set_environment("{}/init.sh".format(_workdir))
-        _crown_args = [_outputfile] + [_inputfile]
+        _crown_args = [_outputfile] + [_inputfile] + _friend_inputs
         _executable = "./{}_{}_{}_{}".format(self.friend_config, sampletype, era, scope)
         # actual payload:
-        console.rule("Starting CROWNFriends")
+        console.rule("Starting CROWNMultiFriends")
         console.log("Executable: {}".format(_executable))
-        console.log("inputfile(s) {}".format(_inputfile))
+        console.log("inputfile(s) {} {}".format(_inputfile, _friend_inputs))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
         with subprocess.Popen(
@@ -224,4 +271,4 @@ class CROWNFriends(CROWNExecuteBase):
                 )
                 # copy the generated quantities_map json to the output
                 outputfile.copy_from_local(local_outputfile)
-        console.rule("Finished CROWNFriends")
+        console.rule("Finished CROWNMultiFriends")

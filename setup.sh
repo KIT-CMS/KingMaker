@@ -147,7 +147,7 @@ action() {
     case ${ANA_NAME} in
         KingMaker)
             echo "Setting up CROWN ..."
-             # Dueto frequent updates CROWN is not set up as a submodule
+             # Due to frequent updates CROWN is not set up as a submodule
             if [ ! -d CROWN ]; then
                 git clone --recursive --depth 1 --shallow-submodules git@github.com:KIT-CMS/CROWN
             fi
@@ -220,5 +220,7 @@ action() {
     fi
 
     export LAW_IS_SET_UP="True"
+    # set an alias for the sample manager
+    alias sample_manager="python3 sample_database/manager.py"
 }
 action "$@"
