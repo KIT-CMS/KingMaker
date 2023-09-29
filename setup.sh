@@ -80,12 +80,10 @@ action() {
 
     # First listed is env of DEFAULT and will be used as the starting env
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
-    # All others are set up but not sourced for now
-    ENV_LIST=$(echo ${PARSED_ENVS} | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')
-    echo "The following envs will be set up: ${ENV_LIST}"
-    echo "The ${STARTING_ENV} will be sourced as the starting env."
+    echo "The following envs will be set up: ${PARSED_ENVS}"
+    echo "${STARTING_ENV} will be sourced as the starting env."
     export ENV_NAMES_LIST=""
-    for ENV_NAME in ${ENV_LIST}; do
+    for ENV_NAME in ${PARSED_ENVS}; do
         # Check if necessary environment is present in cvmfs
         # Try to install and export env via miniconda if not
         # NOTE: HTCondor jobs that rely on exported miniconda envs might need additional scratch space
@@ -97,8 +95,7 @@ action() {
             # Install conda if necessary
             if [ ! -f "miniconda/bin/activate" ]; then
                 # Miniconda version used for all environments
-                # MINICONDA_VERSION="Miniconda3-py39_4.10.3-Linux-x86_64"
-                MINICONDA_VERSION="Miniconda3-latest-Linux-x86_64"
+                MINICONDA_VERSION="Miniconda3-py39_23.5.2-0-Linux-x86_64"
                 echo "conda could not be found, installing conda ..."
                 echo "More information can be found in"
                 echo "https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html"
