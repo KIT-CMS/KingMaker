@@ -220,19 +220,14 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             )
         config = super().htcondor_job_config(config, job_num, branches)
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
-        for type in ["Log", "Output", "Error"]:
-            logfilepath = ""
-            for param in config.custom_content:
-                if param[0] == type:
-                    logfilepath = param[1]
-                    break
+        for type in ["log", "stdout", "stderr"]:
+            logfilepath = getattr(config, type)
             # split the filename, and add the sample nick as an additional folder
-            logfolder = logfilepath.split("/")[:-1]
-            logfile = logfilepath.split("/")[-1]
-            logfolder.append(self.nick)
+            logfolder, logfile = os.path.split(logfilepath)
+            logfolder = os.path.join(logfolder, self.nick)
             # create the new path
-            os.makedirs("/".join(logfolder), exist_ok=True)
-            config.custom_content.append((type, "/".join(logfolder) + "/" + logfile))
+            os.makedirs(logfolder, exist_ok=True)
+            setattr(config, type, os.path.join(logfolder, logfile))
         return config
 
     def modify_polling_status_line(self, status_line):

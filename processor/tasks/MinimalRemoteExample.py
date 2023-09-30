@@ -11,12 +11,32 @@
 
 
 import os
-import luigi
 import law
 from framework import Task, HTCondorWorkflow
+from law.config import Config
 
 law.contrib.load("tasks")  # to have the RunOnceTask
 
+
+# Inheriting from this class puts htcondor files into custom directory
+class CuHTask(HTCondorWorkflow, law.LocalWorkflow):
+    # Redirect location of job files to <job_file_dir>/<production_tag>/<class_name>/"files"/...
+    def htcondor_create_job_file_factory(self):
+        task_name = self.__class__.__name__
+        _cfg = Config.instance()
+        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
+        jobdir = os.path.join(
+            job_file_dir,
+            self.production_tag,
+            task_name,
+            "files",
+        )
+        os.makedirs(jobdir, exist_ok=True)
+        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
+            dir=jobdir,
+            mkdtemp=False,
+        )
+        return factory
 
 class SaveToRemote(Task):
     # Output target is remote and accessed using gfal2.
@@ -30,7 +50,7 @@ class SaveToRemote(Task):
         self.output().dump(saveText)
 
 
-class RunRemote(HTCondorWorkflow, law.LocalWorkflow):
+class RunRemote(CuHTask):
     def requires(self):
         return SaveToRemote.req(self)
 

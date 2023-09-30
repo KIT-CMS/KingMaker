@@ -8,10 +8,10 @@ import yaml
 import os
 import luigi
 import law
-from rich.console import Console
-from framework import Task, HTCondorWorkflow, startup_dir
+from framework import HTCondorWorkflow, Console, startup_dir
 from law.target.collection import flatten_collections
 from law.task.base import WrapperTask
+from law.config import Config
 from ml_util.config_merger import get_merged_config
 
 try:
@@ -20,11 +20,30 @@ except OSError:
     current_width = 140
 console = Console(width=current_width)
 
+# Base task of ML train tasks
+class MLBase(HTCondorWorkflow, law.LocalWorkflow):
+    # Redirect location of job files to <job_file_dir>/<production_tag>/<class_name>/"files"/...
+    def htcondor_create_job_file_factory(self):
+        task_name = self.__class__.__name__
+        _cfg = Config.instance()
+        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
+        jobdir = os.path.join(
+            job_file_dir,
+            self.production_tag,
+            task_name,
+            "files",
+        )
+        os.makedirs(jobdir, exist_ok=True)
+        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
+            dir=jobdir,
+            mkdtemp=False,
+        )
+        return factory
 
 # Task to create root shards for the NN training
 # One shard is created for each process (like "ff" and "NMSSM_240_125_60")
 # Shards are NOT shared between eras and decay channels
-class CreateTrainingDataShard(HTCondorWorkflow, law.LocalWorkflow):
+class CreateTrainingDataShard(MLBase):
     # Define luigi parameters
     datashard_information = luigi.ListParameter(
         description="List of, tuples of process identifier and class mapping"
@@ -135,7 +154,7 @@ class CreateTrainingDataShard(HTCondorWorkflow, law.LocalWorkflow):
 
 
 # Task to run NN training (2 folds)
-class RunTraining(HTCondorWorkflow, law.LocalWorkflow):
+class RunTraining(MLBase):
     # Define luigi parameters
     training_information = luigi.ListParameter(
         description="List of, tuples of training name and training config file"
@@ -394,7 +413,7 @@ class RunTraining(HTCondorWorkflow, law.LocalWorkflow):
 
 
 # Task test the trained NNs (both folds)
-class RunTesting(HTCondorWorkflow, law.LocalWorkflow):
+class RunTesting(MLBase):
     # Define luigi parameters
     training_information = luigi.ListParameter(
         description="List of, tuples of training name and training config file"
@@ -547,19 +566,6 @@ class RunTesting(HTCondorWorkflow, law.LocalWorkflow):
         filtered_data_inputs = [
             input_ for input_ in data_inputs if ".root" in input_.path
         ]
-        # input_dir_list = list(
-        #     set([os.path.dirname(target.path) for target in filtered_data_inputs])
-        # )
-        # if len(input_dir_list) != 1:
-        #     if len(input_dir_list) == 0:
-        #         print(
-        #             "Base directory of datashards could not be found from the task inputs."
-        #         )
-        #     if len(input_dir_list) > 1:
-        #         print("Base directories of the datashards are not the same.")
-        #     raise Exception("Data directory colud not be determined.")
-        # else:
-        #     data_dir = self.wlcg_path + input_dir_list[0]
 
         model_inputs = flatten_collections(self.input()["RunTraining"])
         required_files = [
