@@ -40,13 +40,14 @@ action(){
         echo "gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}"
         gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}
     else
-        # Copy tarballs 
+        # Copy tarballs (only works for Centos/RHEL 7/8/9)
         (
-            source /cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate KingMaker
-            echo "gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}"
-            gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}
-            echo "gfal-copy {{TARBALL_ENV_PATH}} ${SPAWNPOINT}"
-            gfal-copy {{TARBALL_ENV_PATH}} ${SPAWNPOINT}
+            export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
+            export X509_VOMS_DIR=/cvmfs/grid.cern.ch/etc/grid-security/vomsdir
+            MAJOR_RELEASE="$(. /etc/os-release; echo "${VERSION_ID%.*}")"
+            source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos${MAJOR_RELEASE}-gcc11-opt/setup.sh
+            xrdcp {{TARBALL_PATH}} ${SPAWNPOINT}
+            xrdcp {{TARBALL_ENV_PATH}} ${SPAWNPOINT}
         )
         mkdir -p ${ENV_PATH}
         tar -xzf {{ENV_NAME}}.tar.gz -C ${ENV_PATH} && rm {{ENV_NAME}}.tar.gz
