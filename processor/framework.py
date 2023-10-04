@@ -338,8 +338,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.stdout = os.path.join(outfile)
         config.stderr = os.path.join(errfile)
 
-        config.custom_content.append(("stream_error", "True"))  # Remove before commit
-        config.custom_content.append(("stream_output", "True"))  #
+        # config.custom_content.append(("stream_error", "True"))  # Remove before commit
+        # config.custom_content.append(("stream_output", "True"))  #
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("+RemoteJob", self.htcondor_remote_job))
