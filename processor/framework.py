@@ -12,6 +12,8 @@ from tempfile import mkdtemp
 from getpass import getuser
 from law.target.collection import flatten_collections
 from law.config import Config
+from luigi.parameter import UnconsumedParameterWarning
+import warnings
 
 law.contrib.load("wlcg")
 law.contrib.load("htcondor")
@@ -21,6 +23,9 @@ try:
 except OSError:
     current_width = 140
 console = Console(width=current_width)
+
+# Ignore warnings about unused parameters that are set in the default config but not used by all tasks
+warnings.simplefilter("ignore", UnconsumedParameterWarning)
 
 # Determine startup time to use as default production_tag
 # LOCAL_TIMESTAMP is used by remote workflows to ensure consistent tags
@@ -333,8 +338,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.stdout = os.path.join(outfile)
         config.stderr = os.path.join(errfile)
 
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit
-        # config.custom_content.append(("stream_output", "True"))  #
+        config.custom_content.append(("stream_error", "True"))  # Remove before commit
+        config.custom_content.append(("stream_output", "True"))  #
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("+RemoteJob", self.htcondor_remote_job))
