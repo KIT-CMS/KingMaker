@@ -320,9 +320,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         )
         for file_ in ["Log", "Output", "Error"]:
             os.makedirs(os.path.join(logdir, file_), exist_ok=True)
-        logfile = os.path.join(logdir, "Log", task_name)
-        outfile = os.path.join(logdir,"Output",task_name)
-        errfile = os.path.join(logdir,"Error",task_name)
+        logfile = os.path.join(logdir, "Log", task_name + ".txt")
+        outfile = os.path.join(logdir, "Output", task_name + ".txt")
+        errfile = os.path.join(logdir, "Error", task_name + ".txt")
 
         # Write job config file
         config.custom_content = []

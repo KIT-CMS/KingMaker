@@ -38,6 +38,7 @@ class CuHTask(HTCondorWorkflow, law.LocalWorkflow):
         )
         return factory
 
+
 class SaveToRemote(Task):
     # Output target is remote and accessed using gfal2.
     def output(self):

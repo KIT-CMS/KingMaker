@@ -40,6 +40,7 @@ class MLBase(HTCondorWorkflow, law.LocalWorkflow):
         )
         return factory
 
+
 # Task to create root shards for the NN training
 # One shard is created for each process (like "ff" and "NMSSM_240_125_60")
 # Shards are NOT shared between eras and decay channels
