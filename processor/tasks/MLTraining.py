@@ -20,6 +20,7 @@ except OSError:
     current_width = 140
 console = Console(width=current_width)
 
+
 # Base task of ML train tasks
 class MLBase(HTCondorWorkflow, law.LocalWorkflow):
     # Redirect location of job files to <job_file_dir>/<production_tag>/<class_name>/"files"/...
