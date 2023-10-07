@@ -87,43 +87,43 @@ action() {
         # Check if necessary environment is present in cvmfs
         # Try to install and export env via miniforge if not
         # NOTE: HTCondor jobs that rely on exported miniforge envs might need additional scratch space
-        if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/envs/${ENV_NAME}" ]]; then
+        if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/forge_envs/miniforge/envs/${ENV_NAME}" ]]; then
             echo "${ENV_NAME} environment found in cvmfs."
             CVMFS_ENV_PRESENT="True"
         else
-            echo "${ENV_NAME} environment not found in cvmfs. Using forge."
-            # Install forge if necessary
+            echo "${ENV_NAME} environment not found in cvmfs. Using miniforge."
+            # Install miniforge if necessary
             if [ ! -f "miniforge/bin/activate" ]; then
                 # Miniforge version used for all environments
                 MAMBAFORGE_VERSION="23.3.1-1"
                 MAMBAFORGE_INSTALLER="Mambaforge-${MAMBAFORGE_VERSION}-$(uname)-$(uname -m).sh"
-                echo "forge could not be found, installing forge ..."
+                echo "Miniforge could not be found, installing miniforge ..."
                 echo "More information can be found in"
                 echo "https://github.com/conda-forge/miniforge"
                 curl -L -O https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/${MAMBAFORGE_INSTALLER}
                 bash ${MAMBAFORGE_INSTALLER} -b -s -p miniforge
                 rm -f ${MAMBAFORGE_INSTALLER}
             fi
-            # source base env of forge
+            # source base env of miniforge
             source miniforge/bin/activate ''
 
-            # check if correct forge env is running
+            # check if correct miniforge env is running
             if [ "${CONDA_DEFAULT_ENV}" != "${ENV_NAME}" ]; then
                 if [ -d "miniforge/envs/${ENV_NAME}" ]; then
-                    echo  "${ENV_NAME} env found using forge."
+                    echo  "${ENV_NAME} env found using miniforge."
                 else
-                    # Create forge env from yaml file if necessary
+                    # Create miniforge env from yaml file if necessary
                     echo "Creating ${ENV_NAME} env from forge_environments/${ENV_NAME}_env.yml..."
                     if [[ ! -f "forge_environments/${ENV_NAME}_env.yml" ]]; then
                         echo "forge_environments/${ENV_NAME}_env.yml not found. Unable to create environment."
                         return 1
                     fi
                     conda env create -f forge_environments/${ENV_NAME}_env.yml -n ${ENV_NAME}
-                    echo  "${ENV_NAME} env built using forge."
+                    echo  "${ENV_NAME} env built using miniforge."
                 fi
             fi
 
-            # create forge tarball if env not in cvmfs and it if it doesn't already exist
+            # create miniforge tarball if env not in cvmfs and it if it doesn't already exist
             if [ ! -f "tarballs/forge_envs/${ENV_NAME}.tar.gz" ]; then
                 # IMPORTANT: environments have to be named differently with each change
                 #            as chaching prevents a clean overwrite of existing files
@@ -152,9 +152,9 @@ action() {
     # Actvate starting-env
     if [[ "${CVMFS_ENV_PRESENT_START}" == "True" ]]; then
         echo "Activating starting-env ${STARTING_ENV} from cvmfs."
-        source /cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ${STARTING_ENV}
+        source /cvmfs/etp.kit.edu/LAW_envs/forge_envs/miniforge/bin/activate ${STARTING_ENV}
     else
-        echo "Activating starting-env ${STARTING_ENV} from forge."
+        echo "Activating starting-env ${STARTING_ENV} from miniforge."
         conda activate ${STARTING_ENV}
     fi
 

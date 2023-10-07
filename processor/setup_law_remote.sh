@@ -24,7 +24,7 @@ action(){
     echo " | TARBALL_PATH = {{TARBALL_PATH}}"
 
     if [[ "{{USE_CVMFS}}" == "True" ]]; then
-        ENV_PATH=/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate
+        ENV_PATH=/cvmfs/etp.kit.edu/LAW_envs/forge_envs/miniforge/bin/activate
         echo " | ENV_PATH = ${ENV_PATH}"
     else
         ENV_PATH=${SPAWNPOINT}/miniforge/envs/{{ENV_NAME}}
