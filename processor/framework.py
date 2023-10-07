@@ -426,7 +426,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 tarball_env.parent.touch()
                 tarball_env.copy_from_local(
                     src=os.path.abspath(
-                        "tarballs/conda_envs/{}.tar.gz".format(self.ENV_NAME)
+                        "tarballs/forge_envs/{}.tar.gz".format(self.ENV_NAME)
                     )
                 )
         config.render_variables["USER"] = self.local_user
