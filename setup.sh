@@ -2,72 +2,64 @@
 # This script setups all dependencies necessary for making law executable                  #
 ############################################################################################
 
-action() {
 
-    # Check if law was already set up in this shell
-    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$@" =~ "-f" ]] ); then
-        echo "LAW was already set up in this shell. Please, use a new one."
-        return 1
-    fi
-
-    # Check if current machine is an etp portal machine.
-    PORTAL_LIST=("bms1.etp.kit.edu" "bms2.etp.kit.edu" "bms3.etp.kit.edu" "portal1.etp.kit.edu" "bms1-centos7.etp.kit.edu" "bms2-centos7.etp.kit.edu" "bms3-centos7.etp.kit.edu" "portal1-centos7.etp.kit.edu")
-    CURRENT_HOST=$(hostname --long)
-    if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then  
-        echo "Current host (${CURRENT_HOST}) not in list of allowed machines:"
-        printf '%s\n' "${PORTAL_LIST[@]}"
-        return 1
-    else
-        echo "Running on ${CURRENT_HOST}."
-    fi
-
+# Run alternative modes if asked for
+# Available modes: l
+alt_modes() {
     #list of available analyses
     ANA_LIST=("KingMaker" "GPU_example" "ML_train")
     if [[ "$@" =~ "-l" ]]; then
         echo "Available analyses:"
         printf '%s\n' "${ANA_LIST[@]}"
-        return 0
+        exit_script
     fi
+}
 
-    # determine the directory of this file
-    if [ ! -z "${ZSH_VERSION}" ]; then
-        local THIS_FILE="${(%):-%x}"
+# Basic checks before setup is attempted
+#   - Filter by hostname
+check_basics() {
+    # Check if current machine is an etp portal machine.
+    PORTAL_LIST=(
+        "bms1.etp.kit.edu" \
+        "bms2.etp.kit.edu" \
+        "bms3.etp.kit.edu" \
+        "portal1.etp.kit.edu" \
+        "bms1-centos7.etp.kit.edu" \
+        "bms2-centos7.etp.kit.edu" \
+        "bms3-centos7.etp.kit.edu" \
+        "portal1-centos7.etp.kit.edu"\
+    )
+    CURRENT_HOST=$(hostname --long)
+    if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then  
+        echo "Current host (${CURRENT_HOST}) not in list of allowed machines:"
+        printf '%s\n' "${PORTAL_LIST[@]}"
+        exit_script
     else
-        local THIS_FILE="${BASH_SOURCE[0]}"
+        echo "Running on ${CURRENT_HOST}."
     fi
+}
 
-    local BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
-
-    _addpy() {
-        [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}"
-    }
-
-    _addbin() {
-        [ ! -z "$1" ] && export PATH="$1:${PATH}"
-    }
-
-
+# Set up environments for analysis
+env_setup() {
     ANA_NAME_GIVEN=$1
 
     #Determine analysis to be used. Default is first in list.
     if [[ -z "${ANA_NAME_GIVEN}" ]]; then
         echo "No analysis chosen. Please choose from:"
         printf '%s\n' "${ANA_LIST[@]}"
-        return 1
-    else
-        #Check if given analysis is in list 
-        if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then 
-            echo "Not a valid name. Allowed choices are:"
-            printf '%s\n' "${ANA_LIST[@]}"
-            return 1
-        else
-            echo "Using ${ANA_NAME_GIVEN} analysis." 
-            export ANA_NAME="${ANA_NAME_GIVEN}"
-        fi
+        exit_script
     fi
+    #Check if given analysis is in list 
+    if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then 
+        echo "Not a valid name. Allowed choices are:"
+        printf '%s\n' "${ANA_LIST[@]}"
+        exit_script
+    fi
+    echo "Using ${ANA_NAME_GIVEN} analysis." 
+    export ANA_NAME="${ANA_NAME_GIVEN}"
 
     # Parse the necessary environments from the luigi config files.
-    PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
+    PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py lawluigi_configs/${ANA_NAME}_luigi.cfg)
     PARSED_ENVS_STATUS=$?
     if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
@@ -75,12 +67,13 @@ action() {
             echo $i
         done    
         echo "Parsing of required envs failed with the above error."
-        return 1
+        exit_script
     fi
 
     # First listed is env of DEFAULT and will be used as the starting env
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
-    printf "The following envs will be set up:\n ${PARSED_ENVS}\n"
+    echo "The following envs will be set up:"
+    printf '%s\n' "${PARSED_ENVS[@]}"
     echo "${STARTING_ENV} will be sourced as the starting env."
     export ENV_NAMES_LIST=""
     for ENV_NAME in ${PARSED_ENVS}; do
@@ -116,7 +109,7 @@ action() {
                     echo "Creating ${ENV_NAME} env from forge_environments/${ENV_NAME}_env.yml..."
                     if [[ ! -f "forge_environments/${ENV_NAME}_env.yml" ]]; then
                         echo "forge_environments/${ENV_NAME}_env.yml not found. Unable to create environment."
-                        return 1
+                        exit_script
                     fi
                     conda env create -f forge_environments/${ENV_NAME}_env.yml -n ${ENV_NAME}
                     echo  "${ENV_NAME} env built using miniforge."
@@ -133,7 +126,7 @@ action() {
                 conda pack -n ${ENV_NAME} --output tarballs/forge_envs/${ENV_NAME}.tar.gz
                 if [[ "$?" -eq "1" ]]; then
                     echo "Conda pack failed. Does the env contain conda-pack?"
-                    return 1
+                    exit_script
                 fi
                 conda deactivate
             fi
@@ -157,7 +150,10 @@ action() {
         echo "Activating starting-env ${STARTING_ENV} from miniforge."
         conda activate ${STARTING_ENV}
     fi
+}
 
+# Set up additional things for the relevant analysis
+env_specific_setup() {
     #Set up other dependencies based on analysis
     ############################################
     case ${ANA_NAME} in
@@ -170,6 +166,8 @@ action() {
             if [ -z "$(ls -A sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
             fi
+            # set an alias for the sample manager
+            alias sample_manager="python3 sample_database/manager.py"
             ;;
         ML_train)
             echo "Setting up ML-scripts ..."
@@ -182,18 +180,55 @@ action() {
             ;;
     esac
     ############################################
-
     if [[ ! -z ${MODULE_PYTHONPATH} ]]; then
-        export PYTHONPATH=${MODULE_PYTHONPATH}:${PYTHONPATH}
+        _addpy ${MODULE_PYTHONPATH}
     fi
+}
 
+# Check if specified remote file system is readable and writeable with provided voms certificate 
+check_voms() {
+    # Check if valid voms exists
+    voms-proxy-info -exists &>/dev/null
+    if [[ "$?" -eq "1" ]]; then
+        echo "No valid voms proxy found, please ensure that it exists and that 'X509_USER_PROXY' is properly set."
+        exit_script
+    fi
+    # Check if remote storage is accessible by creating and deleting a dummy file 
+    #   at the location specified in the luigi config file (wlcg_path)
+    PARSED_RFS_PATH=$(python3 scripts/ParseRFSPath.py lawluigi_configs/${ANA_NAME}_luigi.cfg)
+    RFS_PATH_STATUS=$?
+    if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
+        IFS='@' read -ra ADDR <<< "${RFS_PATH}"
+        for i in "${ADDR[@]}"; do
+            echo $i
+        done
+        echo "Parsing of required envs failed with the above error."
+        exit_script
+    fi
+    RFS_PATH="${PARSED_RFS_PATH/'${USER}'/"${USER}"}"
+    TMPFILE_PATH=$(mktemp)
+    TMPFILE_NAME=$(basename "${TMPFILE_PATH}")    
+    gfal-copy "${TMPFILE_PATH}" "${RFS_PATH}" 1> /dev/null 
+    if [[ "$?" -eq "1" ]]; then
+        echo "Dummy copy from ${TMPFILE_PATH} to ${RFS_PATH} failed. Please ensure you have the necessary rights."
+        exit_script
+    fi
+    gfal-rm "${RFS_PATH}/${TMPFILE_NAME}" 1> /dev/null
+    if [[ "$?" -eq "1" ]]; then
+        echo "Removal of dummy at ${RFS_PATH}/${TMPFILE_NAME} failed. Please ensure you have the necessary rights."
+        exit_script
+    fi
+    # add voms proxy path
+    export X509_USER_PROXY=$(voms-proxy-info -path)
+    echo "Proxy at ${X509_USER_PROXY} is valid for accesing ${RFS_PATH}."
+}
+
+# Set up LAW
+law_setup() {
     # Check is law was cloned, and set it up if not
     if [ -z "$(ls -A law)" ]; then
         git submodule update --init --recursive -- law
     fi
-
-    # add voms proxy path
-    export X509_USER_PROXY=$(voms-proxy-info -path)
     # first check if the user already has a luigid scheduler running
     # start a luidigd scheduler if there is one already running
     if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
@@ -214,6 +249,15 @@ action() {
         echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
     fi
 
+    # determine the directory of this file
+    if [ ! -z "${ZSH_VERSION}" ]; then
+        local THIS_FILE="${(%):-%x}"
+    else
+        local THIS_FILE="${BASH_SOURCE[0]}"
+    fi
+
+    local BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
+
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
     export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_law.cfg"
@@ -227,7 +271,7 @@ action() {
     source "$( law completion )"
     if [[ "$?" -eq "1" ]]; then
         echo "Law completion failed."
-        return 1
+        exit_script
     fi
 
     # tasks
@@ -239,13 +283,49 @@ action() {
         law index --verbose
         if [[ "$?" -eq "1" ]]; then
             echo "Law index failed."
-            return 1
+            exit_script
         fi
     fi
+}
 
-    # set an alias for the sample manager
-    alias sample_manager="python3 sample_database/manager.py"
+# Exit source script without killing the shell
+exit_script() {
+    kill -SIGINT $$
+}
 
+# Add path to 'PYTHONPATH'
+_addpy() {
+    [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}"
+}
+
+# Add path to 'PATH'
+_addbin() {
+    [ ! -z "$1" ] && export PATH="$1:${PATH}"
+}
+
+
+action() {
+    # Check if law was already set up in this shell
+    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$@" =~ "-f" ]] ); then
+        echo "LAW was already set up in this shell. Please, use a new one."
+        exit_script
+    fi
+    # Check if alternative modes are asked for
+    alt_modes "$@"
+    # Check if basic setup is present
+    check_basics
+    # Set up all environments of the requested analysis
+    env_setup "$@"
+    # Set up analysis specific parts
+    env_specific_setup
+    # Check if working voms proxy is present
+    check_voms
+    # Set up law
+    law_setup
+
+    # Mark that setup is complete
     export LAW_IS_SET_UP="True"
 }
+
+
 action "$@"
