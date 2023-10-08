@@ -3,59 +3,81 @@
 ############################################################################################
 
 
-# Run alternative modes if asked for
-# Available modes: l
-alt_modes() {
-    #list of available analyses
-    ANA_LIST=("KingMaker" "GPU_example" "ML_train")
-    if [[ "$@" =~ "-l" ]]; then
-        echo "Available analyses:"
-        printf '%s\n' "${ANA_LIST[@]}"
+# Basic checks before setup is attempted
+#   - Check number of arguments
+#   - Filter by hostname
+#   - Check if setup.sh is in current dir
+function check_basics {
+    # Check if any arguments given
+    if [[ "${#@}" -eq 0 ]]; then
+        echo "No arguments provided for this script. See '-h' for help and '-l' for available workflows."
         exit_script
     fi
-}
-
-# Basic checks before setup is attempted
-#   - Filter by hostname
-check_basics() {
+    # Check if too many arguments given
+    if [[ "${#@}" -gt 1 ]]; then
+        echo "${@} are too many arguments for this script. Only one workflow/option can be used at once. See '-h' for help."
+        exit_script
+    fi
     # Check if current machine is an etp portal machine.
-    PORTAL_LIST=(
-        "bms1.etp.kit.edu" \
-        "bms2.etp.kit.edu" \
-        "bms3.etp.kit.edu" \
-        "portal1.etp.kit.edu" \
-        "bms1-centos7.etp.kit.edu" \
-        "bms2-centos7.etp.kit.edu" \
-        "bms3-centos7.etp.kit.edu" \
-        "portal1-centos7.etp.kit.edu"\
-    )
     CURRENT_HOST=$(hostname --long)
     if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then  
         echo "Current host (${CURRENT_HOST}) not in list of allowed machines:"
         printf '%s\n' "${PORTAL_LIST[@]}"
         exit_script
-    else
-        echo "Running on ${CURRENT_HOST}."
+    fi
+    # Check relative position of setup.sh. Has to be sourced from the same directory
+    local RELATIVE_LOC="${BASH_SOURCE[0]}"
+    if [[ ! "${RELATIVE_LOC}" == "$(basename ${RELATIVE_LOC})" ]]; then
+        echo "You can only run setup.sh from the root directory of the KingMaker git repo."
+        exit_script
     fi
 }
 
-# Set up environments for analysis
-env_setup() {
+# Run alternative modes if asked for
+# Available modes: h,l,p
+function alt_modes {
+    case $1 in
+        -h)
+            # Display Help
+            echo "Setup script for all workflows included in KingMaker."
+            echo "Syntax:"
+            echo "     source setup.sh <Workflow>"
+            echo "OR"
+            echo "     source setup.sh [-h|l|p]"
+            echo "options:"
+            echo "-h     Print this Help."
+            echo "-l     Print list of available workflows."
+            echo "-p     Print list of allowed portal machines."
+            exit_script
+        ;;
+        -l)
+            # Display available workflows
+            echo "Available workflows:"
+            printf '%s\n' "${ANA_LIST[@]}"
+            exit_script
+        ;;
+        -p)
+            # Display available workflows
+            echo "Allowed portals:"
+            printf '%s\n' "${PORTAL_LIST[@]}"
+            exit_script
+        ;;
+        *)
+        ;;
+    esac
+}
+
+# Set up environments for workflow
+function env_setup {
     ANA_NAME_GIVEN=$1
 
-    #Determine analysis to be used. Default is first in list.
-    if [[ -z "${ANA_NAME_GIVEN}" ]]; then
-        echo "No analysis chosen. Please choose from:"
-        printf '%s\n' "${ANA_LIST[@]}"
-        exit_script
-    fi
-    #Check if given analysis is in list 
+    #Check if given workflow is in list 
     if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then 
         echo "Not a valid name. Allowed choices are:"
         printf '%s\n' "${ANA_LIST[@]}"
         exit_script
     fi
-    echo "Using ${ANA_NAME_GIVEN} analysis." 
+    echo "Using ${ANA_NAME_GIVEN} workflow." 
     export ANA_NAME="${ANA_NAME_GIVEN}"
 
     # Parse the necessary environments from the luigi config files.
@@ -152,9 +174,9 @@ env_setup() {
     fi
 }
 
-# Set up additional things for the relevant analysis
-env_specific_setup() {
-    #Set up other dependencies based on analysis
+# Set up additional things for the relevant workflow
+function env_specific_setup {
+    #Set up other dependencies based on workflow
     ############################################
     case ${ANA_NAME} in
         KingMaker)
@@ -185,8 +207,8 @@ env_specific_setup() {
     fi
 }
 
-# Check if specified remote file system is readable and writeable with provided voms certificate 
-check_voms() {
+# Check if specified remote file system is readable and writeable with provided voms certificate
+function check_voms {
     # Check if valid voms exists
     voms-proxy-info -exists &>/dev/null
     if [[ "$?" -eq "1" ]]; then
@@ -224,7 +246,7 @@ check_voms() {
 }
 
 # Set up LAW
-law_setup() {
+function law_setup {
     # Check is law was cloned, and set it up if not
     if [ -z "$(ls -A law)" ]; then
         git submodule update --init --recursive -- law
@@ -278,7 +300,7 @@ law_setup() {
     _addpy "${BASE_DIR}/processor"
     _addpy "${BASE_DIR}/processor/tasks"
 
-    # Create law index for analysis if not previously done
+    # Create law index for workflow if not previously done
     if [[ ! -f "${LAW_HOME}/index" ]]; then
         law index --verbose
         if [[ "$?" -eq "1" ]]; then
@@ -289,34 +311,48 @@ law_setup() {
 }
 
 # Exit source script without killing the shell
-exit_script() {
+function exit_script {
     kill -SIGINT $$
 }
 
 # Add path to 'PYTHONPATH'
-_addpy() {
+function _addpy {
     [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}"
 }
 
 # Add path to 'PATH'
-_addbin() {
+function _addbin {
     [ ! -z "$1" ] && export PATH="$1:${PATH}"
 }
 
 
-action() {
+function action {
+
     # Check if law was already set up in this shell
-    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$@" =~ "-f" ]] ); then
-        echo "LAW was already set up in this shell. Please, use a new one."
+    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$1" == "-d" ]] ); then
+        echo "LAW was already set up in this shell. Use a new shell."
         exit_script
     fi
-    # Check if alternative modes are asked for
-    alt_modes "$@"
+    # List of available workflows
+    ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+    # List of valid hostnames
+    PORTAL_LIST=(
+        "bms1.etp.kit.edu" \
+        "bms2.etp.kit.edu" \
+        "bms3.etp.kit.edu" \
+        "portal1.etp.kit.edu" \
+        "bms1-centos7.etp.kit.edu" \
+        "bms2-centos7.etp.kit.edu" \
+        "bms3-centos7.etp.kit.edu" \
+        "portal1-centos7.etp.kit.edu"\
+    )
     # Check if basic setup is present
-    check_basics
-    # Set up all environments of the requested analysis
-    env_setup "$@"
-    # Set up analysis specific parts
+    check_basics "$@"
+    # Check if alternative modes are asked for
+    alt_modes "$1"
+    # Set up all environments of the requested workflow
+    env_setup "$1"
+    # Set up workflow specific parts
     env_specific_setup
     # Check if working voms proxy is present
     check_voms
@@ -326,6 +362,5 @@ action() {
     # Mark that setup is complete
     export LAW_IS_SET_UP="True"
 }
-
 
 action "$@"
