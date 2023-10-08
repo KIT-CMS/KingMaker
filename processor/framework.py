@@ -51,7 +51,7 @@ class Task(law.Task):
     #   This timestamp is the same for all tasks with no set production_tag.
     production_tag = luigi.Parameter(
         default="default/{}".format(startup_time),
-        description="Tag to differentiate workflow runs. Set to a timestamp as default.",
+        description="Tag to differentiate analysis runs. Set to a timestamp as default.",
     )
     output_collection_cls = law.NestedSiblingFileCollection
 
@@ -445,7 +445,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
-        # only needed for $ANA_NAME=ML_train see setup.sh line 158
         if os.getenv("MODULE_PYTHONPATH"):
             config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
                 "MODULE_PYTHONPATH"

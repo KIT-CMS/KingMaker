@@ -10,12 +10,12 @@
 function check_basics {
     # Check if any arguments given
     if [[ "${#@}" -eq 0 ]]; then
-        echo "No arguments provided for this script. See '-h' for help and '-l' for available workflows."
+        echo "No arguments provided for this script. See '-h' for help and '-l' for available analyses."
         exit_script
     fi
     # Check if too many arguments given
     if [[ "${#@}" -gt 1 ]]; then
-        echo "${@} are too many arguments for this script. Only one workflow/option can be used at once. See '-h' for help."
+        echo "${@} are too many arguments for this script. Only one analysis/option can be used at once. See '-h' for help."
         exit_script
     fi
     # Check if current machine is an etp portal machine.
@@ -39,25 +39,25 @@ function alt_modes {
     case $1 in
         -h)
             # Display Help
-            echo "Setup script for all workflows included in KingMaker."
+            echo "Setup script for all analyses included in KingMaker."
             echo "Syntax:"
-            echo "     source setup.sh <Workflow>"
+            echo "     source setup.sh <analysis>"
             echo "OR"
             echo "     source setup.sh [-h|l|p]"
             echo "options:"
             echo "-h     Print this Help."
-            echo "-l     Print list of available workflows."
+            echo "-l     Print list of available analyses."
             echo "-p     Print list of allowed portal machines."
             exit_script
         ;;
         -l)
-            # Display available workflows
-            echo "Available workflows:"
+            # Display available analyses
+            echo "Available analyses:"
             printf '%s\n' "${ANA_LIST[@]}"
             exit_script
         ;;
         -p)
-            # Display available workflows
+            # Display available analyses
             echo "Allowed portals:"
             printf '%s\n' "${PORTAL_LIST[@]}"
             exit_script
@@ -67,17 +67,17 @@ function alt_modes {
     esac
 }
 
-# Set up environments for workflow
+# Set up environments for analysis
 function env_setup {
     ANA_NAME_GIVEN=$1
 
-    #Check if given workflow is in list 
+    #Check if given analysis is in list 
     if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then 
         echo "Not a valid name. Allowed choices are:"
         printf '%s\n' "${ANA_LIST[@]}"
         exit_script
     fi
-    echo "Using ${ANA_NAME_GIVEN} workflow." 
+    echo "Using ${ANA_NAME_GIVEN} analysis." 
     export ANA_NAME="${ANA_NAME_GIVEN}"
 
     # Parse the necessary environments from the luigi config files.
@@ -174,9 +174,9 @@ function env_setup {
     fi
 }
 
-# Set up additional things for the relevant workflow
+# Set up additional things for the relevant analysis
 function env_specific_setup {
-    #Set up other dependencies based on workflow
+    #Set up other dependencies based on analysis
     ############################################
     case ${ANA_NAME} in
         KingMaker)
@@ -300,7 +300,7 @@ function law_setup {
     _addpy "${BASE_DIR}/processor"
     _addpy "${BASE_DIR}/processor/tasks"
 
-    # Create law index for workflow if not previously done
+    # Create law index for analysis if not previously done
     if [[ ! -f "${LAW_HOME}/index" ]]; then
         law index --verbose
         if [[ "$?" -eq "1" ]]; then
@@ -333,7 +333,7 @@ function action {
         echo "LAW was already set up in this shell. Use a new shell."
         exit_script
     fi
-    # List of available workflows
+    # List of available analyses
     ANA_LIST=("KingMaker" "GPU_example" "ML_train")
     # List of valid hostnames
     PORTAL_LIST=(
@@ -350,9 +350,9 @@ function action {
     check_basics "$@"
     # Check if alternative modes are asked for
     alt_modes "$1"
-    # Set up all environments of the requested workflow
+    # Set up all environments of the requested analysis
     env_setup "$1"
-    # Set up workflow specific parts
+    # Set up analysis specific parts
     env_specific_setup
     # Check if working voms proxy is present
     check_voms
