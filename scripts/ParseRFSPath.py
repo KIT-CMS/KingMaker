@@ -24,7 +24,11 @@ try:
     config.read(cfg_path)
 except (configparser.ParsingError, configparser.MissingSectionHeaderError) as error:
     print(error)
-    print("@File at {} could not be parsed. Is it a valid luigi config file?".format(cfg_path))
+    print(
+        "@File at {} could not be parsed. Is it a valid luigi config file?".format(
+            cfg_path
+        )
+    )
     exit(1)
 
 # Try to get remote file system path from 'wlcg_path' of 'DEFAULT' section
