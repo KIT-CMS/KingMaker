@@ -329,7 +329,7 @@ function _addbin {
 function action {
 
     # Check if law was already set up in this shell
-    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$1" == "-d" ]] ); then
+    if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "LAW was already set up in this shell. Use a new shell."
         exit_script
     fi
