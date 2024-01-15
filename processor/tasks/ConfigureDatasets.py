@@ -71,7 +71,7 @@ class ConfigureDatasets(Task):
 
             # in germany, the european is the fastest
             xootd_prefix_global = "root://cms-xrd-global.cern.ch/"
-            xootd_prefix_gridka = "root://cmsxrootd-kit.gridka.de:1094/"
+            xootd_prefix_gridka = "root://cmsxrootd-kit-disk.gridka.de:1094/"
             xootd_prefix_europe = "root://xrootd-cms.infn.it/"
 
             output.parent.touch()
