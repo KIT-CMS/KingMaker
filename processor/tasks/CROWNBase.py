@@ -126,11 +126,12 @@ class ProduceBase(WrapperTask):
         table.add_column("Era", justify="left")
         table.add_column("Sampletype", justify="left")
 
+        with open(str(self.dataset_database), "r") as stream:
+            sample_db = yaml.safe_load(stream)
+
         for nick in samples:
             data["details"][nick] = {}
             # check if sample exists in datasets.yaml
-            with open(str(self.dataset_database), "r") as stream:
-                sample_db = yaml.safe_load(stream)
             if nick not in sample_db:
                 console.log(
                     "Sample {} not found in {}".format(nick, self.dataset_database)
