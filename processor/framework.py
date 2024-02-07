@@ -12,6 +12,8 @@ from tempfile import mkdtemp
 from getpass import getuser
 from law.target.collection import flatten_collections
 from law.config import Config
+from luigi.parameter import UnconsumedParameterWarning
+import warnings
 
 law.contrib.load("wlcg")
 law.contrib.load("htcondor")
@@ -21,6 +23,9 @@ try:
 except OSError:
     current_width = 140
 console = Console(width=current_width)
+
+# Ignore warnings about unused parameters that are set in the default config but not used by all tasks
+warnings.simplefilter("ignore", UnconsumedParameterWarning)
 
 # Determine startup time to use as default production_tag
 # LOCAL_TIMESTAMP is used by remote workflows to ensure consistent tags
@@ -46,7 +51,7 @@ class Task(law.Task):
     #   This timestamp is the same for all tasks with no set production_tag.
     production_tag = luigi.Parameter(
         default="default/{}".format(startup_time),
-        description="Tag to differentiate workflow runs. Set to a timestamp as default.",
+        description="Tag to differentiate analysis runs. Set to a timestamp as default.",
     )
     output_collection_cls = law.NestedSiblingFileCollection
 
@@ -421,7 +426,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 tarball_env.parent.touch()
                 tarball_env.copy_from_local(
                     src=os.path.abspath(
-                        "tarballs/conda_envs/{}.tar.gz".format(self.ENV_NAME)
+                        "tarballs/forge_envs/{}.tar.gz".format(self.ENV_NAME)
                     )
                 )
         config.render_variables["USER"] = self.local_user
@@ -440,7 +445,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
-        # only needed for $ANA_NAME=ML_train see setup.sh line 158
         if os.getenv("MODULE_PYTHONPATH"):
             config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
                 "MODULE_PYTHONPATH"

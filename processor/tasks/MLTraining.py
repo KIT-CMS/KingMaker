@@ -358,9 +358,6 @@ class RunTraining(MLBase):
                 "--output-dir {}".format(out_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Convert model to lwtnn format
@@ -374,9 +371,6 @@ class RunTraining(MLBase):
                 "--in-out-dir {}".format(out_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         self.run_command(
@@ -391,9 +385,6 @@ class RunTraining(MLBase):
                 "> {dir}/fold{fold}_lwtnn.json".format(dir=out_dir, fold=fold),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         # Copy locally created files to remote storage
@@ -612,9 +603,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Create 1D taylor coefficient plots
@@ -629,9 +617,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Create taylor ranking plots
@@ -646,9 +631,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Tar plots together
