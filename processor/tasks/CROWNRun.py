@@ -18,6 +18,7 @@ class CROWNRun(CROWNExecuteBase):
     Gather and compile CROWN with the given configuration
     """
 
+    output_collection_cls = law.NestedSiblingFileCollection
     problematic_eras = luigi.ListParameter()
 
     def workflow_requires(self):

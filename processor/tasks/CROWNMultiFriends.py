@@ -17,7 +17,6 @@ law.contrib.load("wlcg")
 
 
 class CROWNMultiFriends(CROWNExecuteBase):
-
     output_collection_cls = law.NestedSiblingFileCollection
     friend_dependencies = luigi.ListParameter(significant=False)
     friend_mapping = luigi.DictParameter(significant=False, default={})
