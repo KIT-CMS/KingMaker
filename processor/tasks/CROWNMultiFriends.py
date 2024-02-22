@@ -43,21 +43,21 @@ class CROWNMultiFriends(CROWNExecuteBase):
         )
         requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
         for friend in self.friend_dependencies:
-            requirements[
-                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-            ] = CROWNFriends(
-                nick=self.nick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=self.all_eras,
-                shifts=self.shifts,
-                all_sampletypes=self.all_sampletypes,
-                era=self.era,
-                sampletype=self.sampletype,
-                scopes=self.scopes,
-                friend_name=self.friend_mapping[friend],
-                friend_config=friend,
+            requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
+                CROWNFriends(
+                    nick=self.nick,
+                    analysis=self.analysis,
+                    config=self.config,
+                    production_tag=self.production_tag,
+                    all_eras=self.all_eras,
+                    shifts=self.shifts,
+                    all_sampletypes=self.all_sampletypes,
+                    era=self.era,
+                    sampletype=self.sampletype,
+                    scopes=self.scopes,
+                    friend_name=self.friend_mapping[friend],
+                    friend_config=friend,
+                )
             )
         return requirements
 

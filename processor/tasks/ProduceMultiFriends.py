@@ -39,23 +39,23 @@ class ProduceMultiFriends(ProduceBase):
 
         requirements = {}
         for samplenick in data["details"]:
-            requirements[
-                f"CROWNFriends_{samplenick}_{self.friend_name}"
-            ] = CROWNMultiFriends(
-                nick=samplenick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=data["eras"],
-                shifts=self.shifts,
-                all_sampletypes=data["sampletypes"],
-                scopes=self.scopes,
-                era=data["details"][samplenick]["era"],
-                sampletype=data["details"][samplenick]["sampletype"],
-                friend_config=self.friend_config,
-                friend_name=self.friend_name,
-                friend_dependencies=self.friend_dependencies,
-                friend_mapping=self.friend_mapping,
+            requirements[f"CROWNFriends_{samplenick}_{self.friend_name}"] = (
+                CROWNMultiFriends(
+                    nick=samplenick,
+                    analysis=self.analysis,
+                    config=self.config,
+                    production_tag=self.production_tag,
+                    all_eras=data["eras"],
+                    shifts=self.shifts,
+                    all_sampletypes=data["sampletypes"],
+                    scopes=self.scopes,
+                    era=data["details"][samplenick]["era"],
+                    sampletype=data["details"][samplenick]["sampletype"],
+                    friend_config=self.friend_config,
+                    friend_name=self.friend_name,
+                    friend_dependencies=self.friend_dependencies,
+                    friend_mapping=self.friend_mapping,
+                )
             )
         return requirements
 
