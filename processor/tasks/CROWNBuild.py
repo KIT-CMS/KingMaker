@@ -23,7 +23,7 @@ class CROWNBuild(CROWNBuildBase):
         # get output file path
         output = self.output()
         # convert list to comma separated strings
-        _all_sampletypes = convert_to_comma_seperated(self.all_sampletypes)
+        _all_sample_types = convert_to_comma_seperated(self.all_sample_types)
         _all_eras = convert_to_comma_seperated(self.all_eras)
         _shifts = convert_to_comma_seperated(self.shifts)
         _scopes = convert_to_comma_seperated(self.scopes)
@@ -58,7 +58,7 @@ class CROWNBuild(CROWNBuildBase):
             console.log(f"Threads: {_threads}")
             console.log(f"Analysis: {_analysis}")
             console.log(f"Config: {_config}")
-            console.log(f"Sampletypes: {_all_sampletypes}")
+            console.log(f"Sampletypes: {_all_sample_types}")
             console.log(f"Eras: {_all_eras}")
             console.log(f"Scopes: {_scopes}")
             console.log(f"Shifts: {_shifts}")
@@ -71,7 +71,7 @@ class CROWNBuild(CROWNBuildBase):
                 _crown_path,  # CROWNFOLDER=$1
                 _analysis,  # ANALYSIS=$2
                 _config,  # CONFIG=$3
-                _all_sampletypes,  # SAMPLES=$4
+                _all_sample_types,  # SAMPLES=$4
                 _all_eras,  # all_eras=$5
                 _scopes,  # SCOPES=$6
                 _shifts,  # SHIFTS=$7

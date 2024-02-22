@@ -16,7 +16,7 @@ class CROWNBuildFriend(CROWNBuildBase):
     friend_config = luigi.Parameter()
     friend_name = luigi.Parameter()
     era = luigi.Parameter()
-    sampletype = luigi.Parameter()
+    sample_type = luigi.Parameter()
     nick = luigi.Parameter(significant=False)
 
     def requires(self):
@@ -30,7 +30,7 @@ class CROWNBuildFriend(CROWNBuildBase):
                 self.analysis,
                 self.friend_config,
                 self.friend_name,
-                self.sampletype,
+                self.sample_type,
                 self.era,
             )
         )
@@ -51,7 +51,7 @@ class CROWNBuildFriend(CROWNBuildBase):
         with quantity_target[0].localize("r") as _file:
             _quantities_map_file = _file.path
         # convert list to comma separated strings
-        _sampletype = self.sampletype
+        _sample_type = self.sample_type
         _era = self.era
         _shifts = convert_to_comma_seperated(self.shifts)
         _scopes = convert_to_comma_seperated(self.scopes)
@@ -59,7 +59,7 @@ class CROWNBuildFriend(CROWNBuildBase):
         _friend_config = str(self.friend_config)
         _friend_name = str(self.friend_name)
         # also use the tag for the local tarball creation
-        _tag = f"{self.production_tag}/CROWNFriends_{_analysis}_{_friend_config}_{_friend_name}_{_sampletype}_{_era}"
+        _tag = f"{self.production_tag}/CROWNFriends_{_analysis}_{_friend_config}_{_friend_name}_{_sample_type}_{_era}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
@@ -90,7 +90,7 @@ class CROWNBuildFriend(CROWNBuildBase):
             console.log(f"Analysis: {_analysis}")
             console.log(f"Friend Config: {_friend_config}")
             console.log(f"Friend Name: {_friend_name}")
-            console.log(f"Sampletype: {_sampletype}")
+            console.log(f"Sampletype: {_sample_type}")
             console.log(f"Era: {_era}")
             console.log(f"Scopes: {_scopes}")
             console.log(f"Shifts: {_shifts}")
@@ -104,7 +104,7 @@ class CROWNBuildFriend(CROWNBuildBase):
                 _crown_path,  # CROWNFOLDER=$1
                 _analysis,  # ANALYSIS=$2
                 _friend_config,  # CONFIG=$3
-                _sampletype,  # SAMPLES=$4
+                _sample_type,  # SAMPLES=$4
                 _era,  # ERAS=$5
                 _scopes,  # SCOPES=$6
                 _shifts,  # SHIFTS=$7

@@ -25,7 +25,11 @@ class CROWNRun(CROWNExecuteBase):
         requirements = {}
         requirements["dataset"] = {}
         requirements["dataset"] = ConfigureDatasets.req(
-            self, nick=self.nick, production_tag=self.production_tag
+            self,
+            nick=self.nick,
+            production_tag=self.production_tag,
+            era=self.era,
+            sample_type=self.sample_type,
         )
         requirements["tarball"] = CROWNBuild.req(self)
         return requirements
@@ -36,7 +40,12 @@ class CROWNRun(CROWNExecuteBase):
     def create_branch_map(self):
         branch_map = {}
         branchcounter = 0
-        dataset = ConfigureDatasets(nick=self.nick, production_tag=self.production_tag)
+        dataset = ConfigureDatasets(
+            nick=self.nick,
+            production_tag=self.production_tag,
+            era=self.era,
+            sample_type=self.sample_type,
+        )
         # since we use the filelist from the dataset, we need to run it first
         dataset.run()
         datsetinfo = dataset.output()
@@ -46,7 +55,7 @@ class CROWNRun(CROWNExecuteBase):
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
         files_per_task = self.files_per_task
-        if self.sampletype == "data" and any(
+        if self.sample_type == "data" and any(
             era in self.nick for era in self.problematic_eras
         ):
             files_per_task = 1
@@ -58,7 +67,7 @@ class CROWNRun(CROWNExecuteBase):
             branch_map[branchcounter] = {}
             branch_map[branchcounter]["nick"] = self.nick
             branch_map[branchcounter]["era"] = self.era
-            branch_map[branchcounter]["sampletype"] = self.sampletype
+            branch_map[branchcounter]["sample_type"] = self.sample_type
             branch_map[branchcounter]["files"] = branches[x]
             branchcounter += 1
         return branch_map
@@ -110,7 +119,7 @@ class CROWNRun(CROWNExecuteBase):
             )
         )
         _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.config, branch_data["sampletype"], branch_data["era"]
+            _workdir, self.config, branch_data["sample_type"], branch_data["era"]
         )
         console.log(
             "Getting CROWN tarball from {}".format(self.input()["tarball"].uri())
@@ -121,7 +130,7 @@ class CROWNRun(CROWNExecuteBase):
         _tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(
-                self.config, branch_data["sampletype"], branch_data["era"]
+                self.config, branch_data["sample_type"], branch_data["era"]
             ),
         )
         while os.path.exists(_tempfile):
@@ -143,7 +152,7 @@ class CROWNRun(CROWNExecuteBase):
         my_env = self.set_environment("{}/init.sh".format(_workdir))
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(
-            self.config, branch_data["sampletype"], branch_data["era"]
+            self.config, branch_data["sample_type"], branch_data["era"]
         )
         # actual payload:
         console.rule("Starting CROWNRun")
@@ -220,7 +229,7 @@ class CROWNRun(CROWNExecuteBase):
                         "--input {}".format(inputfile),
                         "--era {}".format(self.branch_data["era"]),
                         "--scope {}".format(self.scopes[i]),
-                        "--sampletype {}".format(self.branch_data["sampletype"]),
+                        "--sample_type {}".format(self.branch_data["sample_type"]),
                         "--output {}".format(local_outputfile),
                     ],
                     sourcescript=[

@@ -21,21 +21,20 @@ class ProduceMultiFriends(ProduceBase):
         self.sanitize_shifts()
         self.sanitize_friend_dependencies()
         self.validate_friend_mapping()
-
-        console.rule("")
-        console.log(f"Production tag: {self.production_tag}")
-        console.log(f"Analysis: {self.analysis}")
-        console.log(f"Friend Config: {self.friend_config}")
-        console.log(f"Config: {self.config}")
-        console.log(f"Shifts: {self.shifts}")
-        console.log(f"Scopes: {self.scopes}")
-        console.log(f"Friend Dependencies: {self.friend_dependencies}")
-        console.log(f"Friend Mapping: {self.friend_mapping}")
-        console.rule("")
+        if not self.silent:
+            console.rule("")
+            console.log(f"Production tag: {self.production_tag}")
+            console.log(f"Analysis: {self.analysis}")
+            console.log(f"Friend Config: {self.friend_config}")
+            console.log(f"Config: {self.config}")
+            console.log(f"Shifts: {self.shifts}")
+            console.log(f"Scopes: {self.scopes}")
+            console.log(f"Friend Dependencies: {self.friend_dependencies}")
+            console.log(f"Friend Mapping: {self.friend_mapping}")
+            console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
-
-        console.rule("")
+        self.silent = True
 
         requirements = {}
         for samplenick in data["details"]:
@@ -47,10 +46,10 @@ class ProduceMultiFriends(ProduceBase):
                     production_tag=self.production_tag,
                     all_eras=data["eras"],
                     shifts=self.shifts,
-                    all_sampletypes=data["sampletypes"],
+                    all_sample_types=data["sample_types"],
                     scopes=self.scopes,
                     era=data["details"][samplenick]["era"],
-                    sampletype=data["details"][samplenick]["sampletype"],
+                    sample_type=data["details"][samplenick]["sample_type"],
                     friend_config=self.friend_config,
                     friend_name=self.friend_name,
                     friend_dependencies=self.friend_dependencies,

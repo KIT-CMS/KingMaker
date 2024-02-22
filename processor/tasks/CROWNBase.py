@@ -1,7 +1,7 @@
 import law
 import luigi
 import os
-import yaml
+import json
 import shutil
 from framework import console
 from law.config import Config
@@ -28,6 +28,7 @@ class ProduceBase(WrapperTask):
     production_tag = luigi.Parameter()
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
+    silent = False
 
     def parse_samplelist(self, sample_list):
         """
@@ -112,13 +113,13 @@ class ProduceBase(WrapperTask):
         :param samples: The `samples` parameter is a list of sample nicknames. Each nickname represents a
         sample that will be processed in the code
         :return: a dictionary named "data" which contains the following keys:
-        - "sampletypes": a set of sample types
+        - "sample_types": a set of sample types
         - "eras": a set of eras
         - "details": a dictionary containing details about each sample, where the keys are the sample
         nicknames and the values are dictionaries containing the era and sample type of each sample.
         """
         data = {}
-        data["sampletypes"] = set()
+        data["sample_types"] = set()
         data["eras"] = set()
         data["details"] = {}
         table = Table(title=f"Samples (selected Scopes: {self.scopes})")
@@ -127,11 +128,11 @@ class ProduceBase(WrapperTask):
         table.add_column("Sampletype", justify="left")
 
         with open(str(self.dataset_database), "r") as stream:
-            sample_db = yaml.safe_load(stream)
+            sample_db = json.load(stream)
 
         for nick in samples:
             data["details"][nick] = {}
-            # check if sample exists in datasets.yaml
+            # check if sample exists in datasets.json
             if nick not in sample_db:
                 console.log(
                     "Sample {} not found in {}".format(nick, self.dataset_database)
@@ -139,15 +140,20 @@ class ProduceBase(WrapperTask):
                 raise Exception("Sample not found in DB")
             sample_data = sample_db[nick]
             data["details"][nick]["era"] = str(sample_data["era"])
-            data["details"][nick]["sampletype"] = sample_data["sample_type"]
+            data["details"][nick]["sample_type"] = sample_data["sample_type"]
             # all samplestypes and eras are added to a list,
             # used to built the CROWN executable
             data["eras"].add(data["details"][nick]["era"])
-            data["sampletypes"].add(data["details"][nick]["sampletype"])
-            table.add_row(
-                nick, data["details"][nick]["era"], data["details"][nick]["sampletype"]
-            )
-        console.log(table)
+            data["sample_types"].add(data["details"][nick]["sample_type"])
+            if not self.silent:
+                table.add_row(
+                    nick,
+                    data["details"][nick]["era"],
+                    data["details"][nick]["sample_type"],
+                )
+        if not self.silent:
+            console.log(table)
+            console.rule()
         return data
 
 
@@ -158,10 +164,10 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     output_collection_cls = law.NestedSiblingFileCollection
     scopes = luigi.ListParameter()
-    all_sampletypes = luigi.ListParameter(significant=False)
+    all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
     nick = luigi.Parameter()
-    sampletype = luigi.Parameter()
+    sample_type = luigi.Parameter()
     era = luigi.Parameter()
     shifts = luigi.Parameter()
     analysis = luigi.Parameter()
@@ -255,7 +261,7 @@ class CROWNBuildBase(Task):
     shifts = luigi.Parameter()
     build_dir = luigi.Parameter()
     install_dir = luigi.Parameter()
-    all_sampletypes = luigi.ListParameter(significant=False)
+    all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
     analysis = luigi.Parameter()
     config = luigi.Parameter(significant=False)

@@ -8,14 +8,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Readout Quantities Map")
     parser.add_argument("--input", help="input file")
     parser.add_argument("--era", help="era")
-    parser.add_argument("--sampletype", help="sampletype")
+    parser.add_argument("--sample_type", help="sample_type")
     parser.add_argument("--scope", help="scope")
     parser.add_argument("--output", help="output file")
     args = parser.parse_args()
     return args
 
 
-def read_quantities_map(input_file, era, sampletype, scope, outputfile):
+def read_quantities_map(input_file, era, sample_type, scope, outputfile):
     print(f"Reading quantities Map from {input_file}")
     data = {}
     ROOT.gSystem.Load(os.path.abspath(__file__), "/maplib.so")
@@ -28,8 +28,8 @@ def read_quantities_map(input_file, era, sampletype, scope, outputfile):
     print(f"Successfully read quantities map from {input_file}")
     output = {}
     output[era] = {}
-    output[era][sampletype] = {}
-    output[era][sampletype][scope] = data
+    output[era][sample_type] = {}
+    output[era][sample_type][scope] = data
     with open(outputfile, "w") as f:
         json.dump(output, f, indent=4)
 
@@ -37,6 +37,6 @@ def read_quantities_map(input_file, era, sampletype, scope, outputfile):
 # call the function with the input file
 if __name__ == "__main__":
     args = parse_args()
-    read_quantities_map(args.input, args.era, args.sampletype, args.scope, args.output)
+    read_quantities_map(args.input, args.era, args.sample_type, args.scope, args.output)
     print("Done")
     exit(0)

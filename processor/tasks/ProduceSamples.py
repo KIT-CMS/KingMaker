@@ -11,18 +11,17 @@ class ProduceSamples(ProduceBase):
     def requires(self):
         self.sanitize_scopes()
         self.sanitize_shifts()
-
-        console.rule("")
-        console.log(f"Production tag: {self.production_tag}")
-        console.log(f"Analysis: {self.analysis}")
-        console.log(f"Config: {self.config}")
-        console.log(f"Shifts: {self.shifts}")
-        console.log(f"Scopes: {self.scopes}")
-        console.rule("")
+        if not self.silent:
+            console.rule("")
+            console.log(f"Production tag: {self.production_tag}")
+            console.log(f"Analysis: {self.analysis}")
+            console.log(f"Config: {self.config}")
+            console.log(f"Shifts: {self.shifts}")
+            console.log(f"Scopes: {self.scopes}")
+            console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
-
-        console.rule("")
+        self.silent = True
 
         requirements = {}
         for samplenick in data["details"]:
@@ -34,9 +33,9 @@ class ProduceSamples(ProduceBase):
                 shifts=self.shifts,
                 production_tag=self.production_tag,
                 all_eras=data["eras"],
-                all_sampletypes=data["sampletypes"],
+                all_sample_types=data["sample_types"],
                 era=data["details"][samplenick]["era"],
-                sampletype=data["details"][samplenick]["sampletype"],
+                sample_type=data["details"][samplenick]["sample_type"],
             )
 
         return requirements

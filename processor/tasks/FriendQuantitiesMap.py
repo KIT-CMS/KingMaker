@@ -9,10 +9,10 @@ import json
 
 class FriendQuantitiesMap(law.LocalWorkflow, Task):
     scopes = luigi.ListParameter()
-    all_sampletypes = luigi.ListParameter(significant=False)
+    all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
-    sampletype = luigi.Parameter()
+    sample_type = luigi.Parameter()
     production_tag = luigi.Parameter()
     analysis = luigi.Parameter(significant=False)
     config = luigi.Parameter(significant=False)
@@ -28,9 +28,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             config=self.config,
             production_tag=self.production_tag,
             all_eras=self.all_eras,
-            all_sampletypes=self.all_sampletypes,
+            all_sample_types=self.all_sample_types,
             era=self.era,
-            sampletype=self.sampletype,
+            sample_type=self.sample_type,
             scopes=self.scopes,
         )
         for friend in self.friend_dependencies:
@@ -41,9 +41,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                     config=self.config,
                     production_tag=self.production_tag,
                     all_eras=self.all_eras,
-                    all_sampletypes=self.all_sampletypes,
+                    all_sample_types=self.all_sample_types,
                     era=self.era,
-                    sampletype=self.sampletype,
+                    sample_type=self.sample_type,
                     scopes=self.scopes,
                     friend_name=self.friend_mapping[friend],
                     friend_config=friend,
@@ -59,9 +59,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             config=self.config,
             production_tag=self.production_tag,
             all_eras=self.all_eras,
-            all_sampletypes=self.all_sampletypes,
+            all_sample_types=self.all_sample_types,
             era=self.era,
-            sampletype=self.sampletype,
+            sample_type=self.sample_type,
             scopes=self.scopes,
         )
         for friend in self.friend_dependencies:
@@ -71,9 +71,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 config=self.config,
                 production_tag=self.production_tag,
                 all_eras=self.all_eras,
-                all_sampletypes=self.all_sampletypes,
+                all_sample_types=self.all_sample_types,
                 era=self.era,
-                sampletype=self.sampletype,
+                sample_type=self.sample_type,
                 scopes=self.scopes,
                 friend_name=friend,
                 friend_config=friend,
@@ -84,14 +84,14 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
         return {
             0: {
                 "era": self.era,
-                "sampletype": self.sampletype,
+                "sample_type": self.sample_type,
             }
         }
 
     def output(self):
         target = self.remote_target(
             "{}/{}_{}_quantities_map.json".format(
-                self.production_tag, self.era, self.sampletype
+                self.production_tag, self.era, self.sample_type
             )
         )
         target.parent.touch()
@@ -100,13 +100,13 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     def run(self):
         output = self.output()
         era = self.era
-        sampletype = self.sampletype
+        sample_type = self.sample_type
         _workdir = os.path.abspath(f"quantities_map/{self.production_tag}")
         if not os.path.exists(_workdir):
             os.makedirs(_workdir)
         quantities_map = {}
         quantities_map[era] = {}
-        quantities_map[era][sampletype] = {}
+        quantities_map[era][sample_type] = {}
         # go through all input files and get all quantities maps
         samples = self.input()["ntuples"]
         for sample in samples:
@@ -124,21 +124,23 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                         with inputfile.localize("r") as _file:
                             # open file and update quantities map
                             update = json.load(open(_file.path, "r"))
-                            scope = list(update[era][sampletype].keys())[0]
-                            if scope not in quantities_map[era][sampletype].keys():
-                                quantities_map[era][sampletype][scope] = {}
-                            for shift in update[era][sampletype][scope].keys():
+                            scope = list(update[era][sample_type].keys())[0]
+                            if scope not in quantities_map[era][sample_type].keys():
+                                quantities_map[era][sample_type][scope] = {}
+                            for shift in update[era][sample_type][scope].keys():
                                 if (
                                     shift
-                                    not in quantities_map[era][sampletype][scope].keys()
+                                    not in quantities_map[era][sample_type][
+                                        scope
+                                    ].keys()
                                 ):
-                                    quantities_map[era][sampletype][scope][shift] = []
-                                quantities_map[era][sampletype][scope][shift].extend(
-                                    update[era][sampletype][scope][shift]
+                                    quantities_map[era][sample_type][scope][shift] = []
+                                quantities_map[era][sample_type][scope][shift].extend(
+                                    update[era][sample_type][scope][shift]
                                 )
         # write the quantities map to a file
         local_filename = os.path.join(
-            _workdir, "{}_{}_quantities_map.json".format(era, sampletype)
+            _workdir, "{}_{}_quantities_map.json".format(era, sample_type)
         )
 
         with open(local_filename, "w") as f:
