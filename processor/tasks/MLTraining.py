@@ -316,7 +316,7 @@ class RunTraining(MLBase):
             for file_template in self.file_templates
         ]
         # print([self.wlcg_path + file_ for file_ in files])
-        targets = self.remote_targets(files)
+        targets = self.remote_target(files)
         for target in targets:
             target.parent.touch()
         return targets

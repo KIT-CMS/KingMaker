@@ -183,12 +183,22 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         """
         # Add identification-str to prevent interference between different tasks of the same class
         # Expand path to account for use of env variables (like $USER)
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path(f"htcondor_files/{self.nick}"),
-            law.wlcg.WLCGFileSystem(
-                None, base="{}".format(os.path.expandvars(self.wlcg_path))
-            ),
-        )
+        if self.is_local_output:
+            return law.LocalDirectoryTarget(
+                self.local_path(f"htcondor_files/{self.nick}"),
+                fs=law.LocalFileSystem(
+                    None,
+                    base=f"{os.path.expandvars(self.local_output_path)}",
+                ),
+            )
+        else:
+            return law.wlcg.WLCGDirectoryTarget(
+                self.remote_path(f"htcondor_files/{self.nick}"),
+                fs=law.wlcg.WLCGFileSystem(
+                    None, 
+                    base=f"{os.path.expandvars(self.wlcg_path)}",
+                ),
+            )
 
     def htcondor_create_job_file_factory(self):
         """

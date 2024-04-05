@@ -100,7 +100,7 @@ class CROWNFriends(CROWNExecuteBase):
                     scope=self.branch_data["scope"],
                 )
             )
-        targets = self.remote_targets(nicks)
+        targets = self.remote_target(nicks)
         for target in targets:
             target.parent.touch()
         return targets

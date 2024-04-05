@@ -41,46 +41,51 @@ else:
 class Task(law.Task):
     local_user = getuser()
     wlcg_path = luigi.Parameter(description="Base-path to remote file location.")
+    local_output_path = luigi.Parameter(description="Base-path to local file location.")
+    output_destination = luigi.Parameter(description="Whether to use local storage.")
+
     # Behaviour of production_tag:
     # If a tag is give it will be used for the respective task.
     # If no tag is given a timestamp abse on startup_time is used.
     #   This timestamp is the same for all tasks with no set production_tag.
     production_tag = luigi.Parameter(
-        default="default/{}".format(startup_time),
+        default=f"default/{startup_time}",
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
     output_collection_cls = law.NestedSiblingFileCollection
 
+    @property
+    def is_local_output(self):
+        return self.output_destination == "local"
+    
     # Path of local targets. Composed from the analysis path set during the setup.sh,
     #   the production_tag, the name of the task and an additional path if provided.
     def local_path(self, *path):
-        parts = (
-            (os.getenv("ANALYSIS_DATA_PATH"),)
-            + (self.production_tag,)
-            + (self.__class__.__name__,)
-            + path
+        return os.path.join(
+            self.local_output_path 
+            if self.is_local_output else 
+            os.getenv("ANALYSIS_DATA_PATH"),
+            self.production_tag,
+            self.__class__.__name__,
+            *path,
         )
-        return os.path.join(*parts)
 
     def temporary_local_path(self, *path):
         if os.environ.get("_CONDOR_JOB_IWD"):
             prefix = os.environ.get("_CONDOR_JOB_IWD") + "/tmp/"
         else:
-            prefix = "/tmp/{user}".format(user=self.local_user)
+            prefix = f"/tmp/{self.local_user}"
         temporary_dir = mkdtemp(dir=prefix)
         parts = (temporary_dir,) + (self.__class__.__name__,) + path
         return os.path.join(*parts)
 
     def local_target(self, path):
-        return law.LocalFileTarget(self.local_path(path))
-
-    def local_targets(self, paths):
-        targets = []
-        for path in paths:
-            targets.append(law.LocalFileTarget(path=self.local_path(path)))
-        return targets
-
-    def temporary_local_target(self, *path):
+        if isinstance(path, (list, tuple)):
+            return [law.LocalFileTarget(self.local_path(p)) for p in path]
+        else:
+            return law.LocalFileTarget(self.local_path(path))
+        
+    def temporarylocal_target(self, *path):
         return law.LocalFileTarget(self.temporary_local_path(*path))
 
     # Path of remote targets. Composed from the production_tag,
@@ -91,14 +96,13 @@ class Task(law.Task):
         return os.path.join(*parts)
 
     def remote_target(self, path):
-        target = law.wlcg.WLCGFileTarget(path=self.remote_path(path))
-        return target
-
-    def remote_targets(self, paths):
-        targets = []
-        for path in paths:
-            targets.append(law.wlcg.WLCGFileTarget(path=self.remote_path(path)))
-        return targets
+        if self.is_local_output:
+            return self.local_target(path)
+        
+        if isinstance(path, (list, tuple)):
+            return [law.wlcg.WLCGFileTarget(self.remote_path(p)) for p in path]
+        else:
+            return law.wlcg.WLCGFileTarget(self.remote_path(path))
 
     def convert_env_to_dict(self, env):
         my_env = {}
@@ -115,11 +119,11 @@ class Task(law.Task):
     #   Anything apart from setting paths is likely not included in the resulting envs.
     def set_environment(self, sourcescript, silent=False):
         if not silent:
-            console.log("with source script: {}".format(sourcescript))
+            console.log(f"with source script: {sourcescript}")
         if isinstance(sourcescript, str):
             sourcescript = [sourcescript]
         source_command = [
-            "source {};".format(sourcescript) for sourcescript in sourcescript
+            f"source {_sourcescript};" for _sourcescript in sourcescript
         ] + ["env"]
         source_command_string = " ".join(source_command)
         code, out, error = interruptable_popen(
@@ -130,8 +134,8 @@ class Task(law.Task):
             # rich_console=console
         )
         if code != 0:
-            console.log("source returned non-zero exit status {}".format(code))
-            console.log("Error: {}".format(error))
+            console.log(f"source returned non-zero exit status {code}")
+            console.log(f"Error: {error}")
             raise Exception("source failed")
         my_env = self.convert_env_to_dict(out)
         return my_env
@@ -153,9 +157,9 @@ class Task(law.Task):
         if command:
             if isinstance(command, str):
                 command = [command]
-            logstring = "Running {}".format(command)
+            logstring = f"Running {command}"
             if run_location:
-                logstring += " from {}".format(run_location)
+                logstring += f" from {run_location}"
             if not silent:
                 console.log(logstring)
             if sourcescript:
@@ -173,15 +177,15 @@ class Task(law.Task):
                 cwd=run_location,
             )
             if not silent:
-                console.log("Output: {}".format(out))
+                console.log(f"Output: {out}")
                 console.rule()
             if not silent or code != 0:
-                console.log("Error: {}".format(error))
+                console.log(f"Error: {error}")
                 console.rule()
             if code != 0:
-                console.log("Error when running {}.".format(list(command)))
-                console.log("Command returned non-zero exit status {}.".format(code))
-                raise Exception("{} failed".format(list(command)))
+                console.log(f"Error when running {list(command)}.")
+                console.log(f"Command returned non-zero exit status {code}.")
+                raise Exception(f"{list(command)} failed")
             else:
                 if not silent:
                     console.log("Command successful.")
@@ -202,9 +206,9 @@ class Task(law.Task):
                 run_env = self.set_environment(sourcescript)
             else:
                 run_env = None
-            logstring = "Running {}".format(command)
+            logstring = f"Running {command}"
             if run_location:
-                logstring += " from {}".format(run_location)
+                logstring += f" from {run_location}"
             console.rule()
             console.log(logstring)
             try:
@@ -349,18 +353,27 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     def htcondor_output_directory(self):
         # Add identification-str to prevent interference between different tasks of the same class
         # Expand path to account for use of env variables (like $USER)
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path("htcondor_files"),
-            law.wlcg.WLCGFileSystem(
-                None, base="{}".format(os.path.expandvars(self.wlcg_path))
-            ),
-        )
+        if self.is_local_output:
+            return law.LocalDirectoryTarget(
+                self.local_path("htcondor_files"),
+                law.LocalFileSystem(
+                    None,
+                    base=f"{os.path.expandvars(self.local_output_path)}",
+                ),
+            )
+        else:
+            return law.wlcg.WLCGDirectoryTarget(
+                self.remote_path("htcondor_files"),
+                law.wlcg.WLCGFileSystem(
+                    None, base=os.path.expandvars(self.wlcg_path)
+                ),
+            )
 
     def htcondor_create_job_file_factory(self):
         factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory()
         factory.is_tmp = False
         # Print location of job dir
-        console.log("HTCondor job directory is: {}".format(factory.dir))
+        console.log(f"HTCondor job directory is: {factory.dir}")
         return factory
 
     def htcondor_bootstrap_file(self):
@@ -410,22 +423,44 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.custom_content.append(("RequestDisk", self.htcondor_request_disk))
 
         # Ensure tarball dir exists
-        if not os.path.exists("tarballs/{}".format(self.production_tag)):
-            os.makedirs("tarballs/{}".format(self.production_tag))
+        if not os.path.exists(f"tarballs/{self.production_tag}"):
+            os.makedirs(f"tarballs/{self.production_tag}")
         # Repack tarball if it is not available remotely
-        tarball = law.wlcg.WLCGFileTarget(
-            "{tag}/{task}/job_tarball/processor.tar.gz".format(
-                tag=self.production_tag, task=self.__class__.__name__
+        
+        if self.is_local_output:
+            tarball = law.LocalFileTarget(
+                os.path.join(
+                    self.production_tag,
+                    self.__class__.__name__,
+                    "job_tarball",
+                    "processor.tar.gz",
+                ),
+                fs=law.LocalFileSystem(
+                    None,
+                    base=f"{os.path.expandvars(self.local_output_path)}",
+                ),
             )
-        )
+        else:
+            tarball = law.wlcg.WLCGFileTarget(
+                os.path.join(
+                    self.production_tag,
+                    self.__class__.__name__,
+                    "job_tarball",
+                    "processor.tar.gz",
+                )
+            )
         if not tarball.exists():
             # Make new tarball
             prevdir = os.getcwd()
             os.system("cd $ANALYSIS_PATH")
             # get absolute path to tarball dir
-            tarball_dir = os.path.abspath("tarballs/{}".format(self.production_tag))
+            tarball_dir = os.path.abspath(f"tarballs/{self.production_tag}")
             tarball_local = law.LocalFileTarget(
-                "{}/{}/processor.tar.gz".format(tarball_dir, task_name)
+                os.path.join(
+                    tarball_dir,
+                    task_name,
+                    "processor.tar.gz",
+                )
             )
             print(
                 f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
@@ -443,8 +478,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "-czf",
                 tarball_local.path,
                 "processor",
-                "lawluigi_configs/{}_luigi.cfg".format(analysis_name),
-                "lawluigi_configs/{}_law.cfg".format(analysis_name),
+                f"lawluigi_configs/{analysis_name}_luigi.cfg",
+                f"lawluigi_configs/{analysis_name}_law.cfg",
                 "law",
             ] + list(self.additional_files)
             code, out, error = interruptable_popen(
@@ -454,9 +489,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 # rich_console=console
             )
             if code != 0:
-                console.log("Error when taring job {}".format(error))
-                console.log("Output: {}".format(out))
-                console.log("tar returned non-zero exit status {}".format(code))
+                console.log(f"Error when taring job {error}")
+                console.log(f"Output: {out}")
+                console.log(f"tar returned non-zero exit status {code}")
                 console.rule()
                 os.remove(tarball_local.path)
                 raise Exception("tar failed")
@@ -474,14 +509,24 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         if env_dict[self.ENV_NAME] == "False":
             # IMPORTANT: environments have to be named differently with each change
             #            as caching prevents a clean overwrite of existing files
-            tarball_env = law.wlcg.WLCGFileTarget(
-                path="env_tarballs/{env}.tar.gz".format(env=self.ENV_NAME)
-            )
+            if self.is_local_output:
+                tarball_env = law.LocalFileTarget(
+                    path=f"env_tarballs/{self.ENV_NAME}.tar.gz",
+                    fs=law.LocalFileSystem(
+                        None,
+                        base=f"{os.path.expandvars(self.local_output_path)}",
+                    ),
+                )
+            else:
+                tarball_env = law.wlcg.WLCGFileTarget(
+                    path=f"env_tarballs/{self.ENV_NAME}.tar.gz"
+                )
+
             if not tarball_env.exists():
                 tarball_env.parent.touch()
                 tarball_env.copy_from_local(
                     src=os.path.abspath(
-                        "tarballs/conda_envs/{}.tar.gz".format(self.ENV_NAME)
+                        f"tarballs/conda_envs/{self.ENV_NAME}.tar.gz"
                     )
                 )
         config.render_variables["USER"] = self.local_user
@@ -490,14 +535,26 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.render_variables["TAG"] = self.production_tag
         config.render_variables["USE_CVMFS"] = env_dict[self.ENV_NAME]
         config.render_variables["LUIGIPORT"] = os.getenv("LUIGIPORT")
-        config.render_variables["TARBALL_PATH"] = (
-            os.path.expandvars(self.wlcg_path) + tarball.path
-        )
+
+        config.render_variables["OUTPUT_DESTINATION"] = self.output_destination
+        if not self.is_local_output:
+            config.render_variables["TARBALL_PATH"] = (
+                os.path.expandvars(self.wlcg_path) + tarball.path
+            )
+        else:
+            config.render_variables["TARBALL_PATH"] = (
+                os.path.expandvars(self.local_output_path) + tarball.path
+            )
         # Include path to env tarball if env not in cvmfs
         if env_dict[self.ENV_NAME] == "False":
-            config.render_variables["TARBALL_ENV_PATH"] = (
-                os.path.expandvars(self.wlcg_path) + tarball_env.path
-            )
+            if not self.is_local_output:
+                config.render_variables["TARBALL_ENV_PATH"] = (
+                    os.path.expandvars(self.wlcg_path) + tarball_env.path
+                )
+            else:
+                config.render_variables["TARBALL_ENV_PATH"] = (
+                    os.path.expandvars(self.local_output_path) + tarball_env.path
+                )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
         # only needed for $ANA_NAME=ML_train see setup.sh line 158

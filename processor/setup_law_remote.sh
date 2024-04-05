@@ -26,8 +26,16 @@ action() {
 
     source /opt/conda/etc/profile.d/conda.sh
     conda activate env
-    echo "gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}"
-    gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}
+
+    if [ "{{OUTPUT_DESTINATION}}" = "local" ]
+    then
+        echo "cp {{TARBALL_PATH}} ${SPAWNPOINT}"
+        cp {{TARBALL_PATH}} ${SPAWNPOINT}
+    else
+        echo "gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}"
+        gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}
+    fi
+
     tar -xzf processor.tar.gz && rm processor.tar.gz
 
     # # add law to path
