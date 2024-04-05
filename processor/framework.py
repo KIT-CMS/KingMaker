@@ -57,14 +57,16 @@ class Task(law.Task):
     @property
     def is_local_output(self):
         return self.output_destination == "local"
-    
+
     # Path of local targets. Composed from the analysis path set during the setup.sh,
     #   the production_tag, the name of the task and an additional path if provided.
     def local_path(self, *path):
         return os.path.join(
-            self.local_output_path 
-            if self.is_local_output else 
-            os.getenv("ANALYSIS_DATA_PATH"),
+            (
+                self.local_output_path
+                if self.is_local_output
+                else os.getenv("ANALYSIS_DATA_PATH")
+            ),
             self.production_tag,
             self.__class__.__name__,
             *path,
@@ -82,9 +84,9 @@ class Task(law.Task):
     def local_target(self, path):
         if isinstance(path, (list, tuple)):
             return [law.LocalFileTarget(self.local_path(p)) for p in path]
-        else:
-            return law.LocalFileTarget(self.local_path(path))
-        
+
+        return law.LocalFileTarget(self.local_path(path))
+
     def temporarylocal_target(self, *path):
         return law.LocalFileTarget(self.temporary_local_path(*path))
 
@@ -98,11 +100,11 @@ class Task(law.Task):
     def remote_target(self, path):
         if self.is_local_output:
             return self.local_target(path)
-        
+
         if isinstance(path, (list, tuple)):
             return [law.wlcg.WLCGFileTarget(self.remote_path(p)) for p in path]
-        else:
-            return law.wlcg.WLCGFileTarget(self.remote_path(path))
+
+        return law.wlcg.WLCGFileTarget(self.remote_path(path))
 
     def convert_env_to_dict(self, env):
         my_env = {}
@@ -361,13 +363,11 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     base=f"{os.path.expandvars(self.local_output_path)}",
                 ),
             )
-        else:
-            return law.wlcg.WLCGDirectoryTarget(
-                self.remote_path("htcondor_files"),
-                law.wlcg.WLCGFileSystem(
-                    None, base=os.path.expandvars(self.wlcg_path)
-                ),
-            )
+
+        return law.wlcg.WLCGDirectoryTarget(
+            self.remote_path("htcondor_files"),
+            law.wlcg.WLCGFileSystem(None, base=os.path.expandvars(self.wlcg_path)),
+        )
 
     def htcondor_create_job_file_factory(self):
         factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory()
@@ -426,7 +426,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         if not os.path.exists(f"tarballs/{self.production_tag}"):
             os.makedirs(f"tarballs/{self.production_tag}")
         # Repack tarball if it is not available remotely
-        
+
         if self.is_local_output:
             tarball = law.LocalFileTarget(
                 os.path.join(
@@ -525,9 +525,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             if not tarball_env.exists():
                 tarball_env.parent.touch()
                 tarball_env.copy_from_local(
-                    src=os.path.abspath(
-                        f"tarballs/conda_envs/{self.ENV_NAME}.tar.gz"
-                    )
+                    src=os.path.abspath(f"tarballs/conda_envs/{self.ENV_NAME}.tar.gz")
                 )
         config.render_variables["USER"] = self.local_user
         config.render_variables["ANA_NAME"] = os.getenv("ANA_NAME")

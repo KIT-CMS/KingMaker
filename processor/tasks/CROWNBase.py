@@ -191,14 +191,14 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
                     base=f"{os.path.expandvars(self.local_output_path)}",
                 ),
             )
-        else:
-            return law.wlcg.WLCGDirectoryTarget(
-                self.remote_path(f"htcondor_files/{self.nick}"),
-                fs=law.wlcg.WLCGFileSystem(
-                    None, 
-                    base=f"{os.path.expandvars(self.wlcg_path)}",
-                ),
-            )
+
+        return law.wlcg.WLCGDirectoryTarget(
+            self.remote_path(f"htcondor_files/{self.nick}"),
+            fs=law.wlcg.WLCGFileSystem(
+                None,
+                base=f"{os.path.expandvars(self.wlcg_path)}",
+            ),
+        )
 
     def htcondor_create_job_file_factory(self):
         """
