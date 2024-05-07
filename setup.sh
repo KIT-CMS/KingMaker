@@ -13,7 +13,7 @@ action() {
     # Check if current machine is an etp portal machine.
     PORTAL_LIST=("bms1.etp.kit.edu" "bms2.etp.kit.edu" "bms3.etp.kit.edu" "portal1.etp.kit.edu" "bms1-centos7.etp.kit.edu" "bms2-centos7.etp.kit.edu" "bms3-centos7.etp.kit.edu" "portal1-centos7.etp.kit.edu")
     CURRENT_HOST=$(hostname --long)
-    if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then  
+    if [[ ! " ${PORTAL_LIST[*]} " =~ " ${CURRENT_HOST} " ]]; then
         echo "Current host (${CURRENT_HOST}) not in list of allowed machines:"
         printf '%s\n' "${PORTAL_LIST[@]}"
         return 1
@@ -55,13 +55,13 @@ action() {
         printf '%s\n' "${ANA_LIST[@]}"
         return 1
     else
-        #Check if given analysis is in list 
-        if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then 
+        #Check if given analysis is in list
+        if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then
             echo "Not a valid name. Allowed choices are:"
             printf '%s\n' "${ANA_LIST[@]}"
             return 1
         else
-            echo "Using ${ANA_NAME_GIVEN} analysis." 
+            echo "Using ${ANA_NAME_GIVEN} analysis."
             export ANA_NAME="${ANA_NAME_GIVEN}"
         fi
     fi
@@ -73,7 +73,7 @@ action() {
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
         for i in "${ADDR[@]}"; do
             echo $i
-        done    
+        done
         echo "Parsing of required envs failed with the above error."
         return 1
     fi
@@ -289,6 +289,11 @@ action() {
             python3 ${BASE_DIR}/sample_database/samplemanager/main.py --database-folder ${BASE_DIR}/sample_database
         )
     fi
+}
+
+function monitor_production () {
+    # parse all user arguments and pass them to the python script
+    python3 scripts/ProductionStatus.py $@
 }
 
     export LAW_IS_SET_UP="True"
