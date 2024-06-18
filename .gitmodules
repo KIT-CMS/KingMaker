@@ -7,3 +7,6 @@
 [submodule "sm-htt-analysis"]
 	path = sm-htt-analysis
 	url = git@github.com:tvoigtlaender/sm-htt-analysis.git
+[submodule "kingmaker-images"]
+	path = kingmaker-images
+	url = https://github.com/KIT-CMS/kingmaker-images.git

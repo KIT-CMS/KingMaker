@@ -28,10 +28,10 @@ action() {
     echo " | XRD_PARALLELEVTLOOP = ${XRD_PARALLELEVTLOOP}"
     echo "------------------------------------------"
 
-    source /opt/conda/etc/profile.d/conda.sh
-    conda activate env
+    echo "Setting up environment via {{SOURCE_SCRIPT}}."
+    {{SOURCE_SCRIPT}}
 
-    if [ "{{OUTPUT_DESTINATION}}" = "local" ]
+    if [ "{{IS_LOCAL_OUTPUT}}" = "True" ]
     then
         echo "cp {{TARBALL_PATH}} ${SPAWNPOINT}"
         cp {{TARBALL_PATH}} ${SPAWNPOINT}

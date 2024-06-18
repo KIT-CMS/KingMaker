@@ -12,4 +12,4 @@ fi
 distro=${distro//[[:space:]]/}
 distro="${distro//Linux/}"
 distro="${distro//linux/}"
-echo "Running Kingmaker on $distro Version $os_version"
+#echo "Trying to run Kingmaker on $distro Version $os_version"

@@ -97,7 +97,7 @@ source setup.sh <Analysis Name>
 this should setup the environment specified in the luigi.cfg file (located at `lawluigi_configs/<Analysis Name>_luigi.cfg`), which includes all needed packages.
 The environment is sourced from the conda instance located at `/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/` if possible. 
 If the relevant environment is not available this way, the environment will be set up in a local conda instance.
-The environment files are located at `conda_environments/<Analysis Name>_env.cfg`.
+The environment files are located at `kingmaker-images/KingMaker_envs/<Analysis Name>_env.cfg`.
 In addition other files are installed depending on the analysis.
 
 A list of available analyses can be found in the `setup.sh` script or by running 

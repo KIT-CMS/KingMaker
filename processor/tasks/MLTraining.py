@@ -62,16 +62,9 @@ class CreateTrainingDataShard(MLBase):
         config = super(CreateTrainingDataShard, self).htcondor_job_config(
             config, job_num, branches
         )
-        name_list = [
-            "_".join(info + (fold,))
-            for info in self.datashard_information
-            for fold in ["0", "1"]
-        ]
         task_name = self.__class__.__name__
-        branch_names = []
-        for branch in branches:
-            branch_names.append(name_list[branch])
-        branch_str = "|".join(branch_names)
+        flattened_branches = sum(branches, []) # Quick and dirty way to flatten a nested list
+        branch_str = f"{min(flattened_branches)}to{max(flattened_branches)}"
         config.custom_content.append(("JobBatchName", f"{task_name}-{branch_str}"))
         return config
 
@@ -177,16 +170,9 @@ class RunTraining(MLBase):
     # Add branch specific names to the HTCondor jobs
     def htcondor_job_config(self, config, job_num, branches):
         config = super(RunTraining, self).htcondor_job_config(config, job_num, branches)
-        name_list = [
-            "_".join([info[0], fold])
-            for info in self.training_information
-            for fold in ["0", "1"]
-        ]
         task_name = self.__class__.__name__
-        branch_names = []
-        for branch in branches:
-            branch_names.append(name_list[branch])
-        branch_str = "|".join(branch_names)
+        flattened_branches = sum(branches, []) # Quick and dirty way to flatten a nested list
+        branch_str = f"{min(flattened_branches)}to{max(flattened_branches)}"
         config.custom_content.append(("JobBatchName", f"{task_name}-{branch_str}"))
         return config
 
@@ -358,9 +344,6 @@ class RunTraining(MLBase):
                 "--output-dir {}".format(out_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Convert model to lwtnn format
@@ -374,9 +357,6 @@ class RunTraining(MLBase):
                 "--in-out-dir {}".format(out_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         self.run_command(
@@ -391,9 +371,6 @@ class RunTraining(MLBase):
                 "> {dir}/fold{fold}_lwtnn.json".format(dir=out_dir, fold=fold),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         # Copy locally created files to remote storage
@@ -427,12 +404,9 @@ class RunTesting(MLBase):
     # Add branch specific names to the HTCondor jobs
     def htcondor_job_config(self, config, job_num, branches):
         config = super(RunTesting, self).htcondor_job_config(config, job_num, branches)
-        name_list = [info[0] for info in self.training_information]
         task_name = self.__class__.__name__
-        branch_names = []
-        for branch in branches:
-            branch_names.append(name_list[branch])
-        branch_str = "|".join(branch_names)
+        flattened_branches = sum(branches, []) # Quick and dirty way to flatten a nested list
+        branch_str = f"{min(flattened_branches)}to{max(flattened_branches)}"
         config.custom_content.append(("JobBatchName", f"{task_name}-{branch_str}"))
         return config
 
@@ -612,9 +586,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Create 1D taylor coefficient plots
@@ -629,9 +600,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Create taylor ranking plots
@@ -646,9 +614,6 @@ class RunTesting(MLBase):
                 "--output-dir {}".format(store_dir),
             ],
             run_location=run_loc,
-            sourcescript=[
-                "/cvmfs/etp.kit.edu/LAW_envs/conda_envs/miniconda/bin/activate ML_LAW"
-            ],
         )
 
         ## Tar plots together

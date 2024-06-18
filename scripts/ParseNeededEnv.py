@@ -16,7 +16,7 @@ except IndexError:
 
 # Check if file exists at that location
 if not os.path.isfile(cfg_path):
-    print("There was no file found at {}".format(cfg_path))
+    print(f"There was no file found at {cfg_path}")
     exit(1)
 
 # Try to parse config file
@@ -24,9 +24,7 @@ try:
     config.read(cfg_path)
 except (configparser.ParsingError, configparser.MissingSectionHeaderError) as error:
     print(
-        "{}@File at {} could not be parsed. Is it a valid luigi config file?".format(
-            error, cfg_path
-        )
+        f"{error}@File at {cfg_path} could not be parsed. Is it a valid luigi config file?"
     )
     exit(1)
 
@@ -35,9 +33,7 @@ try:
     base_env = config["DEFAULT"]["ENV_NAME"].strip()
 except KeyError as error:
     print(
-        "Config file at {} does not provide an 'ENV_NAME' in it's 'DEFAULT' section.".format(
-            cfg_path
-        ),
+        f"Config file at {cfg_path} does not provide an 'ENV_NAME' in it's 'DEFAULT' section.",
         "Without this, the starting env cannot be set.",
     )
     exit(1)

@@ -9,6 +9,7 @@ logs/
 *.tar.gz
 *.txt
 miniconda/
+miniforge/
 quantities_map/
 output/
 CROWN/
