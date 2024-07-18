@@ -18,6 +18,16 @@ action() {
     export X509_VOMS_DIR=/cvmfs/grid.cern.ch/etc/grid-security/vomsdir
     export XRD_WORKERTHREADS={{NTHREADS}}
     export XRD_PARALLELEVTLOOP={{NTHREADS}}
+    # if no XRD_LOGLEVEL set: no xrootd debug output written
+    # set export XRD_LOGLEVEL=Debug for xrootd debug output
+    export XRD_LOGLEVEL=""
+    if [[ -n "${XRD_LOGLEVEL}" ]]; then
+        export XRD_LOGFILE=${SPAWNPOINT}/xrd_error_log.log
+        echo "XRD_LOGLEVEL variable set to ${XRD_LOGLEVEL}: XRD_LOGFILE will be stored at ${XRD_LOGFILE}"
+    else
+        echo "No XRD_LOGLEVEL variable set"
+    fi
+
     echo "------------------------------------------"
     echo " | USER = ${USER}"
     echo " | HOSTNAME = $(hostname)"
@@ -26,6 +36,7 @@ action() {
     echo " | TAG = {{TAG}}"
     echo " | XRD_WORKERTHREADS = ${XRD_WORKERTHREADS}"
     echo " | XRD_PARALLELEVTLOOP = ${XRD_PARALLELEVTLOOP}"
+    echo " | XRD_LOGLEVEL = ${XRD_LOGLEVEL}"
     echo "------------------------------------------"
 
     echo "Setting up environment via {{SOURCE_SCRIPT}}."
