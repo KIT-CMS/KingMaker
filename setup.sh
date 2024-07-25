@@ -109,17 +109,17 @@ action() {
     # Remaining envs should be sourced via provided docker images
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
     # echo "The following envs will be set up: ${PARSED_ENVS}"
-    echo "${STARTING_ENV} will be sourced as the starting env."
+    echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
     # Check if necessary environment is present in cvmfs
     # Try to install and export env via miniforge if not
     # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
     # NOTE2: HTCondor jobs that rely on exported miniforge envs might need additional scratch space
-    if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}" ]]; then
-        echo "${STARTING_ENV} environment found in cvmfs."
-        echo "Activating starting-env ${STARTING_ENV} from cvmfs."
-        source /cvmfs/etp.kit.edu/LAW_envs/miniforge/bin/activate ${STARTING_ENV}
+    if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
+        echo "${STARTING_ENV}_${IMAGE_HASH} environment found in cvmfs."
+        echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from cvmfs."
+        source /cvmfs/etp.kit.edu/LAW_envs/miniforge/bin/activate ${STARTING_ENV}_${IMAGE_HASH}
     else
-        echo "${STARTING_ENV} environment not found in cvmfs. Using miniforge."
+        echo "${STARTING_ENV}_${IMAGE_HASH} environment not found in cvmfs. Using miniforge."
         # Install miniforge if necessary
         if [ ! -f "miniforge/bin/activate" ]; then
             # Miniforge version used for all environments
@@ -136,20 +136,20 @@ action() {
         source miniforge/bin/activate ''
 
         # Check if correct miniforge env is running
-        if [ -d "miniforge/envs/${STARTING_ENV}" ]; then
-            echo  "${STARTING_ENV} env found using miniforge."
+        if [ -d "miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]; then
+            echo  "${STARTING_ENV}_${IMAGE_HASH} env found using miniforge."
         else
             # Create miniforge env from yaml file if necessary
-            echo "Creating ${STARTING_ENV} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
+            echo "Creating ${STARTING_ENV}_${IMAGE_HASH} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
             if [[ ! -f "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
                 echo "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
                 return 1
             fi
-            conda env create -f kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}
-            echo  "${STARTING_ENV} env built using miniforge."
+            conda env create -f kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
+            echo  "${STARTING_ENV}_${IMAGE_HASH} env built using miniforge."
         fi
-        echo "Activating starting-env ${STARTING_ENV} from miniforge."
-        conda activate ${STARTING_ENV}
+        echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from miniforge."
+        conda activate ${STARTING_ENV}_${IMAGE_HASH}
     fi
 
     # Set up other dependencies based on workflow
