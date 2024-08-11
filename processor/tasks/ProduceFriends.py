@@ -25,7 +25,7 @@ class ProduceFriends(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
-            console.log(f"Slient: {self.silent}")
+            console.log(f"Silent: {self.silent}")
             console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))

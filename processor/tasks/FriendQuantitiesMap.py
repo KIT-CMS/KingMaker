@@ -65,7 +65,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             scopes=self.scopes,
         )
         for friend in self.friend_dependencies:
-            requirements[f"CROWNFriends_{friend}"] = CROWNFriends(
+            requirements[
+                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
+            ] = CROWNFriends(
                 nick=self.nick,
                 analysis=self.analysis,
                 config=self.config,
@@ -75,7 +77,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 era=self.era,
                 sample_type=self.sample_type,
                 scopes=self.scopes,
-                friend_name=friend,
+                friend_name=self.friend_mapping[friend],
                 friend_config=friend,
             )
         return requirements
@@ -117,7 +119,9 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 # add all friend files to the inputfiles list
                 for friend in self.friend_dependencies:
                     inputfiles.extend(
-                        self.input()[f"CROWNFriends_{friend}"][sample]._flat_target_list
+                        self.input()[
+                            f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
+                        ][sample]._flat_target_list
                     )
                 for inputfile in inputfiles:
                     if inputfile.path.endswith("quantities_map.json"):
