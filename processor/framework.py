@@ -53,7 +53,8 @@ class Task(law.Task):
         default=os.getenv("ANALYSIS_DATA_PATH"),
     )
     is_local_output = luigi.BoolParameter(
-        description="Whether to use local storage. False by default."
+        description="Whether to use local storage. False by default.",
+        default=False,
     )
 
     # Behaviour of production_tag:
