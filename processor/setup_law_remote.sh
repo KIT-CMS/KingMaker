@@ -13,6 +13,7 @@ action() {
 
     # Set USER as local USER
     export USER={{USER}}
+    export USER_FIRST_LETTER=${USER:0:1}
     export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
     export X509_VOMS_DIR=/cvmfs/grid.cern.ch/etc/grid-security/vomsdir
     export XRD_WORKERTHREADS={{NTHREADS}}
