@@ -13,7 +13,6 @@ action() {
 
     # Set USER as local USER
     export USER={{USER}}
-    export LUIGIPORT={{LUIGIPORT}}
     export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
     export X509_VOMS_DIR=/cvmfs/grid.cern.ch/etc/grid-security/vomsdir
     export XRD_WORKERTHREADS={{NTHREADS}}
@@ -78,10 +77,6 @@ action() {
     export LOCAL_PWD="{{LOCAL_PWD}}"
 
     export ANALYSIS_DATA_PATH=$(pwd)
-
-    # start a luigid scheduler using $LUIGIPORT
-    echo "Starting luigid scheduler on port $LUIGIPORT"
-    luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
 }
 
 action

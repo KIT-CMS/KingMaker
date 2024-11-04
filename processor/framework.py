@@ -323,6 +323,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 .decode()
                 .replace("Linux", "")
                 .replace("linux", "")
+                .replace(" ", "")
                 .strip()
             )
             os_version = (
@@ -341,6 +342,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 .decode()
                 .replace("Linux", "")
                 .replace("linux", "")
+                .replace(" ", "")
                 .strip()
             )
             os_version = (
@@ -413,30 +415,26 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         )
         for file_ in ["Log", "Output", "Error"]:
             os.makedirs(os.path.join(logdir, file_), exist_ok=True)
-        logfile = os.path.join(logdir, "Log", task_name + ".txt")
-        outfile = os.path.join(logdir, "Output", task_name + ".txt")
-        errfile = os.path.join(logdir, "Error", task_name + ".txt")
 
         # Write job config file
         config.custom_content = []
         config.custom_content.append(
             ("accounting_group", self.htcondor_accounting_group)
         )
-        config.log = os.path.join(logfile)
-        config.stdout = os.path.join(outfile)
-        config.stderr = os.path.join(errfile)
+        config.log = os.path.join(logdir, "Log", task_name + ".txt")
+        config.stdout = os.path.join(logdir, "Output", task_name + ".txt")
+        config.stderr = os.path.join(logdir, "Error", task_name + ".txt")
 
         # config.custom_content.append(("stream_error", "True"))  # Remove before commit
         # config.custom_content.append(("stream_output", "True"))  #
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
-        config.custom_content.append(("+RemoteJob", self.htcondor_remote_job))
         config.custom_content.append(("universe", self.htcondor_universe))
         if self.htcondor_docker_image != "Automatic":
             config.custom_content.append(("docker_image", self.htcondor_docker_image))
         else:
             config.custom_content.append(("docker_image", self.get_submission_os()))
-        config.custom_content.append(("+RequestWalltime", self.htcondor_walltime))
+        config.custom_content.append(("+MaxRuntime", self.htcondor_walltime))
         config.custom_content.append(("x509userproxy", self.htcondor_user_proxy))
         config.custom_content.append(("request_cpus", self.htcondor_request_cpus))
         # Only include "request_gpus" if any are requested, as nodes with GPU are otherwise excluded
