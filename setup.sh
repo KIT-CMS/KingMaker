@@ -86,6 +86,9 @@ action() {
         fi
     fi
 
+    # Needed for EOS directory parsing
+    export USER_FIRST_LETTER=${USER:0:1}
+
     # Parse the necessary environments from the luigi config files.
     PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
     PARSED_ENVS_STATUS=$?
@@ -196,23 +199,23 @@ action() {
 
     # First check if the user already has a luigid scheduler running
     # Start a luidigd scheduler if there is one already running
-    if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
-        echo "Starting Luigi scheduler... using a random port"
-        while
-            export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
-            netstat -atun | grep -q "$LUIGIPORT"
-        do
-            continue
-        done
-        luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
-        echo "Luigi scheduler started on port $LUIGIPORT, setting LUIGIPORT to $LUIGIPORT"
-    else
-        # first get the (first) PID
-        export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
-        # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
-        export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
-        echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-    fi
+    # if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
+    #     echo "Starting Luigi scheduler... using a random port"
+    #     while
+    #         export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
+    #         netstat -atun | grep -q "${LUIGIPORT}"
+    #     do
+    #         continue
+    #     done
+    #     luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
+    #     echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+    # else
+    #     # first get the (first) PID
+    #     export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
+    #     # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
+    #     export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
+    #     echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+    # fi
 
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
