@@ -525,7 +525,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.render_variables["ENV_NAME"] = self.ENV_NAME
         config.render_variables["TAG"] = self.production_tag
         config.render_variables["NTHREADS"] = self.htcondor_request_cpus
-        config.render_variables["LUIGIPORT"] = os.getenv("LUIGIPORT")
         config.render_variables["SOURCE_SCRIPT"] = self.remote_source_script
 
         config.render_variables["IS_LOCAL_OUTPUT"] = str(self.is_local_output)
