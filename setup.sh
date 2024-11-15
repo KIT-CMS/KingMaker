@@ -162,7 +162,7 @@ action() {
             echo "Setting up CROWN ..."
              # Due to frequent updates CROWN is not set up as a submodule
             if [ ! -d CROWN ]; then
-                git clone --recursive --depth 1 --shallow-submodules git@github.com:KIT-CMS/CROWN
+                git clone git@github.com:KIT-CMS/CROWN -b CROWN_tutorial
             fi
             if [ -z "$(ls -A sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
