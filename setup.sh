@@ -1,7 +1,8 @@
 ############################################################################################
 #         This script sets up all dependencies necessary for running KingMaker             #
 ############################################################################################
-
+# First argument chooses from the available setups
+# Second argument sets alternative conda environment directory
 
 _addpy() {
     [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}"
@@ -14,13 +15,13 @@ _addbin() {
 action() {
 
     # Check if law was already set up in this shell
-    if ( [[ ! -z ${LAW_IS_SET_UP} ]] && [[ ! "$@" =~ "-f" ]] ); then
+    if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
         return 1
     fi
 
     # Check if law already tried to set up in this shell
-    if ( [[ ! -z ${LAW_TRIED_TO_SET_UP} ]] && [[ ! "$@" =~ "-f" ]] ); then
+    if [[ ! -z ${LAW_TRIED_TO_SET_UP} ]]; then
         echo "Kingmaker already tried to set up in this shell. This might lead to unintended behaviour."
     fi
 
@@ -89,6 +90,13 @@ action() {
     # Needed for EOS directory parsing
     export USER_FIRST_LETTER=${USER:0:1}
 
+    # Ensure that submodule with KingMaker env files is present
+    if [ -z "$(ls -A kingmaker-images)" ]; then
+        git submodule update --init --recursive -- kingmaker-images
+    fi
+    # Get kingmaker-images submodule hash to find the correct image during job submission
+    export IMAGE_HASH=$(cd kingmaker-images/; git rev-parse --short HEAD)
+
     # Parse the necessary environments from the luigi config files.
     PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
     PARSED_ENVS_STATUS=$?
@@ -100,60 +108,51 @@ action() {
         echo "Parsing of required envs failed with the above error."
         return 1
     fi
-
-    # Ensure that submodule with KingMaker env files is present
-    if [ -z "$(ls -A kingmaker-images)" ]; then
-        git submodule update --init --recursive -- kingmaker-images
-    fi
-    # Get kingmaker-images submodule hash to find the correct image during job submission
-    export IMAGE_HASH=$(cd kingmaker-images/; git rev-parse --short HEAD)
-
     # First listed is env of DEFAULT and will be used as the starting env
     # Remaining envs should be sourced via provided docker images
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
-    # echo "The following envs will be set up: ${PARSED_ENVS}"
     echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
-    # Check if necessary environment is present in cvmfs
-    # Try to install and export env via miniforge if not
-    # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
-    # NOTE2: HTCondor jobs that rely on exported miniforge envs might need additional scratch space
-    if [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
-        echo "${STARTING_ENV}_${IMAGE_HASH} environment found in cvmfs."
-        echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from cvmfs."
-        source /cvmfs/etp.kit.edu/LAW_envs/miniforge/bin/activate ${STARTING_ENV}_${IMAGE_HASH}
-    else
-        echo "${STARTING_ENV}_${IMAGE_HASH} environment not found in cvmfs. Using miniforge."
-        # Install miniforge if necessary
-        if [ ! -f "miniforge/bin/activate" ]; then
-            # Miniforge version used for all environments
-            MAMBAFORGE_VERSION="24.3.0-0"
-            MAMBAFORGE_INSTALLER="Mambaforge-${MAMBAFORGE_VERSION}-$(uname)-$(uname -m).sh"
-            echo "Miniforge could not be found, installing miniforge version ${MAMBAFORGE_INSTALLER}"
-            echo "More information can be found in"
-            echo "https://github.com/conda-forge/miniforge"
-            curl -L -O https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/${MAMBAFORGE_INSTALLER}
-            bash ${MAMBAFORGE_INSTALLER} -b -s -p miniforge
-            rm -f ${MAMBAFORGE_INSTALLER}
-        fi
-        # Source base env of miniforge
-        source miniforge/bin/activate ''
 
-        # Check if correct miniforge env is running
-        if [ -d "miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]; then
-            echo  "${STARTING_ENV}_${IMAGE_HASH} env found using miniforge."
-        else
-            # Create miniforge env from yaml file if necessary
-            echo "Creating ${STARTING_ENV}_${IMAGE_HASH} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
-            if [[ ! -f "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
-                echo "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
-                return 1
-            fi
-            conda env create -f kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
-            echo  "${STARTING_ENV}_${IMAGE_HASH} env built using miniforge."
-        fi
-        echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from miniforge."
-        conda activate ${STARTING_ENV}_${IMAGE_HASH}
+    # Change directory of environments if second argument is provided to setup script
+    if [[ ! -z $2 ]]; then
+        ENV_PATH="$2"
+    else
+        ENV_PATH="${PWD}"
     fi
+    echo "Using environments from ${ENV_PATH}/miniforge."
+    
+    # Try to install env via miniforge
+    # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
+    # Install miniforge if necessary
+    if [ ! -f "${ENV_PATH}/miniforge/bin/activate" ]; then
+        # Miniforge version used for all environments
+        MAMBAFORGE_VERSION="24.3.0-0"
+        MAMBAFORGE_INSTALLER="Mambaforge-${MAMBAFORGE_VERSION}-$(uname)-$(uname -m).sh"
+        echo "Miniforge could not be found, installing miniforge version ${MAMBAFORGE_INSTALLER}"
+        echo "More information can be found in"
+        echo "https://github.com/conda-forge/miniforge"
+        curl -L -O https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/${MAMBAFORGE_INSTALLER}
+        bash ${MAMBAFORGE_INSTALLER} -b -s -p ${ENV_PATH}/miniforge
+        rm -f ${MAMBAFORGE_INSTALLER}
+    fi
+    # Source base env of miniforge
+    source ${ENV_PATH}/miniforge/bin/activate ''
+
+    # Check if correct miniforge env is running
+    if [ -d "${ENV_PATH}/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]; then
+        echo  "${STARTING_ENV}_${IMAGE_HASH} env found using miniforge."
+    else
+        # Create miniforge env from yaml file if necessary
+        echo "Creating ${STARTING_ENV}_${IMAGE_HASH} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
+        if [[ ! -f "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
+            echo "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
+            return 1
+        fi
+        conda env create -f kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
+        echo  "${STARTING_ENV}_${IMAGE_HASH} env built using miniforge."
+    fi
+    echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from miniforge."
+    conda activate ${STARTING_ENV}_${IMAGE_HASH}
 
     # Set up other dependencies based on workflow
     ############################################
@@ -196,27 +195,6 @@ action() {
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
     
-
-    # First check if the user already has a luigid scheduler running
-    # Start a luidigd scheduler if there is one already running
-    # if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
-    #     echo "Starting Luigi scheduler... using a random port"
-    #     while
-    #         export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
-    #         netstat -atun | grep -q "${LUIGIPORT}"
-    #     do
-    #         continue
-    #     done
-    #     luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
-    #     echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-    # else
-    #     # first get the (first) PID
-    #     export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
-    #     # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
-    #     export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
-    #     echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-    # fi
-
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
     export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_law.cfg"
