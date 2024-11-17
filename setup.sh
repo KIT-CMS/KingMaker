@@ -246,5 +246,6 @@ action() {
     }
 
     export LAW_IS_SET_UP="True"
+    echo "KingMaker setup was succesful."
 }
 action "$@"
