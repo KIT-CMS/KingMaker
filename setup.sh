@@ -114,12 +114,22 @@ action() {
     echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
 
     # Change directory of environments if second argument is provided to setup script
+    # Use dir from file if none provided
+    # Use dir of setup script if neither provided
     if [[ ! -z $2 ]]; then
         ENV_PATH="$2"
+    elif [[ -f "${BASE_DIR}/environment.location" ]]; then
+        ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
     else
-        ENV_PATH="${PWD}"
+        ENV_PATH="${BASE_DIR}"
     fi
     echo "Using environments from ${ENV_PATH}/miniforge."
+    
+    # Save env location to file if provided
+    if [[ ! -z $2 ]]; then
+        echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
+        echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
+    fi
     
     # Try to install env via miniforge
     # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.

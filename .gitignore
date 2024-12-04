@@ -1,4 +1,5 @@
-# Framework specific folders
+# Framework specific folders/files
+environment.location
 data/
 build/
 .law/
