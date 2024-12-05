@@ -34,7 +34,7 @@ action() {
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
 
-    local BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
+    BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
 
     # Check if current OS is supported
     source scripts/os-version.sh
@@ -181,6 +181,19 @@ action() {
             if [ -z "$(ls -A sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
             fi
+            # Set the alias
+            function sample_manager () {
+                (
+                    # Switch to KingMaker dir in subprocess and run from there
+                    echo "Starting Samplemanager"
+                    cd "${BASE_DIR}"
+                    python3 ${BASE_DIR}/sample_database/samplemanager/main.py --database-folder ${BASE_DIR}/sample_database
+                )
+            }
+            function monitor_production () {
+                # Parse all user arguments and pass them to the python script
+                python3 scripts/ProductionStatus.py $@
+            }
             ;;
         ML_train)
             echo "Setting up ML-scripts ..."
@@ -241,27 +254,6 @@ action() {
             return 1
         fi
     fi
-
-    # Set the alias
-    function sample_manager () {
-        # Determine the directory of this file
-        if [ ! -z "${ZSH_VERSION}" ]; then
-            local THIS_FILE="${(%):-%x}"
-        else
-            local THIS_FILE="${BASH_SOURCE[0]}"
-        fi
-
-        local BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
-        (
-            echo "Starting Samplemanager"
-            python3 ${BASE_DIR}/sample_database/samplemanager/main.py --database-folder ${BASE_DIR}/sample_database
-        )
-    }
-
-    function monitor_production () {
-        # Parse all user arguments and pass them to the python script
-        python3 scripts/ProductionStatus.py $@
-    }
 
     export LAW_IS_SET_UP="True"
     echo "KingMaker setup was successful"
