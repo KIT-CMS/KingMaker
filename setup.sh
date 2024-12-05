@@ -131,6 +131,11 @@ action() {
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
     
+    # Remember the current value of VOMS_USERCONF to overwrite after conda source.
+    # This is necessary as conda installs a seperate voms version without the relevant configs.
+    # Use primary default. Secondary default at $HOME/.voms/vomses has to be manually set.
+    INITIAL_VOMS_USERCONF=${VOMS_USERCONF:-"/etc/vomses"}
+
     # Try to install env via miniforge
     # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
     # Install miniforge if necessary
@@ -197,6 +202,9 @@ action() {
     if [ -z "$(ls -A law)" ]; then
         git submodule update --init --recursive -- law
     fi
+
+    # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+    export VOMS_USERCONF=${INITIAL_VOMS_USERCONF}
 
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null
