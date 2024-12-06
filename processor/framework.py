@@ -408,15 +408,17 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
     def htcondor_job_config(self, config, job_num, branches):
         domain_name = str(socket.getfqdn())
-        
+
         if domain_name.endswith("cern.ch"):
             domain = "CERN"
-        elif domain_name.endswith(("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")):
+        elif domain_name.endswith(
+            ("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")
+        ):
             domain = "ETP"
         else:
             print("Unknown domain, default to CERN lxplus settings.")
             domain = "CERN"
-        
+
         analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
         _cfg = Config.instance()
