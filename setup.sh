@@ -37,7 +37,7 @@ action() {
     BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
 
     # Check if current OS is supported
-    source scripts/os-version.sh
+    source ${BASE_DIR}/scripts/os-version.sh
     local VALID_OS="False"
     if [[ "$distro" == "CentOS" ]]; then
         if [[ ${os_version:0:1} == "7" ]]; then
@@ -91,14 +91,14 @@ action() {
     export USER_FIRST_LETTER=${USER:0:1}
 
     # Ensure that submodule with KingMaker env files is present
-    if [ -z "$(ls -A kingmaker-images)" ]; then
+    if [ -z "$(ls -A ${BASE_DIR}/kingmaker-images)" ]; then
         git submodule update --init --recursive -- kingmaker-images
     fi
     # Get kingmaker-images submodule hash to find the correct image during job submission
-    export IMAGE_HASH=$(cd kingmaker-images/; git rev-parse --short HEAD)
+    export IMAGE_HASH=$(cd ${BASE_DIR}/kingmaker-images/; git rev-parse --short HEAD)
 
     # Parse the necessary environments from the luigi config files.
-    PARSED_ENVS=$(python3 scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
+    PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
     PARSED_ENVS_STATUS=$?
     if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
@@ -131,6 +131,7 @@ action() {
     
     # Save env location to file if provided
     if [[ ! -z $2 ]]; then
+        echo saving environment path to file for future setups.
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
@@ -163,11 +164,11 @@ action() {
     else
         # Create miniforge env from yaml file if necessary
         echo "Creating ${STARTING_ENV}_${IMAGE_HASH} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
-        if [[ ! -f "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
-            echo "kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
+        if [[ ! -f "${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
+            echo "${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
             return 1
         fi
-        conda env create -f kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
+        conda env create -f ${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
         echo  "${STARTING_ENV}_${IMAGE_HASH} env built using miniforge."
     fi
     echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from miniforge."
@@ -179,10 +180,10 @@ action() {
         KingMaker)
             echo "Setting up CROWN ..."
              # Due to frequent updates CROWN is not set up as a submodule
-            if [ ! -d CROWN ]; then
-                git clone git@github.com:KIT-CMS/CROWN
+            if [ ! -d "${BASE_DIR}/CROWN" ]; then
+                git clone git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
             fi
-            if [ -z "$(ls -A sample_database)" ]; then
+            if [ -z "$(ls -A ${BASE_DIR}/sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
             fi
             # Set the alias
@@ -196,12 +197,12 @@ action() {
             }
             function monitor_production () {
                 # Parse all user arguments and pass them to the python script
-                python3 scripts/ProductionStatus.py $@
+                python3 ${BASE_DIR}/scripts/ProductionStatus.py $@
             }
             ;;
         ML_train)
             echo "Setting up ML-scripts ..."
-            if [ -z "$(ls -A sm-htt-analysis)" ]; then
+            if [ -z "$(ls -A ${BASE_DIR}/sm-htt-analysis)" ]; then
                 git submodule update --init --recursive -- sm-htt-analysis
             fi
             export MODULE_PYTHONPATH=sm-htt-analysis
@@ -216,7 +217,7 @@ action() {
     fi
 
     # Check is law was set up, and do so if not
-    if [ -z "$(ls -A law)" ]; then
+    if [ -z "$(ls -A ${BASE_DIR}/law)" ]; then
         git submodule update --init --recursive -- law
     fi
 
