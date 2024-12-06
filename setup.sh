@@ -113,13 +113,17 @@ action() {
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
     echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
 
-    # Change directory of environments if second argument is provided to setup script
-    # Use dir from file if none provided
-    # Use dir of setup script if neither provided
+    # Order of environment locations
+    # 1. Use provided directory in second argument if provided
+    # 2. Use dir from file if none provided
+    # 3. Use local /cvmfs installation if available
+    # 4. Use dir of setup script if neither provided
     if [[ ! -z $2 ]]; then
         ENV_PATH="$2"
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
+    elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
+        ENV_PATH="/cvmfs/etp.kit.edu/LAW_envs"
     else
         ENV_PATH="${BASE_DIR}"
     fi
@@ -176,7 +180,7 @@ action() {
             echo "Setting up CROWN ..."
              # Due to frequent updates CROWN is not set up as a submodule
             if [ ! -d CROWN ]; then
-                git clone git@github.com:KIT-CMS/CROWN -b CROWN_tutorial
+                git clone git@github.com:KIT-CMS/CROWN
             fi
             if [ -z "$(ls -A sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database

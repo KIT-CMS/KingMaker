@@ -3,6 +3,7 @@ import luigi
 import law
 import select
 import subprocess
+import socket
 from law.util import interruptable_popen
 from rich.console import Console
 from law.util import merge_dicts
@@ -406,6 +407,16 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         return law.util.rel_path(__file__, hostfile)
 
     def htcondor_job_config(self, config, job_num, branches):
+        domain_name = str(socket.getfqdn())
+        
+        if domain_name.endswith("cern.ch"):
+            domain = "CERN"
+        elif domain_name.endswith(("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")):
+            domain = "ETP"
+        else:
+            print("Unknown domain, default to CERN lxplus settings.")
+            domain = "CERN"
+        
         analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
         _cfg = Config.instance()
@@ -418,9 +429,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
         # Write job config file
         config.custom_content = []
-        config.custom_content.append(
-            ("accounting_group", self.htcondor_accounting_group)
-        )
         config.log = os.path.join(logdir, "Log", task_name + ".txt")
         config.stdout = os.path.join(logdir, "Output", task_name + ".txt")
         config.stderr = os.path.join(logdir, "Error", task_name + ".txt")
@@ -434,7 +442,14 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             config.custom_content.append(("docker_image", self.htcondor_docker_image))
         else:
             config.custom_content.append(("docker_image", self.get_submission_os()))
-        config.custom_content.append(("+MaxRuntime", self.htcondor_walltime))
+        if domain == "ETP":
+            config.custom_content.append(
+                ("accounting_group", self.htcondor_accounting_group)
+            )
+            config.custom_content.append(("+RemoteJob", self.htcondor_remote_job))
+            config.custom_content.append(("+RequestWalltime", self.htcondor_walltime))
+        elif domain == "CERN":
+            config.custom_content.append(("+MaxRuntime", self.htcondor_walltime))
         config.custom_content.append(("x509userproxy", self.htcondor_user_proxy))
         config.custom_content.append(("request_cpus", self.htcondor_request_cpus))
         # Only include "request_gpus" if any are requested, as nodes with GPU are otherwise excluded
