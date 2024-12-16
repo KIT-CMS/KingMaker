@@ -232,17 +232,18 @@ action() {
     fi
     
     # Parse the necessary environments from the luigi config files.
-    PARSED_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
-    PARSED_SCHEDULER_STATUS=$?
-    if [[ "${PARSED_SCHEDULER_STATUS}" -eq "1" ]]; then
-        IFS='@' read -ra ADDR <<< "${PARSED_SCHEDULER}"
+    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
+    LOCAL_SCHEDULER_STATUS=$?
+    if [[ "${LOCAL_SCHEDULER_STATUS}" -eq "1" ]]; then
+        IFS='@' read -ra ADDR <<< "${LOCAL_SCHEDULER}"
         for i in "${ADDR[@]}"; do
             echo $i
         done
         echo "Parsing of required scheduler setting failed with the above error."
         return 1
     fi
-    if [[ "${PARSED_SCHEDULER}" == "False" ]]; then
+    export LOCAL_SCHEDULER
+    if [[ "${LOCAL_SCHEDULER}" == "False" ]]; then
         echo "Using central scheduler."
         # First check if the user already has a luigid scheduler running
         # Start a luidigd scheduler if there is one already running

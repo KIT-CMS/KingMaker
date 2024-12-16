@@ -452,6 +452,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             config.custom_content.append(("+RequestWalltime", self.htcondor_walltime))
         elif domain == "CERN":
             config.custom_content.append(("+MaxRuntime", self.htcondor_walltime))
+            if str(os.getenv("LOCAL_SCHEDULER")) == "False":
+                print("WARNING: LXPLUS DOES NOT SUPPORT THE CENTRAL SCHEDULER BY DEFAULT!")
+                print("It is reccomended to change this setting in the configs and rerun the setup.")
         config.custom_content.append(("x509userproxy", self.htcondor_user_proxy))
         config.custom_content.append(("request_cpus", self.htcondor_request_cpus))
         # Only include "request_gpus" if any are requested, as nodes with GPU are otherwise excluded
