@@ -14,6 +14,7 @@ class BuildCROWNLib(Task):
     install_dir = luigi.Parameter()
     production_tag = luigi.Parameter()
     friend_name = luigi.Parameter(default="ntuples")
+    analysis = luigi.Parameter()
 
     def output(self):
         target = self.remote_target(f"{self.friend_name}/libCROWNLIB.so")
@@ -45,6 +46,7 @@ class BuildCROWNLib(Task):
             "compile_crown_lib.sh",
         )
         _local_libfile = os.path.join(_install_dir, "lib", output.basename)
+        _analysis = str(self.analysis)
         if os.path.exists(os.path.join(_install_dir, output.basename)):
             console.log(f"lib already existing in tarball directory {_install_dir}")
             output.parent.touch()
@@ -72,6 +74,7 @@ class BuildCROWNLib(Task):
                 _crown_path,  # CROWNFOLDER=$1
                 _install_dir,  # INSTALLDIR=$2
                 _build_dir,  # BUILDDIR=$3
+                _analysis,  # ANALYSIS=$4
             ]
             self.run_command_readable(command)
             console.rule("Finished build of CROWNlib")
