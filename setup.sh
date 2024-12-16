@@ -245,6 +245,9 @@ action() {
     export LOCAL_SCHEDULER
     if [[ "${LOCAL_SCHEDULER}" == "False" ]]; then
         echo "Using central scheduler."
+        if  [[ ! -z $(hostname --long | grep -E '^lxplus.*\.cern\.ch$') ]]; then
+            echo "WARNING: LXPLUS DOES NOT SUPPORT THE CENTRAL SCHEDULER BY DEFAULT!"
+            echo "It is reccomended to change this setting in the configs and rerun the setup."
         # First check if the user already has a luigid scheduler running
         # Start a luidigd scheduler if there is one already running
         if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
