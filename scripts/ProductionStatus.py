@@ -20,7 +20,7 @@ def parse_args_from_law():
     2. `arguments[3]`: the fourth argument passed to the script which is the name of the law task to run.
     """
     arguments = sys.argv
-    if arguments[1] != "law" or arguments[2] != "run" or len(arguments) < 4:
+    if len(arguments) < 4 or arguments[1] != "law" or arguments[2] != "run":
         rprint(
             """
         Wrong usage of script, to run it, just add <monitor_production> in front of your law command.
@@ -104,7 +104,7 @@ def build_table(new_data, old_data=None, skip_finished=True):
     now = datetime.now()
 
     table = Table(
-        title=f"Sample Status (updated: {now.strftime('%d/%m/%Y, %H:%M:%S')}, refreshing roughly minute )",
+        title=f"Sample Status (updated: {now.strftime('%d/%m/%Y, %H:%M:%S')}, refreshing roughly minutely)",
         highlight=True,
     )
     if skip_finished:
@@ -155,7 +155,11 @@ def build_table(new_data, old_data=None, skip_finished=True):
 
 if __name__ == "__main__":
     args_dict, taskname = parse_args_from_law()
-    live = True
+    # Only update once if "--print-status" was specified
+    if "print-status" in args_dict.keys():
+        live = False
+    else:
+        live = True
     skip = True
     console = Console()
     if live:
@@ -174,4 +178,4 @@ if __name__ == "__main__":
                 )
                 time.sleep(30)
     else:
-        rprint(build_table(parse_law(args_dict, taskname)), skip)
+        rprint(build_table(parse_law(args_dict, taskname)))
