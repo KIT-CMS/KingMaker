@@ -98,7 +98,7 @@ action() {
     export IMAGE_HASH=$(cd ${BASE_DIR}/kingmaker-images/; git rev-parse --short HEAD)
 
     # Parse the necessary environments from the luigi config files.
-    PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededEnv.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg)
+    PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "ENV_NAME")
     PARSED_ENVS_STATUS=$?
     if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
@@ -231,6 +231,43 @@ action() {
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
     
+    # Parse the necessary environments from the luigi config files.
+    PARSED_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
+    PARSED_SCHEDULER_STATUS=$?
+    if [[ "${PARSED_SCHEDULER_STATUS}" -eq "1" ]]; then
+        IFS='@' read -ra ADDR <<< "${PARSED_SCHEDULER}"
+        for i in "${ADDR[@]}"; do
+            echo $i
+        done
+        echo "Parsing of required scheduler setting failed with the above error."
+        return 1
+    fi
+    if [[ "${PARSED_SCHEDULER}" == "False" ]]; then
+        echo "Using central scheduler."
+        # First check if the user already has a luigid scheduler running
+        # Start a luidigd scheduler if there is one already running
+        if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
+            echo "Starting Luigi scheduler... using a random port"
+            while
+                export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
+                netstat -atun | grep -q "$LUIGIPORT"
+            do
+                continue
+            done
+            luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
+            echo "Luigi scheduler started on port $LUIGIPORT, setting LUIGIPORT to $LUIGIPORT"
+        else
+            # first get the (first) PID
+            export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
+            # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
+            export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
+            echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+        fi
+    else
+        echo "Using local scheduler."
+        export LUIGIPORT=""
+    fi
+
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
     export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_law.cfg"
