@@ -2,6 +2,7 @@
 CROWNFOLDER=$1
 INSTALLDIR=$2
 BUILDDIR=$3
+ANALYSIS=$4
 
 echo "Crown folder: $CROWNFOLDER"
 echo "Install dir: $INSTALLDIR"
@@ -27,6 +28,7 @@ which cmake
 if cmake $CROWNFOLDER \
 	 -DBUILD_CROWNLIB_ONLY=ON \
 	 -DINSTALLDIR=$INSTALLDIR \
+	 -DANALYSIS=$ANALYSIS \
 	 -B$BUILDDIR 2>&1 |tee $BUILDDIR/cmake.log; then
 echo "CMake finished successfully"
 else
