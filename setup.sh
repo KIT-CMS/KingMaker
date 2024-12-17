@@ -114,12 +114,12 @@ action() {
     echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
 
     # Order of environment locations
-    # 1. Use provided directory in second argument if provided
+    # 1. Use realpath of provided directory in second argument
     # 2. Use dir from file if none provided
     # 3. Use local /cvmfs installation if available
     # 4. Use dir of setup script if neither provided
     if [[ ! -z $2 ]]; then
-        ENV_PATH="$2"
+        ENV_PATH="$(realpath $2)"
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
     elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
@@ -128,7 +128,6 @@ action() {
         ENV_PATH="${BASE_DIR}"
     fi
     echo "Using environments from ${ENV_PATH}/miniforge."
-    
     # Save env location to file if provided
     if [[ ! -z $2 ]]; then
         echo saving environment path to file for future setups.
