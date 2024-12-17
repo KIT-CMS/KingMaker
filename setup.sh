@@ -180,7 +180,7 @@ action() {
             echo "Setting up CROWN ..."
              # Due to frequent updates CROWN is not set up as a submodule
             if [ ! -d "${BASE_DIR}/CROWN" ]; then
-                git clone git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
+                git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
             fi
             if [ -z "$(ls -A ${BASE_DIR}/sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
