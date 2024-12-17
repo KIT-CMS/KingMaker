@@ -2,10 +2,10 @@
 action() {
 
     _addpy() {
-        [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}" && echo "Add $1 to PYTHONPATH"
+        [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}" && echo "Add ${1} to PYTHONPATH"
     }
     _addbin() {
-        [ ! -z "$1" ] && export PATH="$1:${PATH}" && echo "Add $1 to PATH"
+        [ ! -z "${1}" ] && export PATH="${1}:${PATH}" && echo "Add ${1} to PATH"
     }
 
     SPAWNPOINT=$(pwd)
@@ -80,10 +80,10 @@ action() {
 
     export ANALYSIS_DATA_PATH=$(pwd)
 
-    # start a luigid scheduler using $LUIGIPORT
+    # start a luigid scheduler using ${LUIGIPORT}
     if [[ ! -z "${LUIGIPORT}" ]]; then
-        echo "Starting luigid scheduler on port $LUIGIPORT"
-        luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
+        echo "Starting luigid scheduler on port ${LUIGIPORT}"
+        luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
     fi
 }
 

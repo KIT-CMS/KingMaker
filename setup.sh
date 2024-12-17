@@ -5,11 +5,11 @@
 # Second argument sets alternative conda environment directory
 
 _addpy() {
-    [ ! -z "$1" ] && export PYTHONPATH="$1:${PYTHONPATH}"
+    [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
 }
 
 _addbin() {
-    [ ! -z "$1" ] && export PATH="$1:${PATH}"
+    [ ! -z "${1}" ] && export PATH="${1}:${PATH}"
 }
 
 action() {
@@ -39,15 +39,15 @@ action() {
     # Check if current OS is supported
     source ${BASE_DIR}/scripts/os-version.sh
     local VALID_OS="False"
-    if [[ "$distro" == "CentOS" ]]; then
+    if [[ "${distro}" == "CentOS" ]]; then
         if [[ ${os_version:0:1} == "7" ]]; then
             VALID_OS="True"
         fi
-    elif [[ "$distro" == "RedHatEnterprise" || "$distro" == "Alma" || "$distro" == "Rocky" ]]; then
+    elif [[ "${distro}" == "RedHatEnterprise" || "${distro}" == "Alma" || "${distro}" == "Rocky" ]]; then
         if [[ ${os_version:0:1} == "9" ]]; then
             VALID_OS="True"
         fi
-    elif [[ "$distro" == "Ubuntu" ]]; then
+    elif [[ "${distro}" == "Ubuntu" ]]; then
         if [[ ${os_version:0:2} == "22" ]]; then
             VALID_OS="True"
         fi
@@ -56,11 +56,11 @@ action() {
         echo "Kingmaker not support on ${distro} ${os_version}"
         return 1
     else
-        echo "Running Kingmaker on $distro Version $os_version on $(hostname) from dir ${BASE_DIR}"
+        echo "Running Kingmaker on ${distro} Version ${os_version} on $(hostname) from dir ${BASE_DIR}"
     fi
 
     # Workflow to be set up
-    ANA_NAME_GIVEN=$1
+    ANA_NAME_GIVEN=${1}
 
     # List of available workflows
     ANA_LIST=("KingMaker" "GPU_example" "ML_train")
@@ -103,7 +103,7 @@ action() {
     if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
         for i in "${ADDR[@]}"; do
-            echo $i
+            echo ${i}
         done
         echo "Parsing of required envs failed with the above error."
         return 1
@@ -118,8 +118,8 @@ action() {
     # 2. Use dir from file if none provided
     # 3. Use local /cvmfs installation if available
     # 4. Use dir of setup script if neither provided
-    if [[ ! -z $2 ]]; then
-        ENV_PATH="$(realpath $2)"
+    if [[ ! -z ${2} ]]; then
+        ENV_PATH="$(realpath ${2})"
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
     elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
@@ -129,7 +129,7 @@ action() {
     fi
     echo "Using environments from ${ENV_PATH}/miniforge."
     # Save env location to file if provided
-    if [[ ! -z $2 ]]; then
+    if [[ ! -z ${2} ]]; then
         echo saving environment path to file for future setups.
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
@@ -137,7 +137,7 @@ action() {
     
     # Remember the current value of VOMS_USERCONF to overwrite after conda source.
     # This is necessary as conda installs a seperate voms version without the relevant configs.
-    # Use primary default. Secondary default at $HOME/.voms/vomses has to be manually set.
+    # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
     INITIAL_VOMS_USERCONF=${VOMS_USERCONF:-"/etc/vomses"}
 
     # Try to install env via miniforge
@@ -236,7 +236,7 @@ action() {
     if [[ "${LOCAL_SCHEDULER_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${LOCAL_SCHEDULER}"
         for i in "${ADDR[@]}"; do
-            echo $i
+            echo ${i}
         done
         echo "Parsing of required scheduler setting failed with the above error."
         return 1
@@ -255,12 +255,12 @@ action() {
             echo "Starting Luigi scheduler... using a random port"
             while
                 export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
-                netstat -atun | grep -q "$LUIGIPORT"
+                netstat -atun | grep -q "${LUIGIPORT}"
             do
                 continue
             done
-            luigid --background --logdir logs --state-path luigid_state.pickle --port=$LUIGIPORT
-            echo "Luigi scheduler started on port $LUIGIPORT, setting LUIGIPORT to $LUIGIPORT"
+            luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
+            echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
         else
             # first get the (first) PID
             export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
