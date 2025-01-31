@@ -4,7 +4,6 @@ import os
 import json
 import shutil
 from framework import console
-from law.config import Config
 from framework import HTCondorWorkflow, Task
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -176,54 +175,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     files_per_task = luigi.IntParameter()
 
     def htcondor_output_directory(self):
-        """
-        The function `htcondor_output_directory` returns a WLCGDirectoryTarget object that represents a
-        directory in the WLCG file system.
-        :return: The code is returning a `law.wlcg.WLCGDirectoryTarget` object.
-        """
-        # Add identification-str to prevent interference between different tasks of the same class
-        # Expand path to account for use of env variables (like $USER)
-        if self.is_local_output:
-            return law.LocalDirectoryTarget(
-                self.local_path(f"htcondor_files/{self.nick}"),
-                fs=law.LocalFileSystem(
-                    None,
-                    base=f"{os.path.expandvars(self.local_output_path)}",
-                ),
-            )
-
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path(f"htcondor_files/{self.nick}"),
-            fs=law.wlcg.WLCGFileSystem(
-                None,
-                base=f"{os.path.expandvars(self.wlcg_path)}",
-            ),
-        )
-
-    def htcondor_create_job_file_factory(self):
-        """
-        The function `htcondor_create_job_file_factory` creates a job file factory for HTCondor workflows.
-        :return: The method is returning the factory object that is created by calling the
-        `htcondor_create_job_file_factory` method of the superclass `HTCondorWorkflow`.
-        """
-        class_name = self.__class__.__name__
-        if "Friend" in class_name:
-            task_name = [class_name + self.nick, self.friend_name]
-        else:
-            task_name = [class_name + self.nick]
-        _cfg = Config.instance()
-        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
-        job_files = os.path.join(
-            job_file_dir,
-            self.production_tag,
-            "_".join(task_name),
-            "files",
-        )
-        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory(
-            dir=job_files,
-            mkdtemp=False,
-        )
-        return factory
+        return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.nick}"))
 
     def htcondor_job_config(self, config, job_num, branches):
         class_name = self.__class__.__name__
@@ -237,14 +189,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             )
         config = super().htcondor_job_config(config, job_num, branches)
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
-        for type in ["log", "stdout", "stderr"]:
-            logfilepath = getattr(config, type)
-            # split the filename, and add the sample nick as an additional folder
-            logfolder, logfile = os.path.split(logfilepath)
-            logfolder = os.path.join(logfolder, self.nick)
-            # create the new path
-            os.makedirs(logfolder, exist_ok=True)
-            setattr(config, type, os.path.join(logfolder, logfile))
         return config
 
     def modify_polling_status_line(self, status_line):

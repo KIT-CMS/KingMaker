@@ -6,12 +6,9 @@ import subprocess
 import socket
 from law.util import interruptable_popen
 from rich.console import Console
-from law.util import merge_dicts
 from datetime import datetime
-from law.contrib.htcondor.job import HTCondorJobManager
 from tempfile import mkdtemp
 from getpass import getuser
-from law.config import Config
 
 try:
     from luigi.parameter import UnconsumedParameterWarning
@@ -375,31 +372,17 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # print(f"Running on {distro} {os_version}, using image {image}")
         return image
 
-    def htcondor_create_job_manager(self, **kwargs):
-        kwargs = merge_dicts(self.htcondor_job_manager_defaults, kwargs)
-        return HTCondorJobManager(**kwargs)
-
     def htcondor_output_directory(self):
-        # Add identification-str to prevent interference between different tasks of the same class
-        # Expand path to account for use of env variables (like $USER)
-        if self.is_local_output:
-            return law.LocalDirectoryTarget(
-                self.local_path("htcondor_files"),
-                law.LocalFileSystem(
-                    None,
-                    base=f"{os.path.expandvars(self.local_output_path)}",
-                ),
-            )
-
-        return law.wlcg.WLCGDirectoryTarget(
-            self.remote_path("htcondor_files"),
-            law.wlcg.WLCGFileSystem(None, base=os.path.expandvars(self.wlcg_path)),
-        )
+        return law.LocalDirectoryTarget(self.local_path("job_files"))
+    
+    def htcondor_log_directory(self):
+        log_path = os.path.join(self.htcondor_output_directory().abspath, "logs")
+        return law.LocalDirectoryTarget(log_path)
 
     def htcondor_create_job_file_factory(self):
-        factory = super(HTCondorWorkflow, self).htcondor_create_job_file_factory()
-        # Print location of job dir
-        console.log(f"HTCondor job directory is: {factory.dir}")
+        path = self.htcondor_output_directory().abspath
+        factory = super().htcondor_create_job_file_factory(dir=path, mkdtemp=False)
+        console.log(f"HTCondor job directory is: {path}")
         return factory
 
     def htcondor_bootstrap_file(self):
@@ -421,22 +404,15 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
         analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
-        _cfg = Config.instance()
-        job_file_dir = _cfg.get_expanded("job", "job_file_dir")
-        logdir = os.path.join(
-            os.path.dirname(job_file_dir), "logs", self.production_tag
-        )
-        for file_ in ["Log", "Output", "Error"]:
-            os.makedirs(os.path.join(logdir, file_), exist_ok=True)
 
         # Write job config file
-        config.custom_content = []
-        config.log = os.path.join(logdir, "Log", task_name + ".txt")
-        config.stdout = os.path.join(logdir, "Output", task_name + ".txt")
-        config.stderr = os.path.join(logdir, "Error", task_name + ".txt")
-
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit
-        # config.custom_content.append(("stream_output", "True"))  #
+        log_base_path = self.htcondor_log_directory().abspath
+        config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
+        config.custom_log_file = os.path.join("All_$(JobId).txt")
+        # config.stdout = "Out_$(JobId).txt"
+        # config.stderr = "Err_$(JobId).txt"
+        # config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
+        # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("universe", self.htcondor_universe))
@@ -556,7 +532,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
-        # only needed for $ANA_NAME=ML_train see setup.sh line 158
+        # only needed for $ANA_NAME=ML_train see setup.sh line 207
         if os.getenv("MODULE_PYTHONPATH"):
             config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
                 "MODULE_PYTHONPATH"
