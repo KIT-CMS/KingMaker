@@ -374,7 +374,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.local_path("job_files"))
-    
+
     def htcondor_log_directory(self):
         log_path = os.path.join(self.htcondor_output_directory().abspath, "logs")
         return law.LocalDirectoryTarget(log_path)
