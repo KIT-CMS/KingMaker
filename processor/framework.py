@@ -409,10 +409,10 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         log_base_path = self.htcondor_log_directory().abspath
         config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
         config.custom_log_file = os.path.join("All_$(JobId).txt")
-        # config.stdout = "Out_$(JobId).txt"
-        # config.stderr = "Err_$(JobId).txt"
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
-        # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
+        config.stdout = "Out_$(JobId).txt"
+        config.stderr = "Err_$(JobId).txt"
+        config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
+        config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("universe", self.htcondor_universe))
