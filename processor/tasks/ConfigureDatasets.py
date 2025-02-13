@@ -20,7 +20,6 @@ class ConfigureDatasets(Task):
     nick = luigi.Parameter()
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    production_tag = luigi.Parameter()
     silent = luigi.BoolParameter(default=False)
 
     def output(self):

@@ -56,7 +56,7 @@ class Task(law.Task):
     )
 
     # Behaviour of production_tag:
-    # If a tag is give it will be used for the respective task.
+    # If a tag is give in the law cfg file it will be used for the respective task.
     # If no tag is given a timestamp based on startup_time is used.
     #   This timestamp is the same for all tasks in a workflow run with no set production_tag.
     production_tag = luigi.Parameter(

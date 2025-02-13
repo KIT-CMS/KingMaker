@@ -31,7 +31,6 @@ class ProduceSamples(ProduceBase):
                 config=self.config,
                 scopes=self.scopes,
                 shifts=self.shifts,
-                production_tag=self.production_tag,
                 all_eras=data["eras"],
                 all_sample_types=data["sample_types"],
                 era=data["details"][samplenick]["era"],

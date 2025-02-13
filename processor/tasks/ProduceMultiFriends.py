@@ -43,7 +43,6 @@ class ProduceMultiFriends(ProduceBase):
                     nick=samplenick,
                     analysis=self.analysis,
                     config=self.config,
-                    production_tag=self.production_tag,
                     all_eras=data["eras"],
                     shifts=self.shifts,
                     all_sample_types=data["sample_types"],

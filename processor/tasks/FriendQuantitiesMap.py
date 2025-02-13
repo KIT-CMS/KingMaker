@@ -13,7 +13,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    production_tag = luigi.Parameter()
     analysis = luigi.Parameter(significant=False)
     config = luigi.Parameter(significant=False)
     nick = luigi.Parameter(significant=False)
@@ -26,7 +25,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             nick=self.nick,
             analysis=self.analysis,
             config=self.config,
-            production_tag=self.production_tag,
             all_eras=self.all_eras,
             all_sample_types=self.all_sample_types,
             era=self.era,
@@ -39,7 +37,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                     nick=self.nick,
                     analysis=self.analysis,
                     config=self.config,
-                    production_tag=self.production_tag,
                     all_eras=self.all_eras,
                     all_sample_types=self.all_sample_types,
                     era=self.era,
@@ -57,7 +54,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             nick=self.nick,
             analysis=self.analysis,
             config=self.config,
-            production_tag=self.production_tag,
             all_eras=self.all_eras,
             all_sample_types=self.all_sample_types,
             era=self.era,
@@ -70,7 +66,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                     nick=self.nick,
                     analysis=self.analysis,
                     config=self.config,
-                    production_tag=self.production_tag,
                     all_eras=self.all_eras,
                     all_sample_types=self.all_sample_types,
                     era=self.era,

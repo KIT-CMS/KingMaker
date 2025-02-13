@@ -27,7 +27,6 @@ class CROWNRun(CROWNExecuteBase):
         requirements["dataset"] = ConfigureDatasets.req(
             self,
             nick=self.nick,
-            production_tag=self.production_tag,
             era=self.era,
             sample_type=self.sample_type,
         )
@@ -52,7 +51,6 @@ class CROWNRun(CROWNExecuteBase):
         branchcounter = 0
         dataset = ConfigureDatasets(
             nick=self.nick,
-            production_tag=self.production_tag,
             era=self.era,
             sample_type=self.sample_type,
         )

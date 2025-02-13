@@ -14,7 +14,7 @@ import hashlib
 import time
 
 
-class ProduceBase(WrapperTask):
+class ProduceBase(Task, WrapperTask):
     """
     collective task to trigger friend production for a list of samples,
     if the samples are not already present, trigger ntuple production first
@@ -24,7 +24,6 @@ class ProduceBase(WrapperTask):
     analysis = luigi.Parameter()
     config = luigi.Parameter()
     dataset_database = luigi.Parameter(significant=False)
-    production_tag = luigi.Parameter()
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
     silent = False
@@ -171,7 +170,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     shifts = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    production_tag = luigi.Parameter()
     files_per_task = luigi.IntParameter()
 
     def htcondor_output_directory(self):
@@ -220,7 +218,6 @@ class CROWNBuildBase(Task):
     analysis = luigi.Parameter()
     config = luigi.Parameter(significant=False)
     htcondor_request_cpus = luigi.IntParameter(default=1)
-    production_tag = luigi.Parameter()
 
     def get_tarball_hash(self):
         """
