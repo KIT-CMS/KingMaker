@@ -34,18 +34,13 @@ class ProduceFriends(ProduceBase):
         requirements = {}
         for samplenick in data["details"]:
             requirements[f"CROWNFriends_{samplenick}_{self.friend_name}"] = (
-                CROWNFriends(
+                CROWNFriends.req(
+                    self,
                     nick=samplenick,
-                    analysis=self.analysis,
-                    config=self.config,
                     all_eras=data["eras"],
-                    shifts=self.shifts,
                     all_sample_types=data["sample_types"],
-                    scopes=self.scopes,
                     era=data["details"][samplenick]["era"],
                     sample_type=data["details"][samplenick]["sample_type"],
-                    friend_config=self.friend_config,
-                    friend_name=self.friend_name,
                 )
             )
 

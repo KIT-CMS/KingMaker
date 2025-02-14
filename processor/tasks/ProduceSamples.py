@@ -25,12 +25,9 @@ class ProduceSamples(ProduceBase):
 
         requirements = {}
         for samplenick in data["details"]:
-            requirements[f"CROWNRun_{samplenick}"] = CROWNRun(
+            requirements[f"CROWNRun_{samplenick}"] = CROWNRun.req(
+                self,
                 nick=samplenick,
-                analysis=self.analysis,
-                config=self.config,
-                scopes=self.scopes,
-                shifts=self.shifts,
                 all_eras=data["eras"],
                 all_sample_types=data["sample_types"],
                 era=data["details"][samplenick]["era"],

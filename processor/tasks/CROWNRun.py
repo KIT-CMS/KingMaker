@@ -18,22 +18,19 @@ class CROWNRun(CROWNExecuteBase):
     Gather and compile CROWN with the given configuration
     """
 
-    output_collection_cls = law.NestedSiblingFileCollection
     problematic_eras = luigi.ListParameter()
 
     def workflow_requires(self):
         requirements = {}
         requirements["dataset"] = {}
-        requirements["dataset"] = ConfigureDatasets.req(
-            self,
-            nick=self.nick,
-            era=self.era,
-            sample_type=self.sample_type,
-        )
+        requirements["dataset"] = ConfigureDatasets.req(self)
         for sample_type in self.all_sample_types:
             for era in self.all_eras:
                 requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self, era=era, sample_type=sample_type
+                    self,
+                    era=era,
+                    sample_type=sample_type,
+                    htcondor_request_cpus=self.htcondor_request_cpus,
                 )
         return requirements
 

@@ -1,4 +1,5 @@
 import os
+import law.task
 import luigi
 import law
 import select
@@ -45,24 +46,34 @@ else:
 
 class Task(law.Task):
     local_user = getuser()
-    wlcg_path = luigi.Parameter(description="Base-path to remote file location.")
+    wlcg_path = luigi.Parameter(
+        description="Base-path to remote file location.",
+        significant=False,
+    )
     local_output_path = luigi.Parameter(
         description="Base-path to local file location.",
         default=os.getenv("ANALYSIS_DATA_PATH"),
+        significant=False,
     )
     is_local_output = luigi.BoolParameter(
         description="Whether to use local storage. False by default.",
         default=False,
+        significant=False,
     )
 
-    # Behaviour of production_tag:
-    # If a tag is give in the law cfg file it will be used for the respective task.
-    # If no tag is given a timestamp based on startup_time is used.
-    #   This timestamp is the same for all tasks in a workflow run with no set production_tag.
+    # Modify production_tag to check for override
     production_tag = luigi.Parameter(
         default=f"default/{startup_time}",
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
+
+    # Ensure that branch parameter is processed normally
+    exclude_params_req = law.Task.exclude_params_req | {"branch"}
+
+    # Prefer some parameters from the command line over the values provided by the .req() method
+    prefer_params_cli = law.Task.prefer_params_cli | {"production_tag"}
+
+    # Set default for all inheriting Tasks
     output_collection_cls = law.NestedSiblingFileCollection
 
     # Path of local targets.
@@ -257,7 +268,10 @@ class Task(law.Task):
 
 
 class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
-    ENV_NAME = luigi.Parameter(description="Environment to be used in HTCondor job.")
+    ENV_NAME = luigi.Parameter(
+        description="Environment to be used in HTCondor job.",
+        significant=False,
+    )
     htcondor_accounting_group = luigi.Parameter(
         description="Accounting group to be set in Hthe TCondor job submission."
     )
@@ -282,30 +296,54 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     htcondor_request_memory = luigi.Parameter(
         description="Amount of memory(MB) to be requested in HTCondor job submission."
     )
+    htcondor_request_disk = luigi.Parameter(
+        description="Amount of scratch-space(kB) to be requested in HTCondor job submission."
+    )
     htcondor_universe = luigi.Parameter(
-        description="Universe to be set in HTCondor job submission."
+        description="Universe to be set in HTCondor job submission.",
+        significant=False,
     )
     htcondor_docker_image = luigi.Parameter(
         description="Docker image to be used in HTCondor job submission.",
         default="Automatic",
     )
-    htcondor_request_disk = luigi.Parameter(
-        description="Amount of scratch-space(kB) to be requested in HTCondor job submission."
-    )
     bootstrap_file = luigi.Parameter(
-        description="Bootstrap script to be used in HTCondor job to set up law."
+        description="Bootstrap script to be used in HTCondor job to set up law.",
+        significant=False,
     )
     additional_files = luigi.ListParameter(
         default=[],
         description="Additional files to be included in the job tarball. Will be unpacked in the run directory",
+        significant=False,
     )
     remote_source_script = luigi.Parameter(
         description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with docker images",
         default="source /opt/conda/bin/activate env",
+        significant=False,
     )
 
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
     htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
+
+    # Do not propagate certain parameters via the ".req()" methode
+    exclude_set = {
+        "ENV_NAME",
+        "htcondor_requirements",
+        "htcondor_remote_job",
+        "htcondor_walltime",
+        "htcondor_request_cpus",
+        "htcondor_request_gpus" "htcondor_request_memory",
+        "htcondor_request_disk",
+        "htcondor_universe",
+        "htcondor_docker_image",
+        "additional_files",
+        "workflow",
+    }
+    exclude_params_req = (
+        Task.exclude_params_req
+        | law.htcondor.HTCondorWorkflow.exclude_params_req
+        | exclude_set
+    )
 
     def get_submission_os(self):
         # function to check, if running on centos7, rhel9 or Ubuntu22

@@ -23,7 +23,10 @@ class ProduceBase(Task, WrapperTask):
     sample_list = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    dataset_database = luigi.Parameter(significant=False)
+    dataset_database = luigi.Parameter(
+        default="sample_database/datasets.json",
+        significant=False,
+    )
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
     silent = False
@@ -160,7 +163,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     Gather and compile CROWN with the given configuration
     """
 
-    output_collection_cls = law.NestedSiblingFileCollection
     scopes = luigi.ListParameter()
     all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
@@ -211,12 +213,19 @@ class CROWNBuildBase(Task):
     # configuration variables
     scopes = luigi.ListParameter()
     shifts = luigi.Parameter()
-    build_dir = luigi.Parameter()
-    install_dir = luigi.Parameter()
+    build_dir = luigi.Parameter(
+        default="build",
+        significant=False,
+    )
+    install_dir = luigi.Parameter(
+        default="tarballs",
+        significant=False,
+    )
     all_sample_types = luigi.ListParameter()
     all_eras = luigi.ListParameter()
     analysis = luigi.Parameter()
-    config = luigi.Parameter(significant=False)
+    config = luigi.Parameter()
+    # Needed to propagate thread count to build tasks
     htcondor_request_cpus = luigi.IntParameter(default=1)
 
     def get_tarball_hash(self):

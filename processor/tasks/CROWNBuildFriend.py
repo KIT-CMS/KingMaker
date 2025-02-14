@@ -20,7 +20,8 @@ class CROWNBuildFriend(CROWNBuildBase):
     nick = luigi.Parameter(significant=False)
 
     def requires(self):
-        results = {"quantities_map": QuantitiesMap.req(self)}
+        results = {}
+        results["quantities_map"] = QuantitiesMap.req(self)
         results["crownlib"] = BuildCROWNLib.req(self)
         return results
 
