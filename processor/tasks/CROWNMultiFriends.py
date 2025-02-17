@@ -32,7 +32,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
         requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
         for friend in self.friend_dependencies:
             requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
-                CROWNFriends(
+                CROWNFriends.req(
                     self, friend_name=self.friend_mapping[friend], friend_config=friend
                 )
             )
