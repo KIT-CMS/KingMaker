@@ -268,10 +268,7 @@ class Task(law.Task):
 
 
 class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
-    ENV_NAME = luigi.Parameter(
-        description="Environment to be used in HTCondor job.",
-        significant=False,
-    )
+    ENV_NAME = luigi.Parameter(description="Environment to be used in HTCondor job.")
     htcondor_accounting_group = luigi.Parameter(
         description="Accounting group to be set in Hthe TCondor job submission."
     )
@@ -332,7 +329,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_remote_job",
         "htcondor_walltime",
         "htcondor_request_cpus",
-        "htcondor_request_gpus" "htcondor_request_memory",
+        "htcondor_request_gpus",
+        "htcondor_request_memory",
         "htcondor_request_disk",
         "htcondor_universe",
         "htcondor_docker_image",
