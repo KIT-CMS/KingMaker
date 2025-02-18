@@ -12,39 +12,18 @@ class QuantitiesMap(law.LocalWorkflow, Task):
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    production_tag = luigi.Parameter()
     analysis = luigi.Parameter(significant=False)
     config = luigi.Parameter(significant=False)
     nick = luigi.Parameter(significant=False)
 
     def workflow_requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun.req(self)
         return requirements
 
     def requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun.req(self)
         return requirements
 
     def create_branch_map(self):

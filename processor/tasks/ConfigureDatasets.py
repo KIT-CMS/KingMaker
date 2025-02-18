@@ -20,8 +20,7 @@ class ConfigureDatasets(Task):
     nick = luigi.Parameter()
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    production_tag = luigi.Parameter()
-    silent = luigi.BoolParameter(default=False)
+    silent = luigi.BoolParameter(default=False, significant=False)
 
     def output(self):
         target = self.remote_target("sample_database/{}.json".format(self.nick))

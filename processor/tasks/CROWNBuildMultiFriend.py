@@ -22,7 +22,8 @@ class CROWNBuildMultiFriend(CROWNBuildBase):
     friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def requires(self):
-        results = {"quantities_map": FriendQuantitiesMap.req(self)}
+        results = {}
+        results["quantities_map"] = FriendQuantitiesMap.req(self)
         results["crownlib"] = BuildCROWNLib.req(self)
         return results
 

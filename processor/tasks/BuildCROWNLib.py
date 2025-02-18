@@ -12,7 +12,6 @@ class BuildCROWNLib(Task):
     # configuration variables
     build_dir = luigi.Parameter()
     install_dir = luigi.Parameter()
-    production_tag = luigi.Parameter()
     friend_name = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 

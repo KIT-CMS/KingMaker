@@ -125,7 +125,12 @@ class CROWNBuild(CROWNBuildBase):
     sample_type = luigi.Parameter()
 
     def requires(self):
-        result = {"combined_build": CROWNBuildCombined.req(self)}
+        result = {
+            "combined_build": CROWNBuildCombined.req(
+                self,
+                htcondor_request_cpus=self.htcondor_request_cpus,
+            )
+        }
         return result
 
     def output(self):

@@ -25,22 +25,10 @@ class CROWNFriends(CROWNExecuteBase):
     friend_name = luigi.Parameter()
     nick = luigi.Parameter()
     analysis = luigi.Parameter()
-    production_tag = luigi.Parameter()
 
     def workflow_requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            shifts=self.shifts,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun.req(self)
         requirements["friend_tarball"] = CROWNBuildFriend.req(self)
         return requirements
 

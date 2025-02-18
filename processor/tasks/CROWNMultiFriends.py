@@ -17,7 +17,7 @@ law.contrib.load("wlcg")
 
 
 class CROWNMultiFriends(CROWNExecuteBase):
-    output_collection_cls = law.NestedSiblingFileCollection
+
     friend_dependencies = luigi.ListParameter(significant=False)
     friend_mapping = luigi.DictParameter(significant=False, default={})
     friend_config = luigi.Parameter()
@@ -25,39 +25,16 @@ class CROWNMultiFriends(CROWNExecuteBase):
     friend_name = luigi.Parameter()
     nick = luigi.Parameter()
     analysis = luigi.Parameter()
-    production_tag = luigi.Parameter()
 
     def workflow_requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            shifts=self.shifts,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun.req(self)
         requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
         for friend in self.friend_dependencies:
-            requirements[
-                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-            ] = CROWNFriends(
-                nick=self.nick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=self.all_eras,
-                shifts=self.shifts,
-                all_sample_types=self.all_sample_types,
-                era=self.era,
-                sample_type=self.sample_type,
-                scopes=self.scopes,
-                friend_name=self.friend_mapping[friend],
-                friend_config=friend,
+            requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
+                CROWNFriends.req(
+                    self, friend_name=self.friend_mapping[friend], friend_config=friend
+                )
             )
         return requirements
 

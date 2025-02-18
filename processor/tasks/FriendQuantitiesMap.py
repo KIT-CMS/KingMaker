@@ -13,7 +13,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    production_tag = luigi.Parameter()
     analysis = luigi.Parameter(significant=False)
     config = luigi.Parameter(significant=False)
     nick = luigi.Parameter(significant=False)
@@ -22,73 +21,28 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
 
     def workflow_requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun.req(self)
         for friend in self.friend_dependencies:
-            requirements[
-                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-            ] = CROWNFriends(
-                nick=self.nick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=self.all_eras,
-                all_sample_types=self.all_sample_types,
-                era=self.era,
-                sample_type=self.sample_type,
-                scopes=self.scopes,
-                friend_name=self.friend_mapping[friend],
-                friend_config=friend,
+            requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
+                CROWNFriends.req(
+                    self, friend_name=self.friend_mapping[friend], friend_config=friend
+                )
             )
         return requirements
 
     def requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(
-            nick=self.nick,
-            analysis=self.analysis,
-            config=self.config,
-            production_tag=self.production_tag,
-            all_eras=self.all_eras,
-            all_sample_types=self.all_sample_types,
-            era=self.era,
-            sample_type=self.sample_type,
-            scopes=self.scopes,
-        )
+        requirements["ntuples"] = CROWNRun(self)
         for friend in self.friend_dependencies:
-            requirements[
-                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-            ] = CROWNFriends(
-                nick=self.nick,
-                analysis=self.analysis,
-                config=self.config,
-                production_tag=self.production_tag,
-                all_eras=self.all_eras,
-                all_sample_types=self.all_sample_types,
-                era=self.era,
-                sample_type=self.sample_type,
-                scopes=self.scopes,
-                friend_name=self.friend_mapping[friend],
-                friend_config=friend,
+            requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
+                CROWNFriends.req(
+                    self, friend_name=self.friend_mapping[friend], friend_config=friend
+                )
             )
         return requirements
 
     def create_branch_map(self):
-        return {
-            0: {
-                "era": self.era,
-                "sample_type": self.sample_type,
-            }
-        }
+        return [{"era": self.era, "sample_type": self.sample_type}]
 
     def output(self):
         target = self.remote_target(
