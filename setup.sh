@@ -4,6 +4,10 @@
 # First argument chooses from the available setups
 # Second argument sets alternative conda environment directory
 
+
+# List of available workflows
+ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
 }
@@ -12,8 +16,77 @@ _addbin() {
     [ ! -z "${1}" ] && export PATH="${1}:${PATH}"
 }
 
+parse_arguments() {
+    # Default values
+    DEFAULT_ANALYSIS="KingMaker"
+    DEFAULT_ENV_PATH=""
+    DEFAULT_LIST_WORKFLOWS=false
+    ANALYSIS=${DEFAULT_ANALYSIS}
+    ENV_PATH=${DEFAULT_ENV_PATH}
+    LIST_WORKFLOWS=${DEFAULT_LIST_WORKFLOWS}
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -a|--analysis)
+                ANALYSIS="$2"
+                shift 2
+                ;;
+            -e|--env-path)
+                ENV_PATH="$2"
+                shift 2
+                ;;
+            -l|--list)
+                echo "Available workflows:"
+                echo "-------------------"
+                for workflow in "${ANA_LIST[@]}"; do
+                    if [[ "${workflow}" == "${DEFAULT_ANALYSIS}" ]]; then
+                        echo "* ${workflow} (default)"
+                    else
+                        echo "* ${workflow}"
+                    fi
+                done
+                return 1
+                ;;
+            -h|--help)
+                echo "Usage: source setup.sh [options]"
+                echo ""
+                echo "Options:"
+                echo "  -a, --analysis ANALYSIS    Specify the analysis workflow to use"
+                echo "                            [default: ${DEFAULT_ANALYSIS}]"
+                echo "  -e, --env-path PATH       Specify custom environment path"
+                echo "                            [default: auto-detected]"
+                echo "  -l, --list                List available workflows"
+                echo "  -h, --help                Show this help message"
+                echo ""
+                echo "Environment path precedence:"
+                echo "1. Command line argument (-e/--env-path)"
+                echo "2. Saved location from environment.location file"
+                echo "3. CVMFS installation if available"
+                echo "4. Current directory"
+                return 1
+                ;;
+            *)
+                echo "Error: Unknown option $1"
+                return 1
+                ;;
+        esac
+    done
+
+    # Export for use in main script
+    export PARSED_ANALYSIS="${ANALYSIS}"
+    export PARSED_ENV_PATH="${ENV_PATH}"
+    export PARSED_LIST_WORKFLOWS="${LIST_WORKFLOWS}"
+}
+
 action() {
 
+    # Parse arguments first
+    parse_arguments "$@"
+    if [[ $? -eq "1" ]]; then 
+        return 1 
+    fi
+    
     # Check if law was already set up in this shell
     if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
@@ -59,31 +132,20 @@ action() {
         echo "Running Kingmaker on ${distro} Version ${os_version} on $(hostname) from dir ${BASE_DIR}"
     fi
 
-    # Workflow to be set up
-    ANA_NAME_GIVEN=${1}
-
-    # List of available workflows
-    ANA_LIST=("KingMaker" "GPU_example" "ML_train")
-    if [[ "$@" =~ "-l" ]]; then
-        echo "Available workflows:"
-        printf '%s\n' "${ANA_LIST[@]}"
-        return 0
-    fi
-
-    # Determine workflow to be used. Default is first in list.
-    if [[ -z "${ANA_NAME_GIVEN}" ]]; then
+    # Handle analysis selection
+    if [[ -z "${PARSED_ANALYSIS}" ]]; then
         echo "No workflow chosen. Please choose from:"
         printf '%s\n' "${ANA_LIST[@]}"
         return 1
     else
         # Check if given workflow is in list
-        if [[ ! " ${ANA_LIST[*]} " =~ " ${ANA_NAME_GIVEN} " ]] ; then
+        if [[ ! " ${ANA_LIST[*]} " =~ " ${PARSED_ANALYSIS} " ]] ; then
             echo "Not a valid name. Allowed choices are:"
             printf '%s\n' "${ANA_LIST[@]}"
             return 1
         else
-            echo "Using ${ANA_NAME_GIVEN} workflow."
-            export ANA_NAME="${ANA_NAME_GIVEN}"
+            echo "Using ${PARSED_ANALYSIS} workflow."
+            export ANA_NAME="${PARSED_ANALYSIS}"
         fi
     fi
 
@@ -118,8 +180,8 @@ action() {
     # 2. Use dir from file if none provided
     # 3. Use local /cvmfs installation if available
     # 4. Use dir of setup script if neither provided
-    if [[ ! -z ${2} ]]; then
-        ENV_PATH="$(realpath ${2})"
+    if [[ ! -z ${PARSED_ENV_PATH} ]]; then
+        ENV_PATH="$(realpath ${PARSED_ENV_PATH})"
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
     elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
@@ -129,7 +191,7 @@ action() {
     fi
     echo "Using environments from ${ENV_PATH}/miniforge."
     # Save env location to file if provided
-    if [[ ! -z ${2} ]]; then
+    if [[ ! -z ${PARSED_ENV_PATH} ]]; then
         echo saving environment path to file for future setups.
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
