@@ -50,6 +50,7 @@ class CROWNRun(CROWNExecuteBase):
             nick=self.nick,
             era=self.era,
             sample_type=self.sample_type,
+            production_tag=self.production_tag,
         )
         # since we use the filelist from the dataset, we need to run it first
         dataset.run()

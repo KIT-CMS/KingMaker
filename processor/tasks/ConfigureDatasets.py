@@ -14,12 +14,13 @@ def ensure_dir(file_path):
 
 class ConfigureDatasets(Task):
     """
-    Gather information on the selected datasets, for now just mentioning an explicit dataset
+    Gather information on the selected datasets.
     """
 
     nick = luigi.Parameter()
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
+    production_tag = luigi.Parameter()
     silent = luigi.BoolParameter(default=False, significant=False)
 
     def output(self):
