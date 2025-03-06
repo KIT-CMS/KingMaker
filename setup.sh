@@ -21,9 +21,11 @@ parse_arguments() {
     DEFAULT_ANALYSIS="KingMaker"
     DEFAULT_ENV_PATH=""
     DEFAULT_LIST_WORKFLOWS=false
+    DEFAULT_CROWN_ANALYSIS=""
     ANALYSIS=${DEFAULT_ANALYSIS}
     ENV_PATH=${DEFAULT_ENV_PATH}
     LIST_WORKFLOWS=${DEFAULT_LIST_WORKFLOWS}
+    CROWN_ANALYSIS=${DEFAULT_CROWN_ANALYSIS}
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -34,6 +36,10 @@ parse_arguments() {
                 ;;
             -e|--env-path)
                 ENV_PATH="$2"
+                shift 2
+                ;;
+            -c|--crown-analysis)
+                CROWN_ANALYSIS="$2"
                 shift 2
                 ;;
             -l|--list)
@@ -56,6 +62,10 @@ parse_arguments() {
                 echo "                            [default: ${DEFAULT_ANALYSIS}]"
                 echo "  -e, --env-path PATH       Specify custom environment path"
                 echo "                            [default: auto-detected]"
+                echo "  -c, --crown-analysis NAME  Specify CROWN analysis to check out"
+                echo "                            (only with KingMaker workflow)"
+                echo "                            Available: tau, earlyrun3, whtautau,"
+                echo "                            boosted_h_tautau, s"
                 echo "  -l, --list                List available workflows"
                 echo "  -h, --help                Show this help message"
                 echo ""
@@ -77,6 +87,7 @@ parse_arguments() {
     export PARSED_ANALYSIS="${ANALYSIS}"
     export PARSED_ENV_PATH="${ENV_PATH}"
     export PARSED_LIST_WORKFLOWS="${LIST_WORKFLOWS}"
+    export CROWN_ANALYSIS="${CROWN_ANALYSIS}"
 }
 
 action() {
@@ -240,9 +251,23 @@ action() {
     case ${ANA_NAME} in
         KingMaker)
             echo "Setting up CROWN ..."
-             # Due to frequent updates CROWN is not set up as a submodule
+            # Due to frequent updates CROWN is not set up as a submodule
             if [ ! -d "${BASE_DIR}/CROWN" ]; then
                 git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
+            fi
+            # Add CROWN analysis checkout option using init.sh
+            if [ ! -z "${CROWN_ANALYSIS}" ]; then
+                (
+                    # Run in subprocess to prevent environment changes
+                    cd "${BASE_DIR}/CROWN"
+                    if [ -f "init.sh" ]; then
+                        echo "Checking out CROWN analysis: ${CROWN_ANALYSIS}"
+                        source init.sh "${CROWN_ANALYSIS}"
+                    else
+                        echo "Error: CROWN init.sh not found"
+                        return 1
+                    fi
+                )
             fi
             if [ -z "$(ls -A ${BASE_DIR}/sample_database)" ]; then
                 git submodule update --init --recursive -- sample_database
