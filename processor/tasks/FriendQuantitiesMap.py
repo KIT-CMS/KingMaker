@@ -32,7 +32,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
 
     def requires(self):
         requirements = {}
-        requirements["ntuples"] = CROWNRun(self)
+        requirements["ntuples"] = CROWNRun.req(self)
         for friend in self.friend_dependencies:
             requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
                 CROWNFriends.req(
