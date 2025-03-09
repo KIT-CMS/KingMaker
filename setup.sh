@@ -1,8 +1,16 @@
 ############################################################################################
 #         This script sets up all dependencies necessary for running KingMaker             #
 ############################################################################################
-# First argument chooses from the available setups
-# Second argument sets alternative conda environment directory
+# Usage: source setup.sh [options]
+#
+# Script accepts following options:
+#   -a, --analysis ANALYSIS    Choose workflow from available options
+#   -e, --env-path PATH        Set custom conda environment directory
+#   -c, --crown-analysis NAME  Specify CROWN analysis to check out (KingMaker workflow only)
+#   -l, --list                 List available workflows
+#   -h, --help                 Show detailed help message
+#
+# Supports CentOS 7, RHEL/Alma/Rocky 9, and Ubuntu 22.
 
 
 # List of available workflows
