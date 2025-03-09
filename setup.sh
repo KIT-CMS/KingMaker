@@ -83,6 +83,7 @@ parse_arguments() {
                 ;;
             *)
                 echo "Error: Unknown option $1"
+                echo "Use --help to see available options"
                 return 1
                 ;;
         esac
