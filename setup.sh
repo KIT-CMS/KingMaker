@@ -20,11 +20,9 @@ parse_arguments() {
     # Default values
     DEFAULT_ANALYSIS="KingMaker"
     DEFAULT_ENV_PATH=""
-    DEFAULT_LIST_WORKFLOWS=false
     DEFAULT_CROWN_ANALYSIS=""
     ANALYSIS=${DEFAULT_ANALYSIS}
     ENV_PATH=${DEFAULT_ENV_PATH}
-    LIST_WORKFLOWS=${DEFAULT_LIST_WORKFLOWS}
     CROWN_ANALYSIS=${DEFAULT_CROWN_ANALYSIS}
 
     # Parse arguments
@@ -85,7 +83,6 @@ parse_arguments() {
     # Export for use in main script
     export PARSED_ANALYSIS="${ANALYSIS}"
     export PARSED_ENV_PATH="${ENV_PATH}"
-    export PARSED_LIST_WORKFLOWS="${LIST_WORKFLOWS}"
     export CROWN_ANALYSIS="${CROWN_ANALYSIS}"
 }
 
@@ -272,7 +269,7 @@ action() {
                 git submodule update --init --recursive -- sample_database
             fi
             # Set the alias
-            function sample_manager () {
+            sample_manager () {
                 (
                     # Switch to KingMaker dir in subprocess and run from there
                     echo "Starting Samplemanager"
@@ -280,7 +277,7 @@ action() {
                     python3 ${BASE_DIR}/sample_database/samplemanager/main.py --database-folder ${BASE_DIR}/sample_database
                 )
             }
-            function monitor_production () {
+            monitor_production () {
                 # Parse all user arguments and pass them to the python script
                 python3 ${BASE_DIR}/scripts/ProductionStatus.py $@
             }
