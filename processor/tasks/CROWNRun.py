@@ -46,11 +46,7 @@ class CROWNRun(CROWNExecuteBase):
     def create_branch_map(self):
         branch_map = {}
         branchcounter = 0
-        dataset = ConfigureDatasets(
-            nick=self.nick,
-            era=self.era,
-            sample_type=self.sample_type,
-        )
+        dataset = ConfigureDatasets.req(self)
         # since we use the filelist from the dataset, we need to run it first
         dataset.run()
         datsetinfo = dataset.output()
