@@ -16,13 +16,12 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     analysis = luigi.Parameter(significant=False)
     config = luigi.Parameter(significant=False)
     nick = luigi.Parameter(significant=False)
-    friend_dependencies = luigi.ListParameter(significant=False)
     friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def workflow_requires(self):
         requirements = {}
         requirements["ntuples"] = CROWNRun.req(self)
-        for friend in self.friend_dependencies:
+        for friend in self.friend_mapping:
             requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
                 CROWNFriends.req(
                     self, friend_name=self.friend_mapping[friend], friend_config=friend
@@ -33,7 +32,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
     def requires(self):
         requirements = {}
         requirements["ntuples"] = CROWNRun.req(self)
-        for friend in self.friend_dependencies:
+        for friend in self.friend_mapping:
             requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
                 CROWNFriends.req(
                     self, friend_name=self.friend_mapping[friend], friend_config=friend
@@ -71,7 +70,7 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             ):
                 inputfiles = self.input()["ntuples"][sample]._flat_target_list
                 # add all friend files to the inputfiles list
-                for friend in self.friend_dependencies:
+                for friend in self.friend_mapping:
                     inputfiles.extend(
                         self.input()[
                             f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"

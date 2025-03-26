@@ -74,37 +74,13 @@ class ProduceBase(Task, WrapperTask):
             # now convert the list to a comma separated string
             self.shifts = convert_to_comma_seperated(self.shifts)
 
-    def sanitize_friend_dependencies(self):
-        """
-        The function `sanitize_friend_dependencies` checks the type of `self.friend_dependencies` and
-        converts it to a list if it is a string.
-        """
-        # in this case, the required friends require not only the ntuple, but also other friends,
-        # this means we have to add additional requirements to the task
-        if isinstance(self.friend_dependencies, str):
-            self.friend_dependencies = self.friend_dependencies.split(",")
-        elif isinstance(self.friend_dependencies, list):
-            self.friend_dependencies = self.friend_dependencies
-
     def validate_friend_mapping(self):
         """
-        The function `validate_friend_mapping` checks if the `friend_mapping` dictionary is empty, and if
-        so, creates a new dictionary with `friend_dependencies` as keys and values, otherwise it checks if
-        each friend in `friend_dependencies` is present in `friend_mapping` and raises an exception if not.
+        The function validates that the friend_mapping dictionary is not empty.
+        If empty, raises an exception since we need the mapping information.
         """
-        data = {}
         if len(self.friend_mapping.keys()) == 0:
-            for friend in self.friend_dependencies:
-                data[friend] = friend
-        else:
-            for friend in self.friend_dependencies:
-                if friend in self.friend_mapping:
-                    data[friend] = self.friend_mapping[friend]
-                else:
-                    raise Exception(
-                        f"Friend {friend} not found in friend mapping {self.friend_mapping}"
-                    )
-        self.friend_mapping = data
+            raise Exception("Friend mapping cannot be empty")
 
     def set_sample_data(self, samples):
         """
