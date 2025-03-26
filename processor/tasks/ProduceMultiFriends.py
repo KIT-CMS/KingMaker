@@ -13,13 +13,11 @@ class ProduceMultiFriends(ProduceBase):
 
     friend_config = luigi.Parameter()
     friend_name = luigi.Parameter()
-    friend_dependencies = luigi.Parameter()
     friend_mapping = luigi.DictParameter(significant=False, default={})
 
     def requires(self):
         self.sanitize_scopes()
         self.sanitize_shifts()
-        self.sanitize_friend_dependencies()
         self.validate_friend_mapping()
         if not self.silent:
             console.rule("")
@@ -29,7 +27,6 @@ class ProduceMultiFriends(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
-            console.log(f"Friend Dependencies: {self.friend_dependencies}")
             console.log(f"Friend Mapping: {self.friend_mapping}")
             console.rule("")
 

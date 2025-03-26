@@ -17,8 +17,6 @@ law.contrib.load("wlcg")
 
 
 class CROWNMultiFriends(CROWNExecuteBase):
-
-    friend_dependencies = luigi.ListParameter(significant=False)
     friend_mapping = luigi.DictParameter(significant=False, default={})
     friend_config = luigi.Parameter()
     config = luigi.Parameter(significant=False)
@@ -30,7 +28,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
         requirements = {}
         requirements["ntuples"] = CROWNRun.req(self)
         requirements["friend_tarball"] = CROWNBuildMultiFriend.req(self)
-        for friend in self.friend_dependencies:
+        for friend in self.friend_mapping:
             requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
                 CROWNFriends.req(
                     self, friend_name=self.friend_mapping[friend], friend_config=friend
@@ -54,7 +52,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
             self.input()[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"][
                 "collection"
             ]
-            for friend in self.friend_dependencies  # type: ignore
+            for friend in self.friend_mapping  # type: ignore
         ]
         friend_branches = [
             [
@@ -80,7 +78,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
                     "filecounter": int(counter / len(self.scopes)),
                 }
                 filename = inputfile.path.split("/")[-1]
-                for friend_index, friend in enumerate(self.friend_dependencies):
+                for friend_index, friend in enumerate(self.friend_mapping):
                     if not friend_branches[friend_index][counter].path.endswith(
                         ".root"
                     ):
