@@ -13,6 +13,8 @@ import hashlib
 # import timeout_decorator
 import time
 
+from processor.tasks.helpers.NanoAODVersions import NanoAODVersions
+
 
 class ProduceBase(Task, WrapperTask):
     """
@@ -23,13 +25,17 @@ class ProduceBase(Task, WrapperTask):
     sample_list = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    dataset_database = luigi.Parameter(
-        default="sample_database/datasets.json",
-        significant=False,
-    )
+    nanoAOD_version = luigi.Parameter(default=NanoAODVersions.v12.value)
+    dataset_database = luigi.Parameter(default=None, significant=False)
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
     silent = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Dynamically set the default value of dataset_database based on nanoAOD_version
+        if self.dataset_database is None:
+            self.dataset_database = f"sample_database/{self.nanoAOD_version}/datasets.json"
 
     def parse_samplelist(self, sample_list):
         """
@@ -114,7 +120,7 @@ class ProduceBase(Task, WrapperTask):
                 console.log(
                     "Sample {} not found in {}".format(nick, self.dataset_database)
                 )
-                raise Exception("Sample not found in DB")
+                raise Exception(f"Sample not found in DB: {nick}")
             sample_data = sample_db[nick]
             data["details"][nick]["era"] = str(sample_data["era"])
             data["details"][nick]["sample_type"] = sample_data["sample_type"]
