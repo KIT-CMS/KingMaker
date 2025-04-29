@@ -2,7 +2,7 @@
 
 FOUND_ISSUE=0
 
-for FILENAME in $(find . -path ./law -prune -o -name "*.py"); do
+for FILENAME in $(find . \( -path ./venv -o -path ./law \) -prune -o -name "*.py"); do
 	# only run the check if the filename ends with .py
 	if [[ ${FILENAME} == *.py ]]; then
 		echo "Checking ${FILENAME}"
