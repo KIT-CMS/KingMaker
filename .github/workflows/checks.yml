@@ -20,7 +20,11 @@ jobs:
         run: apt-get -y update
 
       - name: Install missing software
-        run: apt-get install -y git python3-pip && pip install --break-system-packages black==24.4.2
+        run: |
+          apt-get install -y git python3-pip python3-venv
+          python3 -m venv test_env
+          source test_env/bin/activate
+          python3 -m pip install black==24.4.2
 
       - uses: actions/checkout@v2
 
