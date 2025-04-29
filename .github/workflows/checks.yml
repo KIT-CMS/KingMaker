@@ -20,7 +20,7 @@ jobs:
         run: apt-get -y update
 
       - name: Install missing software
-        run: apt-get install -y git python3-pip && pip install black==24.4.2
+        run: apt-get install -y git python3-pip pipx && pipx install black==24.4.2
 
       - uses: actions/checkout@v2
 
