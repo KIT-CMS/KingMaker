@@ -31,4 +31,7 @@ jobs:
 
       - name: Check Python formatting
         shell: bash
-        run: cd $GITHUB_WORKSPACE && bash scripts/python-formatting.sh
+        run: |
+          source venv/bin/activate
+          cd $GITHUB_WORKSPACE
+          bash scripts/python-formatting.sh
