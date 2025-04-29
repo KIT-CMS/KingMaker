@@ -23,6 +23,7 @@ jobs:
         shell: bash
         run: |
           apt-get install -y git python3-pip python3-venv
+          cd $GITHUB_WORKSPACE
           python3 -m venv venv
           source venv/bin/activate
           pip install black==24.4.2
@@ -32,6 +33,6 @@ jobs:
       - name: Check Python formatting
         shell: bash
         run: |
-          source venv/bin/activate
           cd $GITHUB_WORKSPACE
+          source venv/bin/activate
           bash scripts/python-formatting.sh
