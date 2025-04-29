@@ -22,8 +22,7 @@ jobs:
         run: apt-get -y update
 
       - name: Install missing software
-        run: |
-          apt-get install -y git python3-pip python3-venv
+        run: apt-get install -y git python3-pip python3-venv
 
       - name: Create venv
         shell: bash
