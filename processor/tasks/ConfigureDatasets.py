@@ -28,9 +28,7 @@ class ConfigureDatasets(Task):
 
     def load_filelist_config(self):
         # first check if a json exists, if not, check for a yaml
-        sample_configfile_json = "sample_database/{nanoAOD_version}/{era}/{type}/{nick}.json".format(
-            nanoAOD_version=self.nanoAOD_version, era=self.era, type=self.sample_type, nick=self.nick
-        )
+        sample_configfile_json = f"sample_database/{self.nanoAOD_version}/{self.era}/{self.sample_type}/{self.nick}.json"
         if os.path.exists(sample_configfile_json):
             with open(sample_configfile_json, "r") as stream:
                 try:
