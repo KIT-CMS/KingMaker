@@ -11,6 +11,7 @@ def ensure_dir(file_path):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
+
 class ConfigureDatasets(Task):
     """
     Gather information on the selected datasets.
@@ -23,7 +24,9 @@ class ConfigureDatasets(Task):
     silent = luigi.BoolParameter(default=False, significant=False)
 
     def output(self):
-        target = self.remote_target(f"sample_database/{self.nanoAOD_version}/{self.nick}.json")
+        target = self.remote_target(
+            f"sample_database/{self.nanoAOD_version}/{self.nick}.json"
+        )
         return target
 
     def load_filelist_config(self):

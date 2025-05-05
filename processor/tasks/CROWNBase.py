@@ -35,7 +35,9 @@ class ProduceBase(Task, WrapperTask):
         super().__init__(*args, **kwargs)
         # Dynamically set the default value of dataset_database based on nanoAOD_version
         if self.dataset_database is None:
-            self.dataset_database = f"sample_database/{self.nanoAOD_version}/datasets.json"
+            self.dataset_database = (
+                f"sample_database/{self.nanoAOD_version}/datasets.json"
+            )
 
     def parse_samplelist(self, sample_list):
         """

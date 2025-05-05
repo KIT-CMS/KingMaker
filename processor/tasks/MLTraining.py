@@ -2,7 +2,7 @@
 
 """
 Collection of tasks used to create training datasets and config files
-for the NN trainings of the NMSSM analysis 
+for the NN trainings of the NMSSM analysis
 """
 import yaml
 import os
