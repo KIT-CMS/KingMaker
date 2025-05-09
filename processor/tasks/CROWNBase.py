@@ -26,7 +26,7 @@ class ProduceBase(Task, WrapperTask):
     analysis = luigi.Parameter()
     config = luigi.Parameter()
     nanoAOD_version = luigi.Parameter(default=NanoAODVersions.v12.value)
-    dataset_database = luigi.Parameter(default=None, significant=False)
+    dataset_database = luigi.Parameter(default="", significant=False)
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
     silent = False
@@ -34,7 +34,7 @@ class ProduceBase(Task, WrapperTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Dynamically set the default value of dataset_database based on nanoAOD_version
-        if self.dataset_database is None:
+        if self.dataset_database == "":
             self.dataset_database = (
                 f"sample_database/{self.nanoAOD_version}/datasets.json"
             )
@@ -147,6 +147,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     Gather and compile CROWN with the given configuration
     """
 
+    nanoAOD_version = luigi.Parameter(default=NanoAODVersions.v12.value)
     scopes = luigi.ListParameter()
     all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
