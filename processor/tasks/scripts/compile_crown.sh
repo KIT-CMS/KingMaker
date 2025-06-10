@@ -9,7 +9,7 @@ SHIFTS=${7}
 INSTALLDIR=${8}
 BUILDDIR=${9}
 TARBALLNAME=${10}
-EXECUTALBE_THREADS=${11}
+EXECUTABLE_THREADS=${11}
 # setup with analysis clone if needed
 set -o pipefail
 set -e
@@ -35,7 +35,7 @@ if cmake ${CROWNFOLDER} \
 	-DERAS=${ERAS} \
 	-DSCOPES=${SCOPE} \
 	-DSHIFTS=${SHIFTS} \
-	-DTHREADS=${EXECUTALBE_THREADS} \
+	-DTHREADS=${EXECUTABLE_THREADS} \
 	-DINSTALLDIR=${INSTALLDIR} \
 	-DPRODUCTION=True \
 	-B${BUILDDIR} 2>&1 | tee ${BUILDDIR}/cmake.log; then
