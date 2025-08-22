@@ -38,7 +38,9 @@ class ConfigureDatasets(Task):
                     print(exc)
                     raise Exception("Failed to load sample information")
         else:
-            console.log(f"The sample config json does not exist: {sample_configfile_json}")
+            console.log(
+                f"The sample config json does not exist: {sample_configfile_json}"
+            )
             raise Exception("Failed to load sample information")
         return sample_data
 

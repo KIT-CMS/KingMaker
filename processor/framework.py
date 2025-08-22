@@ -49,7 +49,7 @@ class NanoAODVersions(Enum):
     v12 = "nanoAOD_v12"
     v15 = "nanoAOD_v15"
 
-    
+
 class Task(law.Task):
     local_user = getuser()
     wlcg_path = luigi.Parameter(
