@@ -7,8 +7,6 @@ import tarfile
 import subprocess
 import time
 from framework import console
-from framework import HTCondorWorkflow
-from law.config import Config
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 

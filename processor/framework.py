@@ -1,10 +1,10 @@
 import os
-import law.task
 import luigi
 import law
 import select
 import subprocess
 import socket
+from enum import Enum
 from law.util import interruptable_popen
 from rich.console import Console
 from datetime import datetime
@@ -44,6 +44,12 @@ else:
     startup_dir = os.getcwd()
 
 
+class NanoAODVersions(Enum):
+    v9 = "nanoAOD_v9"
+    v12 = "nanoAOD_v12"
+    v15 = "nanoAOD_v15"
+
+    
 class Task(law.Task):
     local_user = getuser()
     wlcg_path = luigi.Parameter(
@@ -65,6 +71,10 @@ class Task(law.Task):
     production_tag = luigi.Parameter(
         default=f"default/{startup_time}",
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
+    )
+    nanoAOD_version = luigi.Parameter(
+        default=NanoAODVersions.v12.value,
+        description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v12' is the default.",
     )
 
     # Ensure that branch parameter is processed normally

@@ -18,6 +18,7 @@ class ProduceSamples(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
+            console.log(f"NanoAOD: {self.nanoAOD_version}")
             console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))

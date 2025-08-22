@@ -1,7 +1,7 @@
 import luigi
 import law
 import os
-from framework import Task, console
+from framework import Task
 from CROWNRun import CROWNRun
 from CROWNFriends import CROWNFriends
 import json
