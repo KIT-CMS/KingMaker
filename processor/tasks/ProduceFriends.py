@@ -1,6 +1,5 @@
 import luigi
 from CROWNFriends import CROWNFriends
-from CROWNMultiFriends import CROWNMultiFriends
 from framework import console
 from CROWNBase import ProduceBase
 
@@ -25,6 +24,7 @@ class ProduceFriends(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
+            console.log(f"NanoAOD: {self.nanoAOD_version}")
             console.log(f"Silent: {self.silent}")
             console.rule("")
 

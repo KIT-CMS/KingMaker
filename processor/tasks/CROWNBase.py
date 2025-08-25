@@ -9,11 +9,7 @@ from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
 import hashlib
-
-# import timeout_decorator
 import time
-
-from processor.tasks.helpers.NanoAODVersions import NanoAODVersions
 
 
 class ProduceBase(Task, WrapperTask):
@@ -25,7 +21,6 @@ class ProduceBase(Task, WrapperTask):
     sample_list = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    nanoAOD_version = luigi.Parameter(default=NanoAODVersions.v12.value)
     dataset_database = luigi.Parameter(default="", significant=False)
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
@@ -147,7 +142,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     Gather and compile CROWN with the given configuration
     """
 
-    nanoAOD_version = luigi.Parameter(default=NanoAODVersions.v12.value)
     scopes = luigi.ListParameter()
     all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
@@ -271,7 +265,6 @@ class CROWNBuildBase(Task):
 
         return build_dir, install_dir
 
-    # @timeout_decorator.timeout(10)
     def copy_from_local_with_timeout(self, output, path):
         output.copy_from_local(path)
 

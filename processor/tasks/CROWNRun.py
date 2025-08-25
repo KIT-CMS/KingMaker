@@ -1,4 +1,3 @@
-import law
 import luigi
 import os
 from CROWNBuild import CROWNBuild
@@ -7,8 +6,6 @@ from ConfigureDatasets import ConfigureDatasets
 import subprocess
 import time
 from framework import console
-from law.config import Config
-from framework import Task, HTCondorWorkflow
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 
