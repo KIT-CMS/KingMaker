@@ -261,12 +261,11 @@ class Task(law.Task):
                         if fd == p.stdout.fileno():
                             read = p.stdout.readline()
                             if read != "\n":
-                                console.log(read.strip())
+                                console.log(read.strip(), markup=False)
                         if fd == p.stderr.fileno():
                             read = p.stderr.readline()
                             if read != "\n":
-                                console.log(read.strip())
-
+                                console.log(read.strip(), markup=False)
                     if p.poll() != None:
                         break
                 if p.returncode != 0:
@@ -377,7 +376,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 .decode()
                 .strip()
             )
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
             distro = (
                 subprocess.check_output(
                     "cat /etc/os-release | grep '^NAME=' | cut -f2 -d='' | tr -d '\"'",
