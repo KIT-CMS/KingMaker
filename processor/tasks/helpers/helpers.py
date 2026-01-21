@@ -98,7 +98,7 @@ def get_alternate_file_uri(
     # Check whether the file fulfills the pattern of a usual XRootD file path.
     # If not, just return the file without modifying the path. Otherwise,
     # extract the file path without the server address.
-    m = re.match(r"^root:\/\/[^\/]\/+(.*)$", file)
+    m = re.match(r"^(root://[^/]+)/+(.+)$", file)
     if m is None:
         return file
     path = f"/{m.group(2).rstrip('/')}"
@@ -108,8 +108,9 @@ def get_alternate_file_uri(
     # servers given in the list, the original file is returned.
     for xrootd_server in xrootd_servers:
         status, stat_info = get_xrootd_client(xrootd_server).stat(path)
-        breakpoint()
-        if status.ok and StatInfoFlags.IS_READABLE in stat_info.flags:
-            return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
+        if status.ok:
+            if stat_info.flags & StatInfoFlags.IS_READABLE > 0:
+                return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
 
     return file
+
