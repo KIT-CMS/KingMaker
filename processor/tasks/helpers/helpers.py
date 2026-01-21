@@ -109,8 +109,7 @@ def get_alternate_file_uri(
     for xrootd_server in xrootd_servers:
         status, stat_info = get_xrootd_client(xrootd_server).stat(path)
         if status.ok:
-            if stat_info.flags & StatInfoFlags.IS_READABLE > 0:
+            if (stat_info.flags & StatInfoFlags.IS_READABLE) > 0:
                 return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
 
     return file
-
