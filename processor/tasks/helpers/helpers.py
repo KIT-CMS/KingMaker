@@ -47,7 +47,7 @@ def create_abspath(file_path):
 
 
 @cache
-def get_xrootd_client(xrootd_server: str) -> client.FileSystem:
+def get_xrootd_client(xrootd_server: str) -> FileSystem:
     """
     Get the `XRootD.client.FileSystem` for an `xrootd_server`.
 
@@ -63,9 +63,9 @@ def get_xrootd_client(xrootd_server: str) -> client.FileSystem:
 
 
 def get_alternate_file_uri(
-    file,
-    xrootd_servers,
-):
+    file: str,
+    xrootd_servers: list[str],
+) -> str:
     """
     Get an alternative path to the file via a list of perferred XRootD servers.
 
