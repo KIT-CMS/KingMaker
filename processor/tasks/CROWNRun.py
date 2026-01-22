@@ -8,6 +8,7 @@ import time
 from framework import console
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
+from processor.tasks.helpers.helpers import get_alternate_file_uri
 
 
 class CROWNRun(CROWNExecuteBase):
@@ -60,6 +61,17 @@ class CROWNRun(CROWNExecuteBase):
         for filecounter, filename in enumerate(inputdata["filelist"]):
             if (int(filecounter / files_per_task)) not in branches:
                 branches[int(filecounter / files_per_task)] = []
+            # This call aims to get a "better" XRootD server to access the file.
+            # If the file is available on GridKA, take it from there.
+            # Otherwise, use the official European or global redirector.
+            filename = get_alternate_file_uri(
+                filename,
+                [
+                    "root://cmsdcache-kit-disk.gridka.de",
+                    "root://xrootd-cms.infn.it",
+                    "root://cms-xrd-global.cern.ch",
+                ],
+            )
             branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
