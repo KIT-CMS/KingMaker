@@ -253,4 +253,6 @@ class CROWNMultiFriends(CROWNExecuteBase):
         console.rule("Finished CROWNMultiFriends")
 
     def htcondor_output_directory(self):
-        return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}"))
+        return law.LocalDirectoryTarget(
+            self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}")
+        )
