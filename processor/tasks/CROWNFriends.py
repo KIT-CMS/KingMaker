@@ -220,3 +220,6 @@ class CROWNFriends(CROWNExecuteBase):
             quantities_map_output.copy_from_local(local_outputfile)
             console.log("Uploaded {}".format(quantities_map_output.uri()))
         console.rule("Finished CROWNFriends")
+        
+    def htcondor_output_directory(self):
+        return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}"))

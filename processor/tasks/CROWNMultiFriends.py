@@ -251,3 +251,6 @@ class CROWNMultiFriends(CROWNExecuteBase):
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
         console.rule("Finished CROWNMultiFriends")
+
+    def htcondor_output_directory(self):
+        return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}"))
