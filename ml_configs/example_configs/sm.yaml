@@ -1,3 +1,0 @@
-sm_2018_mt:
-  training: sm_2018_mt
-  trainings_config: ml_configs/example_configs/trainings.yaml

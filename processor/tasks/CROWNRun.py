@@ -8,7 +8,7 @@ import time
 from framework import console
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
-from processor.tasks.helpers.helpers import get_alternate_file_uri
+from helpers.helpers import get_alternate_file_uri
 
 
 class CROWNRun(CROWNExecuteBase):

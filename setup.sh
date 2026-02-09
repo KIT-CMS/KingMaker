@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+ANA_LIST=("KingMaker" "GPU_example")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -99,10 +99,10 @@ action() {
 
     # Parse arguments first
     parse_arguments "$@"
-    if [[ $? -eq "1" ]]; then 
-        return 1 
+    if [[ $? -eq "1" ]]; then
+        return 1
     fi
-    
+
     # Check if law was already set up in this shell
     if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
@@ -212,7 +212,7 @@ action() {
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
-    
+
     # Remember the current value of VOMS_USERCONF to overwrite after conda source.
     # This is necessary as conda installs a seperate voms version without the relevant configs.
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
@@ -291,21 +291,10 @@ action() {
                 python3 ${BASE_DIR}/scripts/ProductionStatus.py $@
             }
             ;;
-        ML_train)
-            echo "Setting up ML-scripts ..."
-            if [ -z "$(ls -A ${BASE_DIR}/sm-htt-analysis)" ]; then
-                git submodule update --init --recursive -- sm-htt-analysis
-            fi
-            export MODULE_PYTHONPATH=sm-htt-analysis
-            ;;
         *)
             ;;
     esac
     ############################################
-
-    if [[ ! -z ${MODULE_PYTHONPATH} ]]; then
-        export PYTHONPATH=${MODULE_PYTHONPATH}:${PYTHONPATH}
-    fi
 
     # Check is law was set up, and do so if not
     if [ -z "$(ls -A ${BASE_DIR}/law)" ]; then
@@ -321,7 +310,7 @@ action() {
         echo "No valid voms proxy found, remote storage might be inaccessible."
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
-    
+
     # Parse the necessary environments from the luigi config files.
     LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
     LOCAL_SCHEDULER_STATUS=$?
