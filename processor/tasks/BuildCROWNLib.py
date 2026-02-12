@@ -2,9 +2,12 @@ import luigi
 import os
 from framework import Task
 from framework import console
+import law
 
+law.contrib.load("singularity")
 
-class BuildCROWNLib(Task):
+# class BuildCROWNLib(Task):
+class BuildCROWNLib(law.SandboxTask, Task):
     """
     Compile the CROWN shared libary to be used for all executables with the given configuration
     """
@@ -14,6 +17,17 @@ class BuildCROWNLib(Task):
     install_dir = luigi.Parameter()
     friend_name = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
+    sandbox = luigi.Parameter(
+        default="ERROR",
+        description="path to a sandbox file to be used for the job"
+    )
+    singularity_args = lambda x: [
+        "-B",
+        "/etc/grid-security/certificates",
+    ]
+
+    sandbox_pre_setup_cmds = lambda x:[f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}", f"export LUIGIPORT={os.getenv('LUIGIPORT')}", "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/setup_sandbox.sh"]
+    # sandbox_pre_setup_cmds = lambda x:[f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}", "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/setup_sandbox.sh"]
 
     def output(self):
         target = self.remote_target(f"{self.friend_name}/libCROWNLIB.so")

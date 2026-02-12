@@ -99,10 +99,10 @@ action() {
 
     # Parse arguments first
     parse_arguments "$@"
-    if [[ $? -eq "1" ]]; then 
-        return 1 
+    if [[ $? -eq "1" ]]; then
+        return 1
     fi
-    
+
     # Check if law was already set up in this shell
     if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
@@ -212,7 +212,7 @@ action() {
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
-    
+
     # Remember the current value of VOMS_USERCONF to overwrite after conda source.
     # This is necessary as conda installs a seperate voms version without the relevant configs.
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
@@ -312,16 +312,17 @@ action() {
         git submodule update --init --recursive -- law
     fi
 
-    # Remember the previous value of VOMS_USERCONF to overwrite after conda source
-    export VOMS_USERCONF=${INITIAL_VOMS_USERCONF}
-
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null
     if [[ "$?" -eq "1" ]]; then
         echo "No valid voms proxy found, remote storage might be inaccessible."
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
+    else
+        # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+        export X509_USER_PROXY=$(voms-proxy-info -path)
+        echo "Voms proxy found at ${X509_USER_PROXY}"
     fi
-    
+
     # Parse the necessary environments from the luigi config files.
     LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
     LOCAL_SCHEDULER_STATUS=$?
