@@ -10,3 +10,7 @@
 [submodule "kingmaker-images"]
 	path = kingmaker-images
 	url = git@github.com:KIT-CMS/kingmaker-images.git
+[submodule "CROWN"]
+	path = CROWN
+	url = https://github.com/KIT-CMS/CROWN.git
+
