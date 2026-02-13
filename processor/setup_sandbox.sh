@@ -19,7 +19,7 @@ action() {
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
 
-    BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
+    BASE_DIR="$(dirname $( cd "$( dirname "${THIS_FILE}" )" && pwd ))"
     export ANA_NAME="KingMaker"
     source /opt/conda/bin/activate env
 

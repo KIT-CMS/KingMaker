@@ -216,7 +216,7 @@ class CROWNBuildBase(law.SandboxTask, Task):
         "-B",
         "/etc/grid-security/certificates",
     ]
-    sandbox_pre_setup_cmds = lambda x:[f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}", f"export LUIGIPORT={os.getenv('LUIGIPORT')}", "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/setup_sandbox.sh"]
+    sandbox_pre_setup_cmds = lambda x:[f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}", f"export LUIGIPORT={os.getenv('LUIGIPORT')}", "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/processor/setup_sandbox.sh"]
 
     def get_tarball_hash(self):
         """
