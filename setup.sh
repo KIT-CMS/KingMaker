@@ -257,9 +257,12 @@ action() {
         KingMaker)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
-            if [ ! -d "${BASE_DIR}/CROWN" ]; then
-                git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
+            if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
+                git submodule update --init --recursive -- CROWN
             fi
+            # if [ ! -d "${BASE_DIR}/CROWN" ]; then
+            #     git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
+            # fi
             # Add CROWN analysis checkout option using init.sh
             if [ ! -z "${CROWN_ANALYSIS}" ]; then
                 (
