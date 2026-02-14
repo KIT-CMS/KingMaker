@@ -11,6 +11,8 @@ from helpers.helpers import convert_to_comma_seperated
 import hashlib
 import time
 
+law.contrib.load("singularity")
+
 
 class ProduceBase(Task, WrapperTask):
     """
@@ -187,8 +189,24 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             status_line_pattern = f"{self.nick} (Analysis: {self.analysis} Config: {self.config} Tag: {self.production_tag})"
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
+class CROWNSandbox(law.SandboxTask):
+    sandbox = luigi.Parameter(
+        default="ERROR", description="path to a sandbox file to be used for the job"
+    )
+    # Mount certificate dir to enable voms proxy
+    singularity_args = lambda x: [
+        "-B",
+        "/etc/grid-security/certificates",
+    ]
+    # Copy over X509_USER_PROXY and LUIGIPORT env values and run sandbox setup
+    sandbox_pre_setup_cmds = lambda x: [
+        f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}",
+        f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
+        "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/processor/setup_sandbox.sh",
+    ]
 
-class CROWNBuildBase(Task):
+# class CROWNBuildBase(Task):
+class CROWNBuildBase(CROWNSandbox, Task):
     # configuration variables
     scopes = luigi.ListParameter()
     shifts = luigi.Parameter()

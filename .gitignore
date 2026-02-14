@@ -13,7 +13,6 @@ miniconda/
 miniforge/
 quantities_map/
 output/
-CROWN/
 .nfs*
 
 #luigid pickle

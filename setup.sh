@@ -99,10 +99,10 @@ action() {
 
     # Parse arguments first
     parse_arguments "$@"
-    if [[ $? -eq "1" ]]; then 
-        return 1 
+    if [[ $? -eq "1" ]]; then
+        return 1
     fi
-    
+
     # Check if law was already set up in this shell
     if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
@@ -124,29 +124,6 @@ action() {
     fi
 
     BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
-
-    # Check if current OS is supported
-    source ${BASE_DIR}/scripts/os-version.sh
-    local VALID_OS="False"
-    if [[ "${distro}" == "CentOS" ]]; then
-        if [[ ${os_version:0:1} == "7" ]]; then
-            VALID_OS="True"
-        fi
-    elif [[ "${distro}" == "RedHatEnterprise" || "${distro}" == "Alma" || "${distro}" == "Rocky" ]]; then
-        if [[ ${os_version:0:1} == "9" ]]; then
-            VALID_OS="True"
-        fi
-    elif [[ "${distro}" == "Ubuntu" ]]; then
-        if [[ ${os_version:0:2} == "22" ]]; then
-            VALID_OS="True"
-        fi
-    fi
-    if [[ "${VALID_OS}" == "False" ]]; then
-        echo "Kingmaker not support on ${distro} ${os_version}"
-        return 1
-    else
-        echo "Running Kingmaker on ${distro} Version ${os_version} on $(hostname) from dir ${BASE_DIR}"
-    fi
 
     # Handle analysis selection
     if [[ -z "${PARSED_ANALYSIS}" ]]; then
@@ -212,7 +189,7 @@ action() {
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
-    
+
     # Remember the current value of VOMS_USERCONF to overwrite after conda source.
     # This is necessary as conda installs a seperate voms version without the relevant configs.
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
@@ -257,8 +234,8 @@ action() {
         KingMaker)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
-            if [ ! -d "${BASE_DIR}/CROWN" ]; then
-                git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
+            if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
+                git submodule update --init --recursive -- CROWN
             fi
             # Add CROWN analysis checkout option using init.sh
             if [ ! -z "${CROWN_ANALYSIS}" ]; then
@@ -312,16 +289,17 @@ action() {
         git submodule update --init --recursive -- law
     fi
 
-    # Remember the previous value of VOMS_USERCONF to overwrite after conda source
-    export VOMS_USERCONF=${INITIAL_VOMS_USERCONF}
-
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null
     if [[ "$?" -eq "1" ]]; then
         echo "No valid voms proxy found, remote storage might be inaccessible."
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
+    else
+        # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+        export X509_USER_PROXY=$(voms-proxy-info -path)
+        echo "Voms proxy found at ${X509_USER_PROXY}"
     fi
-    
+
     # Parse the necessary environments from the luigi config files.
     LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
     LOCAL_SCHEDULER_STATUS=$?
