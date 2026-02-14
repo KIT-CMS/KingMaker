@@ -13,6 +13,7 @@ import time
 
 law.contrib.load("singularity")
 
+
 class ProduceBase(Task, WrapperTask):
     """
     collective task to trigger friend production for a list of samples,
@@ -209,14 +210,17 @@ class CROWNBuildBase(law.SandboxTask, Task):
     # Needed to propagate thread count to build tasks
     htcondor_request_cpus = luigi.IntParameter(default=1)
     sandbox = luigi.Parameter(
-        default="ERROR",
-        description="path to a sandbox file to be used for the job"
+        default="ERROR", description="path to a sandbox file to be used for the job"
     )
     singularity_args = lambda x: [
         "-B",
         "/etc/grid-security/certificates",
     ]
-    sandbox_pre_setup_cmds = lambda x:[f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}", f"export LUIGIPORT={os.getenv('LUIGIPORT')}", "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/processor/setup_sandbox.sh"]
+    sandbox_pre_setup_cmds = lambda x: [
+        f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}",
+        f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
+        "source /work/tvoigtlaender/Kingmaker_dev/new_env/KingMaker/processor/setup_sandbox.sh",
+    ]
 
     def get_tarball_hash(self):
         """
