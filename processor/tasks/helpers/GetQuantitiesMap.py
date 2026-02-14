@@ -19,8 +19,13 @@ def read_quantities_map(input_file, era, sample_type, scope, outputfile):
     print(f"Reading quantities Map from {input_file}")
     data = {}
     # Allow for nested dicts to be read
-    ROOT.gInterpreter.GenerateDictionary("std::map<std::string, std::vector<std::string>>", "map;string;vector")
-    ROOT.gInterpreter.GenerateDictionary("std::map<std::string, std::map<std::string, std::vector<std::string>>>", "map;string;vector")
+    ROOT.gInterpreter.GenerateDictionary(
+        "std::map<std::string, std::vector<std::string>>", "map;string;vector"
+    )
+    ROOT.gInterpreter.GenerateDictionary(
+        "std::map<std::string, std::map<std::string, std::vector<std::string>>>",
+        "map;string;vector",
+    )
     f = ROOT.TFile.Open(input_file)
     name = "shift_quantities_map"
     m = f.Get(name)
