@@ -311,7 +311,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     )
     htcondor_docker_image = luigi.Parameter(
         description="Docker image to be used in HTCondor job submission.",
-        default="Automatic",
     )
     bootstrap_file = luigi.Parameter(
         description="Bootstrap script to be used in HTCondor job to set up law.",
@@ -351,71 +350,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         | law.htcondor.HTCondorWorkflow.exclude_params_req
         | exclude_set
     )
-
-    def get_submission_os(self):
-        # function to check, if running on centos7, rhel9 or Ubuntu22
-        # Other OS are not permitted
-        # based on this, the correct docker image is chosen, overwriting the htcondor_docker_image parameter
-        # check if lsb_release is installed, if not, use the information from /etc/os-release
-        # Please note that this selection can be somewhat unstable. Modify if neccessary.
-        try:
-            distro = (
-                subprocess.check_output(
-                    "lsb_release -i | cut -f2", stderr=subprocess.STDOUT
-                )
-                .decode()
-                .replace("Linux", "")
-                .replace("linux", "")
-                .replace(" ", "")
-                .strip()
-            )
-            os_version = (
-                subprocess.check_output(
-                    "lsb_release -r | cut -f2", stderr=subprocess.STDOUT
-                )
-                .decode()
-                .strip()
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
-            distro = (
-                subprocess.check_output(
-                    "cat /etc/os-release | grep '^NAME=' | cut -f2 -d='' | tr -d '\"'",
-                    shell=True,
-                )
-                .decode()
-                .replace("Linux", "")
-                .replace("linux", "")
-                .replace(" ", "")
-                .strip()
-            )
-            os_version = (
-                subprocess.check_output(
-                    "cat /etc/os-release | grep '^VERSION_ID=' | cut -f2 -d='' | tr -d '\"'",
-                    shell=True,
-                )
-                .decode()
-                .strip()
-            )
-
-        image_name = None
-
-        if distro == "CentOS":
-            if os_version[0] == "7":
-                image_name = "centos7"
-        elif distro in ("RedHatEnterprise", "Alma"):
-            if os_version[0] == "9":
-                image_name = "rhel9"
-        elif distro == "Ubuntu":
-            if os_version[0:2] == "22":
-                image_name = "ubuntu2204"
-        else:
-            raise Exception(
-                f"Unknown OS {distro} {os_version}, KingMaker will not run without changes"
-            )
-        image_hash = os.getenv("IMAGE_HASH")
-        image = f"ghcr.io/kit-cms/kingmaker-images-{image_name}-{str(self.ENV_NAME).lower()}:main_{image_hash}"
-        # print(f"Running on {distro} {os_version}, using image {image}")
-        return image
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.local_path("job_files"))
@@ -461,10 +395,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("universe", self.htcondor_universe))
-        if self.htcondor_docker_image != "Automatic":
-            config.custom_content.append(("docker_image", self.htcondor_docker_image))
-        else:
-            config.custom_content.append(("docker_image", self.get_submission_os()))
+        config.custom_content.append(("docker_image", self.htcondor_docker_image))
         if domain == "ETP":
             config.custom_content.append(
                 ("accounting_group", self.htcondor_accounting_group)

@@ -125,29 +125,6 @@ action() {
 
     BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
 
-    # Check if current OS is supported
-    source ${BASE_DIR}/scripts/os-version.sh
-    local VALID_OS="False"
-    if [[ "${distro}" == "CentOS" ]]; then
-        if [[ ${os_version:0:1} == "7" ]]; then
-            VALID_OS="True"
-        fi
-    elif [[ "${distro}" == "RedHatEnterprise" || "${distro}" == "Alma" || "${distro}" == "Rocky" ]]; then
-        if [[ ${os_version:0:1} == "9" ]]; then
-            VALID_OS="True"
-        fi
-    elif [[ "${distro}" == "Ubuntu" ]]; then
-        if [[ ${os_version:0:2} == "22" ]]; then
-            VALID_OS="True"
-        fi
-    fi
-    if [[ "${VALID_OS}" == "False" ]]; then
-        echo "Kingmaker not support on ${distro} ${os_version}"
-        return 1
-    else
-        echo "Running Kingmaker on ${distro} Version ${os_version} on $(hostname) from dir ${BASE_DIR}"
-    fi
-
     # Handle analysis selection
     if [[ -z "${PARSED_ANALYSIS}" ]]; then
         echo "No workflow chosen. Please choose from:"
@@ -260,9 +237,6 @@ action() {
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
                 git submodule update --init --recursive -- CROWN
             fi
-            # if [ ! -d "${BASE_DIR}/CROWN" ]; then
-            #     git clone --recurse-submodules git@github.com:KIT-CMS/CROWN ${BASE_DIR}/CROWN
-            # fi
             # Add CROWN analysis checkout option using init.sh
             if [ ! -z "${CROWN_ANALYSIS}" ]; then
                 (
