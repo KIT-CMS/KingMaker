@@ -3,6 +3,7 @@ import os
 from framework import Task, console
 from CROWNBase import CROWNSandbox
 
+
 class BuildCROWNLib(CROWNSandbox, Task):
     """
     Compile the CROWN shared libary to be used for all executables with the given configuration

@@ -189,6 +189,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             status_line_pattern = f"{self.nick} (Analysis: {self.analysis} Config: {self.config} Tag: {self.production_tag})"
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
+
 class CROWNSandbox(law.SandboxTask):
     sandbox = luigi.Parameter(
         default="ERROR", description="path to a sandbox file to be used for the job"
@@ -204,6 +205,7 @@ class CROWNSandbox(law.SandboxTask):
         f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
         f"source {os.getenv('ANALYSIS_PATH')}/processor/setup_sandbox.sh",
     ]
+
 
 class CROWNBuildBase(CROWNSandbox, Task):
     # configuration variables

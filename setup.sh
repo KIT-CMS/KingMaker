@@ -241,12 +241,11 @@ action() {
             if [ ! -z "${CROWN_ANALYSIS}" ]; then
                 (
                     # Run in subprocess to prevent environment changes
-                    cd "${BASE_DIR}/CROWN"
-                    if [ -f "init.sh" ]; then
+                    if [ -f "${BASE_DIR}/CROWN/init.sh" ]; then
                         echo "Checking out CROWN analysis: ${CROWN_ANALYSIS}"
-                        source init.sh "${CROWN_ANALYSIS}"
+                        bash ${BASE_DIR}/init.sh -a "${CROWN_ANALYSIS}" --dry-run
                     else
-                        echo "Error: CROWN init.sh not found"
+                        echo "Error: CROWN init.sh not found at ${BASE_DIR}/CROWN/init.sh"
                         return 1
                     fi
                 )
