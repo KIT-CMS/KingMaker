@@ -309,8 +309,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         description="Universe to be set in HTCondor job submission.",
         significant=False,
     )
-    htcondor_docker_image = luigi.Parameter(
-        description="Docker image to be used in HTCondor job submission.",
+    htcondor_container_image = luigi.Parameter(
+        description="Container image to be used in HTCondor job submission.",
     )
     bootstrap_file = luigi.Parameter(
         description="Bootstrap script to be used in HTCondor job to set up law.",
@@ -322,7 +322,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         significant=False,
     )
     remote_source_script = luigi.Parameter(
-        description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with docker images",
+        description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with container images",
         default="source /opt/conda/bin/activate env",
         significant=False,
     )
@@ -341,7 +341,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_request_memory",
         "htcondor_request_disk",
         "htcondor_universe",
-        "htcondor_docker_image",
+        "htcondor_container_image",
         "additional_files",
         "workflow",
     }
@@ -395,7 +395,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("universe", self.htcondor_universe))
-        config.custom_content.append(("docker_image", self.htcondor_docker_image))
+        config.custom_content.append(("container_image", self.htcondor_container_image))
         if domain == "ETP":
             config.custom_content.append(
                 ("accounting_group", self.htcondor_accounting_group)

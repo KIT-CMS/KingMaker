@@ -164,7 +164,7 @@ action() {
         return 1
     fi
     # First listed is env of DEFAULT and will be used as the starting env
-    # Remaining envs should be sourced via provided docker images
+    # Remaining envs should be sourced via provided container images
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
     echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
 
