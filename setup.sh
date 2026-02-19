@@ -145,13 +145,6 @@ action() {
     # Needed for EOS directory parsing
     export USER_FIRST_LETTER=${USER:0:1}
 
-    # Ensure that submodule with KingMaker env files is present
-    if [ -z "$(ls -A ${BASE_DIR}/kingmaker-images)" ]; then
-        git submodule update --init --recursive -- kingmaker-images
-    fi
-    # Get kingmaker-images submodule hash to find the correct image during job submission
-    export IMAGE_HASH=$(cd ${BASE_DIR}/kingmaker-images/; git rev-parse --short HEAD)
-
     # Parse the necessary environments from the luigi config files.
     PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "ENV_NAME")
     PARSED_ENVS_STATUS=$?
@@ -166,7 +159,7 @@ action() {
     # First listed is env of DEFAULT and will be used as the starting env
     # Remaining envs should be sourced via provided container images
     export STARTING_ENV=$(echo ${PARSED_ENVS} | head -n1 | awk '{print $1;}')
-    echo "${STARTING_ENV}_${IMAGE_HASH} will be sourced as the starting env."
+    echo "${STARTING_ENV} will be sourced as the starting env."
 
     # Order of environment locations
     # 1. Use realpath of provided directory in second argument
@@ -177,7 +170,7 @@ action() {
         ENV_PATH="$(realpath ${PARSED_ENV_PATH})"
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
-    elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]]; then
+    elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}" ]]; then
         ENV_PATH="/cvmfs/etp.kit.edu/LAW_envs"
     else
         ENV_PATH="${BASE_DIR}"
@@ -213,20 +206,20 @@ action() {
     source ${ENV_PATH}/miniforge/bin/activate ''
 
     # Check if correct miniforge env is running
-    if [ -d "${ENV_PATH}/miniforge/envs/${STARTING_ENV}_${IMAGE_HASH}" ]; then
-        echo  "${STARTING_ENV}_${IMAGE_HASH} env found using miniforge."
+    if [ -d "${ENV_PATH}/miniforge/envs/${STARTING_ENV}" ]; then
+        echo  "${STARTING_ENV} env found using miniforge."
     else
         # Create miniforge env from yaml file if necessary
-        echo "Creating ${STARTING_ENV}_${IMAGE_HASH} env from kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml..."
-        if [[ ! -f "${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml" ]]; then
-            echo "${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml not found. Unable to create environment."
+        echo "Creating ${STARTING_ENV} env from containers/${STARTING_ENV}_env.yml..."
+        if [[ ! -f "${BASE_DIR}/containers/${STARTING_ENV}_env.yml" ]]; then
+            echo "${BASE_DIR}/containers/${STARTING_ENV}_env.yml not found. Unable to create environment."
             return 1
         fi
-        conda env create -f ${BASE_DIR}/kingmaker-images/KingMaker_envs/${STARTING_ENV}_env.yml -n ${STARTING_ENV}_${IMAGE_HASH}
-        echo  "${STARTING_ENV}_${IMAGE_HASH} env built using miniforge."
+        conda env create -f ${BASE_DIR}/containers/${STARTING_ENV}_env.yml -n ${STARTING_ENV}
+        echo  "${STARTING_ENV} env built using miniforge."
     fi
-    echo "Activating starting-env ${STARTING_ENV}_${IMAGE_HASH} from miniforge."
-    conda activate ${STARTING_ENV}_${IMAGE_HASH}
+    echo "Activating starting-env ${STARTING_ENV} from miniforge."
+    conda activate ${STARTING_ENV}
 
     # Set up other dependencies based on workflow
     ############################################
