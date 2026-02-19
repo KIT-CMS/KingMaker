@@ -1,0 +1,23 @@
+channels:
+  - conda-forge
+dependencies:
+  - boost-cpp
+  - ccache
+  - cmake
+  - correctionlib
+  - gcc
+  - gfal2-util
+  - git
+  - kernel-headers_linux-64
+  - onnxruntime-cpp
+  - openmpi-mpicxx
+  - python=3.12.12
+  - rich
+  - root=6.36
+  - setuptools=80.10.2
+  - vim
+  - xrootd
+  - pip:
+      - luigi
+      - questionary
+      - uproot
