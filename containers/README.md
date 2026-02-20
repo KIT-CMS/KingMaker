@@ -4,8 +4,8 @@ This directory contains the Dockerfile and Conda environment YAML files used to 
 
 Contents
 
-- `Dockerfile` --- primary Dockerfile for the default image, based on Redhat9.
-- `Base_env.yml`, `KingMaker_env.yml`, `KingMakerStandalone_env.yml`, `KingMakerStandaloneMinimal_env.yml` --- Conda environment specs.
+- `Dockerfile`:  primary Dockerfile for the default image, based on Redhat9.
+- `*_env.yml`:  Conda environment specs.
 
 Docker Build
 
@@ -15,10 +15,10 @@ To build a single image:
 
 ```bash
 cd containers
-docker build --build-arg ENV_FILE_NAME=<name> -t <container-name> .
+docker build --build-arg ENV_FILE_NAME=<env-name> -t <container-name> .
 ```
 
-The build will fail if no ENV_FILE_NAME build argument is provided.
+The build will fail if no `ENV_FILE_NAME` build argument is provided.
 
 Example for build, tag and push:
 
