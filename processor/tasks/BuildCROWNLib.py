@@ -1,10 +1,10 @@
 import luigi
 import os
-from framework import Task
-from framework import console
+from framework import Task, console
+from CROWNBase import CROWNSandbox
 
 
-class BuildCROWNLib(Task):
+class BuildCROWNLib(CROWNSandbox, Task):
     """
     Compile the CROWN shared libary to be used for all executables with the given configuration
     """
