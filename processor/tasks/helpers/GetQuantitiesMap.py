@@ -27,9 +27,11 @@ def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir)
     # Evaluate ROOT-specific return codes
     result = ROOT.gSystem.Load(lib_path)
     if result < 0:
-        err_type = "Version mismatch" if result == -2 else "Linker error/Missing dependency"
+        err_type = (
+            "Version mismatch" if result == -2 else "Linker error/Missing dependency"
+        )
         raise ImportError(f"Load failed ({result}): {err_type} for {lib_path}")
-    
+
     f = ROOT.TFile.Open(input_file)
     name = "shift_quantities_map"
     m = f.Get(name)
@@ -49,6 +51,8 @@ def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir)
 # call the function with the input file
 if __name__ == "__main__":
     args = parse_args()
-    read_quantities_map(args.input, args.era, args.sample_type, args.scope, args.output, args.libdir)
+    read_quantities_map(
+        args.input, args.era, args.sample_type, args.scope, args.output, args.libdir
+    )
     print("Done")
     exit(0)

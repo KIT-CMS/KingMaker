@@ -239,7 +239,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
                     "--scope {}".format(scope),
                     "--sample_type {}".format(self.branch_data["sample_type"]),
                     "--output {}".format(local_outputfile),
-                    "--libdir {}".format(os.path.join(_workdir, "lib"))
+                    "--libdir {}".format(os.path.join(_workdir, "lib")),
                 ],
                 silent=True,
             )
