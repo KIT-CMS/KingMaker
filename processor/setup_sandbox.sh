@@ -47,8 +47,5 @@ action() {
     _addpy "${BASE_DIR}/processor/tasks"
     echo "KingMaker setup was successful"
 
-    # Set up ccache
-    export CCACHE_DIR="${ANALYSIS_PATH}/CROWN/.cache/ccache";
-
 }
 action "$@"

@@ -532,5 +532,6 @@ class KingmakerSandbox(law.SandboxTask):
     sandbox_pre_setup_cmds = lambda x: [
         f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}",
         f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
+        f"export CCACHE_DIR={os.getenv('CCACHE_DIR')}",
         f"source {os.getenv('ANALYSIS_PATH')}/processor/setup_sandbox.sh",
     ]

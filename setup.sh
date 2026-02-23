@@ -259,6 +259,10 @@ action() {
                 # Parse all user arguments and pass them to the python script
                 python3 ${BASE_DIR}/scripts/ProductionStatus.py $@
             }
+
+            # Set up ccache
+            export CCACHE_DIR="${ANALYSIS_PATH}/CROWN/.cache/ccache";
+
             ;;
         ML_train)
             echo "Setting up ML-scripts ..."
