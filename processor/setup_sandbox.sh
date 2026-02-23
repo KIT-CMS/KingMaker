@@ -1,5 +1,5 @@
 ############################################################################################
-#         This script sets up all dependencies necessary for running KingMaker             #
+#     This script sets up all dependencies necessary for running KingMaker sandboxing      #
 ############################################################################################
 
 _addpy() {
@@ -11,7 +11,6 @@ _addbin() {
 }
 
 action() {
-
     # Determine the directory of this file
     if [ ! -z "${ZSH_VERSION}" ]; then
         local THIS_FILE="${(%):-%x}"
@@ -47,5 +46,9 @@ action() {
     _addpy "${BASE_DIR}/processor"
     _addpy "${BASE_DIR}/processor/tasks"
     echo "KingMaker setup was successful"
+
+    # Set up ccache
+    export CCACHE_DIR="${ANALYSIS_PATH}/CROWN/.cache/ccache";
+
 }
 action "$@"
