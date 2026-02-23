@@ -261,7 +261,7 @@ action() {
             }
 
             # Set up ccache
-            export CCACHE_DIR="${ANALYSIS_PATH}/CROWN/.cache/ccache";
+            export CCACHE_DIR="${BASE_DIR}/CROWN/.cache/ccache";
 
             ;;
         ML_train)

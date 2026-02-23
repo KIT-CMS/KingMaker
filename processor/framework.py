@@ -528,10 +528,11 @@ class KingmakerSandbox(law.SandboxTask):
         "-B",
         "/etc/grid-security/certificates",
     ]
-    # Copy over X509_USER_PROXY and LUIGIPORT env values and run sandbox setup
-    sandbox_pre_setup_cmds = lambda x: [
-        f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}",
-        f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
-        f"export CCACHE_DIR={os.getenv('CCACHE_DIR')}",
-        f"source {os.getenv('ANALYSIS_PATH')}/processor/setup_sandbox.sh",
-    ]
+
+    def create_sandbox_func(*env_vars):
+        # Generate dynamic exports
+        cmds = [f"export {name}={os.getenv(name)}" for name in env_vars]
+        # Add the static source command
+        analysis_path = os.getenv('ANALYSIS_PATH')
+        cmds.append(f"source {analysis_path}/processor/setup_sandbox.sh")
+        return lambda x: cmds

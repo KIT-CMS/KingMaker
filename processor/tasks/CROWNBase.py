@@ -206,6 +206,9 @@ class CROWNBuildBase(KingmakerSandbox, Task):
     # Needed to propagate thread count to build tasks
     htcondor_request_cpus = luigi.IntParameter(default=1)
 
+    # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
+    sandbox_pre_setup_cmds = KingmakerSandbox.create_sandbox_func("X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR")
+
     def get_tarball_hash(self):
         """
         The function `get_tarball_hash` generates a SHA-256 hash based on concatenated and sorted lists of
