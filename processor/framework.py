@@ -20,8 +20,7 @@ try:
 except:
     pass
 
-law.contrib.load("wlcg")
-law.contrib.load("htcondor")
+law.contrib.load("wlcg", "htcondor", "singularity")
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
@@ -514,3 +513,24 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "MODULE_PYTHONPATH"
             )
         return config
+
+
+class KingmakerSandbox(law.SandboxTask):
+
+    # Needed to allow for sandbox deactivation via law.NO_STR Parameter
+    allow_empty_sandbox = True
+    sandbox = luigi.Parameter(
+        default=law.NO_STR,
+        description="path to a sandbox file to be used for the job. Default 'law.NO_STR' deactivates sandboxing.",
+    )
+    # Mount certificate dir to enable voms proxy
+    singularity_args = lambda x: [
+        "-B",
+        "/etc/grid-security/certificates",
+    ]
+    # Copy over X509_USER_PROXY and LUIGIPORT env values and run sandbox setup
+    sandbox_pre_setup_cmds = lambda x: [
+        f"export X509_USER_PROXY={os.getenv('X509_USER_PROXY')}",
+        f"export LUIGIPORT={os.getenv('LUIGIPORT')}",
+        f"source {os.getenv('ANALYSIS_PATH')}/processor/setup_sandbox.sh",
+    ]
