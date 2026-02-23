@@ -1,6 +1,6 @@
 import luigi
 import os
-from framework import Task, console, KingmakerSandbox
+from framework import Task, console, KingmakerSandbox, sandbox_pre_setup_cmds_factory
 
 
 class BuildCROWNLib(KingmakerSandbox, Task):
@@ -15,7 +15,9 @@ class BuildCROWNLib(KingmakerSandbox, Task):
     analysis = luigi.Parameter()
 
     # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
-    sandbox_pre_setup_cmds = KingmakerSandbox.create_sandbox_func("X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR")
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR"
+    )
 
     def output(self):
         target = self.remote_target(f"{self.friend_name}/libCROWNLIB.so")

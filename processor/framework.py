@@ -515,6 +515,17 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         return config
 
 
+# Helper function to generate sandbox_pre_setup_cmds functions
+# Adds a list of env variables before the setup_sandbox.sh call
+def sandbox_pre_setup_cmds_factory(*env_vars):
+    # Generate dynamic exports
+    cmds = [f"export {name}={os.getenv(name)}" for name in env_vars]
+    # Add the static source command
+    analysis_path = os.getenv("ANALYSIS_PATH")
+    cmds.append(f"source {analysis_path}/processor/setup_sandbox.sh")
+    return lambda x: cmds
+
+
 class KingmakerSandbox(law.SandboxTask):
 
     # Needed to allow for sandbox deactivation via law.NO_STR Parameter
@@ -529,10 +540,7 @@ class KingmakerSandbox(law.SandboxTask):
         "/etc/grid-security/certificates",
     ]
 
-    def create_sandbox_func(*env_vars):
-        # Generate dynamic exports
-        cmds = [f"export {name}={os.getenv(name)}" for name in env_vars]
-        # Add the static source command
-        analysis_path = os.getenv('ANALYSIS_PATH')
-        cmds.append(f"source {analysis_path}/processor/setup_sandbox.sh")
-        return lambda x: cmds
+    # Default sandbox init
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY", "LUIGIPORT"
+    )
