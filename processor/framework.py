@@ -322,7 +322,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     )
     remote_source_script = luigi.Parameter(
         description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with container images",
-        default="source /opt/conda/bin/activate env",
+        default="",
         significant=False,
     )
 

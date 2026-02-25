@@ -32,6 +32,7 @@ RUN dnf -y update && \
         strace \
         perf \
         openssh \
+        git \
         crypto-policies-scripts && \
     dnf clean all
 
@@ -73,7 +74,20 @@ COPY ${ENV_FILE_NAME} /srv/conda_env.yml
 RUN (source ${CONDA_DIR}/bin/activate "" && conda env create -f /srv/conda_env.yml -n ${ENV_NAME})
 
 # ------------------------------------------------------------------------------
-# Runtime
+# Runtime Configuration
 # ------------------------------------------------------------------------------
-ENTRYPOINT ["tini", "--"]
+# Create the entrypoint script inline
+RUN mkdir -p /.singularity.d/env && \
+    printf "#!/bin/bash\nsource /opt/conda/bin/activate ${ENV_NAME}\n" > /.singularity.d/env/99-conda.sh && \
+    chmod +x /.singularity.d/env/99-conda.sh
+
+# Create the Docker Entrypoint
+RUN printf "#!/bin/bash\nsource /opt/conda/bin/activate ${ENV_NAME}\nexec \"\$@\"\n" > /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
+
+# Make the Conda environment binaries globally accessible for github
+ENV CONDA_PREFIX=${CONDA_DIR}/envs/${ENV_NAME}
+ENV PATH="${CONDA_DIR}/envs/${ENV_NAME}/bin:$PATH"
+
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["/bin/bash"]

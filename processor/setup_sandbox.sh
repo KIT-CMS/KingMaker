@@ -20,7 +20,6 @@ action() {
 
     BASE_DIR="$(dirname $( cd "$( dirname "${THIS_FILE}" )" && pwd ))"
     export ANA_NAME="KingMaker"
-    source /opt/conda/bin/activate env
 
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null
