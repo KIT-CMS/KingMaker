@@ -1,10 +1,9 @@
 channels:
   - conda-forge
 dependencies:
-  - _libgcc_mutex=0.1
   - _openmp_mutex=4.5
   - _python_abi3_support=1.0
-  - _x86_64-microarch-level=3
+  - _x86_64-microarch-level=2
   - adwaita-icon-theme=49.0
   - annotated-types=0.7.0
   - anyio=4.12.1
@@ -12,7 +11,7 @@ dependencies:
   - argon2-cffi-bindings=25.1.0
   - arrow=1.4.0
   - asttokens=3.0.1
-  - async-lru=2.1.0
+  - async-lru=2.2.0
   - at-spi2-atk=2.38.0
   - at-spi2-core=2.40.3
   - atk-1.0=2.38.0
@@ -24,6 +23,7 @@ dependencies:
   - binutils=2.45.1
   - binutils_impl_linux-64=2.45.1
   - binutils_linux-64=2.45.1
+  - black=26.1.0
   - bleach=6.3.0
   - bleach-with-css=6.3.0
   - boost-cpp=1.85.0
@@ -41,6 +41,9 @@ dependencies:
   - cfitsio=4.6.3
   - cgsi-gsoap=1.3.12
   - charset-normalizer=3.4.4
+  - clang-format=21.1.8
+  - clang-format-21=21.1.8
+  - click=8.3.1
   - cmake=4.2.3
   - comm=0.2.3
   - compilers=1.11.0
@@ -55,17 +58,18 @@ dependencies:
   - debugpy=1.8.20
   - decorator=5.2.1
   - defusedxml=0.7.1
+  - doxygen=1.13.2
   - epoxy=1.5.10
   - exceptiongroup=1.3.1
   - executing=2.2.1
-  - expat=2.7.3
+  - expat=2.7.4
   - fastjet-cxx=3.5.1
   - fftw=3.3.10
   - font-ttf-dejavu-sans-mono=2.37
   - font-ttf-inconsolata=3.000
   - font-ttf-source-code-pro=2.038
   - font-ttf-ubuntu=0.83
-  - fontconfig=2.15.0
+  - fontconfig=2.17.1
   - fonts-conda-ecosystem=1
   - fonts-conda-forge=1
   - fortran-compiler=1.11.0
@@ -86,10 +90,10 @@ dependencies:
   - gfortran_impl_linux-64=14.3.0
   - gfortran_linux-64=14.3.0
   - giflib=5.2.2
-  - git=2.52.0
+  - git=2.53.0
   - gl2ps=1.4.2
   - glew=2.3.0
-  - glib-tools=2.86.3
+  - glib-tools=2.86.4
   - graphite2=1.3.14
   - graphviz=14.1.2
   - gsl=2.7
@@ -131,7 +135,7 @@ dependencies:
   - jupyter_events=0.12.0
   - jupyter_server=2.17.0
   - jupyter_server_terminals=0.5.4
-  - jupyterlab=4.5.4
+  - jupyterlab=4.5.5
   - jupyterlab_pygments=0.3.0
   - jupyterlab_server=2.28.0
   - kernel-headers_linux-64=3.10.0
@@ -149,6 +153,8 @@ dependencies:
   - libboost-python=1.86.0
   - libcap=2.77
   - libcblas=3.11.0
+  - libcbor=0.10.2
+  - libclang-cpp21.1=21.1.8
   - libcups=2.3.3
   - libcurl=8.18.0
   - libdeflate=1.25
@@ -158,10 +164,11 @@ dependencies:
   - libegl-devel=1.7.0
   - libev=4.33
   - libevent=2.1.12
-  - libexpat=2.7.3
+  - libexpat=2.7.4
   - libfabric=2.4.0
   - libfabric1=2.4.0
   - libffi=3.5.2
+  - libfido2=1.16.0
   - libfreetype=2.14.1
   - libfreetype6=2.14.1
   - libgcc=15.2.0
@@ -174,7 +181,7 @@ dependencies:
   - libgfortran5=15.2.0
   - libgl=1.7.0
   - libgl-devel=1.7.0
-  - libglib=2.86.3
+  - libglib=2.86.4
   - libglu=9.0.3
   - libglvnd=1.7.0
   - libglx=1.7.0
@@ -186,6 +193,7 @@ dependencies:
   - libjpeg-turbo=3.1.2
   - liblapack=3.11.0
   - libllvm18=18.1.8
+  - libllvm21=21.1.8
   - libltdl=2.4.3a
   - liblzma=5.8.2
   - liblzma-devel=5.8.2
@@ -193,12 +201,12 @@ dependencies:
   - libnl=3.11.0
   - libnsl=2.0.1
   - libntlm=1.8
-  - libopenblas=0.3.31
+  - libopenblas=0.3.30
   - libopengl=1.7.0
   - libpciaccess=0.18
   - libpmix=5.0.8
   - libpng=1.6.55
-  - librsvg=2.60.0
+  - librsvg=2.60.2
   - libsanitizer=14.3.0
   - libsodium=1.0.20
   - libsqlite=3.51.2
@@ -223,21 +231,22 @@ dependencies:
   - llvm-openmp=21.1.8
   - llvmlite=0.46.0
   - lz4-c=1.10.0
+  - make=4.4.1
   - markdown-it-py=4.0.0
   - markupsafe=3.0.3
   - matplotlib-inline=0.2.1
   - mdurl=0.1.2
   - metakernel=0.30.4
   - mistune=3.2.0
-  - mkl=2025.3.0
   - mpi=1.0.1
+  - mypy_extensions=1.1.0
   - nbclient=0.10.4
   - nbconvert-core=7.17.0
   - nbformat=5.10.4
   - ncurses=6.5
   - nest-asyncio=1.6.0
   - nlohmann_json=3.12.0
-  - notebook=7.5.3
+  - notebook=7.5.4
   - notebook-shim=0.2.4
   - numba=0.63.1
   - numpy=2.3.5
@@ -245,19 +254,21 @@ dependencies:
   - openldap=2.6.10
   - openmpi=5.0.8
   - openmpi-mpicxx=5.0.8
+  - openssh=10.2p1
   - openssl=3.6.1
   - overrides=7.7.0
   - packaging=26.0
   - pandocfilters=1.5.0
   - pango=1.56.4
   - parso=0.8.6
+  - pathspec=1.0.4
   - pcre=8.45
   - pcre2=10.47
   - perl=5.32.1
   - pexpect=4.9.0
   - pip=26.0.1
   - pixman=0.46.4
-  - platformdirs=4.5.1
+  - platformdirs=4.9.2
   - portalocker=3.2.0
   - prometheus_client=0.24.1
   - prompt-toolkit=3.0.52
@@ -280,6 +291,7 @@ dependencies:
   - python-json-logger=2.0.7
   - python-tzdata=2025.3
   - python_abi=3.12
+  - pytokens=0.4.1
   - pytz=2025.2
   - pyyaml=6.0.3
   - pyzmq=27.1.0
@@ -291,11 +303,12 @@ dependencies:
   - rfc3986-validator=0.1.1
   - rfc3987-syntax=1.1.0
   - rhash=1.4.6
-  - rich=14.3.2
-  - root=6.36.06
-  - root_base=6.36.06
+  - rich=14.3.3
+  - root=6.36.08
+  - root_base=6.36.08
+  - root_cxx_standard=20
   - rpds-py=0.30.0
-  - scitokens-cpp=1.3.0
+  - scitokens-cpp=1.4.0
   - send2trash=2.1.0
   - setuptools=80.10.2
   - siscone=3.1.2
@@ -307,7 +320,7 @@ dependencies:
   - sysroot_linux-64=2.17
   - tbb=2022.3.0
   - terminado=0.18.1
-  - tinycss2=1.5.1
+  - tinycss2=1.4.0
   - tk=8.6.13
   - tomli=2.4.0
   - tornado=6.5.4
@@ -324,7 +337,7 @@ dependencies:
   - urllib3=2.6.3
   - vdt=0.4.4
   - vector-classes=1.4.5
-  - vim=9.1.1858
+  - vim=9.2.0045
   - voms=2.1.0rc3
   - wayland=1.24.0
   - wcwidth=0.6.0
@@ -363,14 +376,30 @@ dependencies:
   - zlib=1.3.1
   - zstd=1.5.7
   - pip:
+      - alabaster==1.0.0
       - awkward==2.9.0
       - awkward-cpp==52
+      - breathe==4.36.0
+      - cmakelang==0.6.13
       - cramjam==2.11.0
+      - docutils==0.22.4
       - fsspec==2026.2.0
+      - imagesize==1.4.1
       - lockfile==0.12.2
-      - luigi==3.7.2
+      - luigi==3.7.3
       - python-daemon==3.1.2
       - questionary==2.1.1
+      - roman-numerals==4.1.0
+      - snowballstemmer==3.0.1
+      - sphinx==9.1.0
+      - sphinx-rtd-theme==3.1.0
+      - sphinxcontrib-applehelp==2.0.0
+      - sphinxcontrib-devhelp==2.0.0
+      - sphinxcontrib-htmlhelp==2.1.0
+      - sphinxcontrib-jquery==4.1
+      - sphinxcontrib-jsmath==1.0.1
+      - sphinxcontrib-qthelp==2.0.0
+      - sphinxcontrib-serializinghtml==2.0.0
       - tenacity==8.5.0
       - uproot==5.7.1
       - xxhash==3.6.0
