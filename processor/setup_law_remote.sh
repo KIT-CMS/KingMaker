@@ -40,7 +40,7 @@ action() {
     echo " | XRD_LOGLEVEL = ${XRD_LOGLEVEL}"
     echo "------------------------------------------"
 
-    if [[ ! -z {{SOURCE_SCRIPT}} ]]; then
+    if [[ ! -z "{{SOURCE_SCRIPT}}" ]]; then
         echo "Setting up environment via {{SOURCE_SCRIPT}}."
         {{SOURCE_SCRIPT}}
     fi
