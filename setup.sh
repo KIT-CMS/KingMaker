@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+ANA_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example" "ML_train")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -224,7 +224,7 @@ action() {
     # Set up other dependencies based on workflow
     ############################################
     case ${ANA_NAME} in
-        KingMaker)
+        KingMaker|KingMaker_lxplus)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
