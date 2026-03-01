@@ -3,8 +3,13 @@ import luigi
 import os
 import json
 import shutil
-from framework import console
-from framework import HTCondorWorkflow, Task
+from framework import (
+    console,
+    HTCondorWorkflow,
+    Task,
+    KingmakerSandbox,
+    sandbox_pre_setup_cmds_factory,
+)
 from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
@@ -188,7 +193,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
 
-class CROWNBuildBase(Task):
+class CROWNBuildBase(KingmakerSandbox, Task):
     # configuration variables
     scopes = luigi.ListParameter()
     shifts = luigi.Parameter()
@@ -206,6 +211,11 @@ class CROWNBuildBase(Task):
     config = luigi.Parameter()
     # Needed to propagate thread count to build tasks
     htcondor_request_cpus = luigi.IntParameter(default=1)
+
+    # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR"
+    )
 
     def get_tarball_hash(self):
         """

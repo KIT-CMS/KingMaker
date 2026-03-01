@@ -1,0 +1,36 @@
+channels:
+  - conda-forge
+dependencies:
+  - boost-cpp
+  - ccache
+  - cmake
+  - make
+  - correctionlib
+  - gcc
+  - gfal2-util
+  - git
+  - kernel-headers_linux-64
+  - onnxruntime-cpp
+  - openmpi-mpicxx
+  - python=3.12
+  - rich
+  - root=6.36
+  - setuptools<81
+  - vim
+  - xrootd
+  - pip
+  # documentation
+  - doxygen
+  # formatting
+  - clang-format
+  - black
+  - openssh
+  - pip:
+      - luigi
+      - questionary
+      - uproot
+      # documentation
+      - breathe
+      - sphinx
+      - sphinx_rtd_theme
+      - cmakelang

@@ -40,8 +40,10 @@ action() {
     echo " | XRD_LOGLEVEL = ${XRD_LOGLEVEL}"
     echo "------------------------------------------"
 
-    echo "Setting up environment via {{SOURCE_SCRIPT}}."
-    {{SOURCE_SCRIPT}}
+    if [[ ! -z "{{SOURCE_SCRIPT}}" ]]; then
+        echo "Setting up environment via {{SOURCE_SCRIPT}}."
+        {{SOURCE_SCRIPT}}
+    fi
 
     if [ "{{IS_LOCAL_OUTPUT}}" = "True" ]
     then

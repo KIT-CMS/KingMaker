@@ -1,10 +1,9 @@
 import luigi
 import os
-from framework import Task
-from framework import console
+from framework import Task, console, KingmakerSandbox, sandbox_pre_setup_cmds_factory
 
 
-class BuildCROWNLib(Task):
+class BuildCROWNLib(KingmakerSandbox, Task):
     """
     Compile the CROWN shared libary to be used for all executables with the given configuration
     """
@@ -14,6 +13,11 @@ class BuildCROWNLib(Task):
     install_dir = luigi.Parameter()
     friend_name = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
+
+    # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR"
+    )
 
     def output(self):
         target = self.remote_target(f"{self.friend_name}/libCROWNLIB.so")

@@ -8,7 +8,7 @@ import time
 from framework import console
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
-from processor.tasks.helpers.helpers import get_alternate_file_uri
+from helpers.helpers import get_alternate_file_uri
 
 
 class CROWNRun(CROWNExecuteBase):
@@ -152,15 +152,6 @@ class CROWNRun(CROWNExecuteBase):
             tar = tarfile.open(_tarballpath, "r:gz")
             tar.extractall(_workdir)
             os.remove(_tempfile)
-        # test running the source command
-        console.rule("Testing Source command for CROWN")
-        self.run_command(
-            command=["source", "{}/init.sh".format(_workdir)],
-            silent=False,
-        )
-        console.rule("Finished testing Source command for CROWN")
-        # set environment using env script
-        my_env = self.set_environment("{}/init.sh".format(_workdir))
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(
             self.config, branch_data["sample_type"], branch_data["era"]
@@ -179,7 +170,6 @@ class CROWNRun(CROWNExecuteBase):
             stderr=subprocess.PIPE,
             bufsize=1,
             universal_newlines=True,
-            env=my_env,
             cwd=_workdir,
         ) as p:
             for line in p.stdout:
@@ -215,9 +205,6 @@ class CROWNRun(CROWNExecuteBase):
                     "processor/tasks/helpers/ResetROOTStatusBit.py",
                     "--input {}".format(local_filename),
                 ],
-                sourcescript=[
-                    "{}/init.sh".format(_workdir),
-                ],
                 silent=True,
             )
             # for each outputfile, add the scope suffix
@@ -242,9 +229,7 @@ class CROWNRun(CROWNExecuteBase):
                         "--scope {}".format(self.scopes[i]),
                         "--sample_type {}".format(self.branch_data["sample_type"]),
                         "--output {}".format(local_outputfile),
-                    ],
-                    sourcescript=[
-                        "{}/init.sh".format(_workdir),
+                        "--libdir {}".format(os.path.join(_workdir, "lib")),
                     ],
                     silent=True,
                 )

@@ -1,18 +1,41 @@
 #!/bin/bash
 
+set -u
+
+MODE="check"
+[[ "${1:-}" == "--fix" ]] && MODE="fix"
+
+EXCLUDES=(
+  "./venv"
+  "./law"
+  "./build"
+  "./.git"
+  "./miniforge"
+  "./CROWN/build"
+  "./tarballs"
+)
+
+# Build prune expression
+PRUNE_ARGS=()
+for d in "${EXCLUDES[@]}"; do
+  PRUNE_ARGS+=( -path "$d" -o )
+done
+unset 'PRUNE_ARGS[${#PRUNE_ARGS[@]}-1]'  # remove trailing -o
+
 FOUND_ISSUE=0
 
-for FILENAME in $(find . \( -path ./venv -o -path ./law \) -prune -o -name "*.py"); do
-	# only run the check if the filename ends with .py
-	if [[ ${FILENAME} == *.py ]]; then
-		echo "Checking ${FILENAME}"
-		black --check ${FILENAME}
-		RETURN_VALUE=$?
-		if [ ${RETURN_VALUE} -ne 0 ]; then
-			black --diff ${FILENAME} 2>/dev/null
-			FOUND_ISSUE=1
-		fi
-	fi
-done
+while IFS= read -r -d '' file; do
+  echo "Checking $file"
 
-exit ${FOUND_ISSUE}
+  if [[ "$MODE" == "fix" ]]; then
+    black "$file" || FOUND_ISSUE=1
+  else
+    if ! black --check "$file"; then
+      black --diff "$file" 2>/dev/null
+      FOUND_ISSUE=1
+    fi
+  fi
+
+done < <(find . \( "${PRUNE_ARGS[@]}" \) -prune -o -name "*.py" -print0)
+
+exit $FOUND_ISSUE

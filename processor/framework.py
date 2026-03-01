@@ -20,8 +20,7 @@ try:
 except:
     pass
 
-law.contrib.load("wlcg")
-law.contrib.load("htcondor")
+law.contrib.load("wlcg", "htcondor", "singularity")
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
@@ -309,9 +308,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         description="Universe to be set in HTCondor job submission.",
         significant=False,
     )
-    htcondor_docker_image = luigi.Parameter(
-        description="Docker image to be used in HTCondor job submission.",
-        default="Automatic",
+    htcondor_container_image = luigi.Parameter(
+        description="Container image to be used in HTCondor job submission.",
     )
     bootstrap_file = luigi.Parameter(
         description="Bootstrap script to be used in HTCondor job to set up law.",
@@ -323,8 +321,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         significant=False,
     )
     remote_source_script = luigi.Parameter(
-        description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with docker images",
-        default="source /opt/conda/bin/activate env",
+        description="Script to source environment in remote jobs. Leave empty if not needed. Defaults to use with container images",
+        default="",
         significant=False,
     )
 
@@ -342,7 +340,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_request_memory",
         "htcondor_request_disk",
         "htcondor_universe",
-        "htcondor_docker_image",
+        "htcondor_container_image",
         "additional_files",
         "workflow",
     }
@@ -351,71 +349,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         | law.htcondor.HTCondorWorkflow.exclude_params_req
         | exclude_set
     )
-
-    def get_submission_os(self):
-        # function to check, if running on centos7, rhel9 or Ubuntu22
-        # Other OS are not permitted
-        # based on this, the correct docker image is chosen, overwriting the htcondor_docker_image parameter
-        # check if lsb_release is installed, if not, use the information from /etc/os-release
-        # Please note that this selection can be somewhat unstable. Modify if neccessary.
-        try:
-            distro = (
-                subprocess.check_output(
-                    "lsb_release -i | cut -f2", stderr=subprocess.STDOUT
-                )
-                .decode()
-                .replace("Linux", "")
-                .replace("linux", "")
-                .replace(" ", "")
-                .strip()
-            )
-            os_version = (
-                subprocess.check_output(
-                    "lsb_release -r | cut -f2", stderr=subprocess.STDOUT
-                )
-                .decode()
-                .strip()
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
-            distro = (
-                subprocess.check_output(
-                    "cat /etc/os-release | grep '^NAME=' | cut -f2 -d='' | tr -d '\"'",
-                    shell=True,
-                )
-                .decode()
-                .replace("Linux", "")
-                .replace("linux", "")
-                .replace(" ", "")
-                .strip()
-            )
-            os_version = (
-                subprocess.check_output(
-                    "cat /etc/os-release | grep '^VERSION_ID=' | cut -f2 -d='' | tr -d '\"'",
-                    shell=True,
-                )
-                .decode()
-                .strip()
-            )
-
-        image_name = None
-
-        if distro == "CentOS":
-            if os_version[0] == "7":
-                image_name = "centos7"
-        elif distro in ("RedHatEnterprise", "Alma"):
-            if os_version[0] == "9":
-                image_name = "rhel9"
-        elif distro == "Ubuntu":
-            if os_version[0:2] == "22":
-                image_name = "ubuntu2204"
-        else:
-            raise Exception(
-                f"Unknown OS {distro} {os_version}, KingMaker will not run without changes"
-            )
-        image_hash = os.getenv("IMAGE_HASH")
-        image = f"ghcr.io/kit-cms/kingmaker-images-{image_name}-{str(self.ENV_NAME).lower()}:main_{image_hash}"
-        # print(f"Running on {distro} {os_version}, using image {image}")
-        return image
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.local_path("job_files"))
@@ -461,10 +394,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.custom_content.append(("universe", self.htcondor_universe))
-        if self.htcondor_docker_image != "Automatic":
-            config.custom_content.append(("docker_image", self.htcondor_docker_image))
-        else:
-            config.custom_content.append(("docker_image", self.get_submission_os()))
+        config.custom_content.append(("container_image", self.htcondor_container_image))
         if domain == "ETP":
             config.custom_content.append(
                 ("accounting_group", self.htcondor_accounting_group)
@@ -583,3 +513,34 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "MODULE_PYTHONPATH"
             )
         return config
+
+
+# Helper function to generate sandbox_pre_setup_cmds functions
+# Adds a list of env variables before the setup_sandbox.sh call
+def sandbox_pre_setup_cmds_factory(*env_vars):
+    # Generate dynamic exports
+    cmds = [f"export {name}={os.getenv(name)}" for name in env_vars]
+    # Add the static source command
+    analysis_path = os.getenv("ANALYSIS_PATH")
+    cmds.append(f"source {analysis_path}/processor/setup_sandbox.sh")
+    return lambda x: cmds
+
+
+class KingmakerSandbox(law.SandboxTask):
+
+    # Needed to allow for sandbox deactivation via law.NO_STR Parameter
+    allow_empty_sandbox = True
+    sandbox = luigi.Parameter(
+        default=law.NO_STR,
+        description="path to a sandbox file to be used for the job. Default 'law.NO_STR' deactivates sandboxing.",
+    )
+    # Mount certificate dir to enable voms proxy
+    singularity_args = lambda x: [
+        "-B",
+        "/etc/grid-security/certificates",
+    ]
+
+    # Default sandbox init
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY", "LUIGIPORT"
+    )
