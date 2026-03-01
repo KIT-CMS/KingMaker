@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+ANA_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example" "ML_train")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -100,12 +100,6 @@ action() {
     # Parse arguments first
     parse_arguments "$@"
     if [[ $? -eq "1" ]]; then
-        return 1
-    fi
-
-    # Check if law was already set up in this shell
-    if [[ ! -z ${LAW_IS_SET_UP} ]]; then
-        echo "KingMaker was already set up in this shell. Please, use a new one."
         return 1
     fi
 
@@ -224,7 +218,7 @@ action() {
     # Set up other dependencies based on workflow
     ############################################
     case ${ANA_NAME} in
-        KingMaker)
+        KingMaker|KingMaker_lxplus)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
@@ -367,8 +361,5 @@ action() {
             return 1
         fi
     fi
-
-    export LAW_IS_SET_UP="True"
-    echo "KingMaker setup was successful"
 }
 action "$@"
