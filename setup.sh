@@ -103,12 +103,6 @@ action() {
         return 1
     fi
 
-    # Check if law was already set up in this shell
-    if [[ ! -z ${LAW_IS_SET_UP} ]]; then
-        echo "KingMaker was already set up in this shell. Please, use a new one."
-        return 1
-    fi
-
     # Check if law already tried to set up in this shell
     if [[ ! -z ${LAW_TRIED_TO_SET_UP} ]]; then
         echo "Kingmaker already tried to set up in this shell. This might lead to unintended behaviour."
@@ -367,8 +361,5 @@ action() {
             return 1
         fi
     fi
-
-    export LAW_IS_SET_UP="True"
-    echo "KingMaker setup was successful"
 }
 action "$@"
