@@ -19,7 +19,6 @@ action() {
     fi
 
     BASE_DIR="$(dirname $( cd "$( dirname "${THIS_FILE}" )" && pwd ))"
-    export ANA_NAME="KingMaker"
 
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null

@@ -16,7 +16,7 @@ class BuildCROWNLib(KingmakerSandbox, Task):
 
     # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR"
+        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR", "USER_FIRST_LETTER", "ANA_NAME"
     )
 
     def output(self):
@@ -83,3 +83,4 @@ class BuildCROWNLib(KingmakerSandbox, Task):
             console.rule("Finished build of CROWNlib")
             output.parent.touch()
             output.copy_from_local(_local_libfile)
+
