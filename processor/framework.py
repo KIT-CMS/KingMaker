@@ -542,5 +542,5 @@ class KingmakerSandbox(law.SandboxTask):
 
     # Default sandbox init
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT"
+        "X509_USER_PROXY", "LUIGIPORT", "ANA_NAME"
     )

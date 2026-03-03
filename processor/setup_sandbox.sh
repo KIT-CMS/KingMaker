@@ -17,6 +17,7 @@ action() {
     else
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
+    export USER_FIRST_LETTER=${USER:0:1}
 
     BASE_DIR="$(dirname $( cd "$( dirname "${THIS_FILE}" )" && pwd ))"
 

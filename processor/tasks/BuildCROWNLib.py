@@ -16,7 +16,7 @@ class BuildCROWNLib(KingmakerSandbox, Task):
 
     # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR", "USER_FIRST_LETTER", "ANA_NAME"
+        "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR", "ANA_NAME"
     )
 
     def output(self):
