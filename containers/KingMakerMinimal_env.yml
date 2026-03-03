@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+dependencies:
+  - gfal2-util
+  - git
+  - kernel-headers_linux-64
+  - python=3.12
+  - rich
+  - setuptools<81
+  - vim
+  - pip
+  - pip:
+      - luigi
+      - questionary
+      - uproot
