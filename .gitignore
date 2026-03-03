@@ -13,6 +13,7 @@ miniforge/
 quantities_map/
 output/
 .nfs*
+*.txt
 
 #luigid pickle
 luigid_state.pickle
