@@ -19,12 +19,12 @@ dependencies:
   - vim
   - xrootd
   - pip
+  - openssh
   # documentation
   - doxygen
   # formatting
   - clang-format
   - black
-  - openssh
   - pip:
       - luigi
       - questionary
@@ -33,4 +33,5 @@ dependencies:
       - breathe
       - sphinx
       - sphinx_rtd_theme
+      # formatting
       - cmakelang
