@@ -83,4 +83,3 @@ class BuildCROWNLib(KingmakerSandbox, Task):
             console.rule("Finished build of CROWNlib")
             output.parent.touch()
             output.copy_from_local(_local_libfile)
-
