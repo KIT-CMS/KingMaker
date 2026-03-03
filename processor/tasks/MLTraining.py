@@ -4,6 +4,7 @@
 Collection of tasks used to create training datasets and config files
 for the NN trainings of the NMSSM analysis
 """
+
 import yaml
 import os
 import luigi
@@ -81,12 +82,8 @@ class CreateTrainingDataShard(MLBase):
             for info in self.datashard_information
             for fold in ["0", "1"]
         ]
-        assert (
-            branches
-        ), "There are no valid branches for this set of parameters: \
-            \n{}".format(
-            self
-        )
+        assert branches, "There are no valid branches for this set of parameters: \
+            \n{}".format(self)
         return branches
 
     # Define output targets. Task is considerd complete if all targets are present.
@@ -190,12 +187,8 @@ class RunTraining(MLBase):
             for info in self.training_information
             for fold in ["0", "1"]
         ]
-        assert (
-            branches
-        ), "There are no valid branches for this set of parameters: \
-            \n{}".format(
-            self
-        )
+        assert branches, "There are no valid branches for this set of parameters: \
+            \n{}".format(self)
         return branches
 
     # Set prerequisites of this task:
@@ -421,12 +414,8 @@ class RunTesting(MLBase):
         branches = [
             {"training_information": info} for info in self.training_information
         ]
-        assert (
-            branches
-        ), "There are no valid branches for this set of parameters: \
-            \n{}".format(
-            self
-        )
+        assert branches, "There are no valid branches for this set of parameters: \
+            \n{}".format(self)
         return branches
 
     # Set prerequisites of this task:
