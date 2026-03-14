@@ -309,25 +309,29 @@ action() {
             printf "It is reccomended to change this setting in the configs and rerun the setup.\n"
             printf "'local_scheduler' should be set to false and the 'scheduler_port' schould be removed.\n\n"
 	fi
-        # First check if the user already has a luigid scheduler running
-        # Start a luidigd scheduler if there is one already running
-        if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
-            echo "Starting Luigi scheduler... using a random port"
-            while
-                export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
-                netstat -atun | grep -q "${LUIGIPORT}"
-            do
-                continue
-            done
-            luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
-            echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-        else
-            # first get the (first) PID
-            export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
-            # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
-            export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
-            echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-        fi
+        # Defined as function to allow for re-assignment in shells that persist longer than the port assignment
+        set_luigiport () {
+            # First check if the user already has a luigid scheduler running
+            # Start a luidigd scheduler if there is one already running
+            if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
+                echo "Starting Luigi scheduler... using a random port"
+                while
+                    export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
+                    netstat -atun | grep -q "${LUIGIPORT}"
+                do
+                    continue
+                done
+                luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
+                echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+            else
+                # first get the (first) PID
+                export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
+                # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
+                export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
+                echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+            fi
+        }
+        set_luigiport
     else
         echo "Using local scheduler."
         export LUIGIPORT=""
