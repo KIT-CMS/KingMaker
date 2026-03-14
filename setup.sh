@@ -99,10 +99,10 @@ action() {
 
     # Parse arguments first
     parse_arguments "$@"
-    if [[ $? -eq "1" ]]; then 
-        return 1 
+    if [[ $? -eq "1" ]]; then
+        return 1
     fi
-    
+
     # Check if law was already set up in this shell
     if [[ ! -z ${LAW_IS_SET_UP} ]]; then
         echo "KingMaker was already set up in this shell. Please, use a new one."
@@ -212,7 +212,7 @@ action() {
         echo "### This file contains the environment location that was provided when the setup was last run ###" > ${BASE_DIR}/environment.location
         echo "${ENV_PATH}" >> ${BASE_DIR}/environment.location
     fi
-    
+
     # Remember the current value of VOMS_USERCONF to overwrite after conda source.
     # This is necessary as conda installs a seperate voms version without the relevant configs.
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
@@ -321,7 +321,7 @@ action() {
         echo "No valid voms proxy found, remote storage might be inaccessible."
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
-    
+
     # Parse the necessary environments from the luigi config files.
     LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
     LOCAL_SCHEDULER_STATUS=$?
@@ -341,25 +341,29 @@ action() {
             printf "It is reccomended to change this setting in the configs and rerun the setup.\n"
             printf "'local_scheduler' should be set to false and the 'scheduler_port' schould be removed.\n\n"
 	fi
-        # First check if the user already has a luigid scheduler running
-        # Start a luidigd scheduler if there is one already running
-        if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
-            echo "Starting Luigi scheduler... using a random port"
-            while
-                export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
-                netstat -atun | grep -q "${LUIGIPORT}"
-            do
-                continue
-            done
-            luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
-            echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-        else
-            # first get the (first) PID
-            export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
-            # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
-            export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
-            echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
-        fi
+        # Defined as function to allow for re-assignment in shells that persist longer than the port assignment
+        set_luigiport () {
+            # First check if the user already has a luigid scheduler running
+            # Start a luidigd scheduler if there is one already running
+            if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
+                echo "Starting Luigi scheduler... using a random port"
+                while
+                    export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
+                    netstat -atun | grep -q "${LUIGIPORT}"
+                do
+                    continue
+                done
+                luigid --background --logdir logs --state-path luigid_state.pickle --port=${LUIGIPORT}
+                echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+            else
+                # first get the (first) PID
+                export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
+                # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
+                export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
+                echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
+            fi
+        }
+        set_luigiport
     else
         echo "Using local scheduler."
         export LUIGIPORT=""
