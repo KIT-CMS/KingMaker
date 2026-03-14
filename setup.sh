@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-ANA_LIST=("KingMaker" "GPU_example" "ML_train")
+ANA_LIST=("KingMaker" "GPU_example")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -291,21 +291,10 @@ action() {
                 python3 ${BASE_DIR}/scripts/ProductionStatus.py $@
             }
             ;;
-        ML_train)
-            echo "Setting up ML-scripts ..."
-            if [ -z "$(ls -A ${BASE_DIR}/sm-htt-analysis)" ]; then
-                git submodule update --init --recursive -- sm-htt-analysis
-            fi
-            export MODULE_PYTHONPATH=sm-htt-analysis
-            ;;
         *)
             ;;
     esac
     ############################################
-
-    if [[ ! -z ${MODULE_PYTHONPATH} ]]; then
-        export PYTHONPATH=${MODULE_PYTHONPATH}:${PYTHONPATH}
-    fi
 
     # Check is law was set up, and do so if not
     if [ -z "$(ls -A ${BASE_DIR}/law)" ]; then

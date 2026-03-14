@@ -63,12 +63,6 @@ action() {
     _addpy "${SPAWNPOINT}/processor"
     _addpy "${SPAWNPOINT}/processor/tasks"
 
-    # Analysis specific modules
-    MODULE_PYTHONPATH="{{MODULE_PYTHONPATH}}"
-    if [[ ! -z ${MODULE_PYTHONPATH} ]]; then
-        _addpy ${MODULE_PYTHONPATH}
-    fi
-
     # setup law variables
     export LAW_HOME="${SPAWNPOINT}/.law"
     export LAW_CONFIG_FILE="${SPAWNPOINT}/lawluigi_configs/{{ANA_NAME}}_law.cfg"
