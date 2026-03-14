@@ -21,13 +21,11 @@ def parse_args_from_law():
     """
     arguments = sys.argv
     if len(arguments) < 4 or arguments[1] != "law" or arguments[2] != "run":
-        rprint(
-            """
+        rprint("""
         Wrong usage of script, to run it, just add <monitor_production> in front of your law command.
         Usage: monitor_production <your_full_law_command>
         Example: monitor_production law run ProduceSamples --analysis tau --config config --sample-list samples_18.txt --production-tag best_samples_eu --workers 100 --scopes mt --shifts None
-        """
-        )
+        """)
         raise ValueError("Wrong script usage.")
     args_dict = {}
     for i in range(1, len(arguments)):

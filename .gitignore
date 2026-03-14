@@ -8,13 +8,12 @@ tarballs/
 workdir/
 logs/
 *.tar.gz
-*.txt
 miniconda/
 miniforge/
 quantities_map/
 output/
-CROWN/
 .nfs*
+*.txt
 
 #luigid pickle
 luigid_state.pickle
@@ -34,6 +33,7 @@ dist/
 downloads/
 eggs/
 .eggs/
+.conda/
 lib/
 lib64/
 parts/
