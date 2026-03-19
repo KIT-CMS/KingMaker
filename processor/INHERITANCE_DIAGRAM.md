@@ -1,18 +1,11 @@
-# Processor Class Hierarchy and Connections
+# Processor Class Inheritance Hierarchy
 
-This AI generated diagram shows Python classes in `processor/` and their inheritance hierarchy along with task dependency links.
+This diagram shows only the inheritance relationships (parent-child) between Python classes in `processor/`.
 The top-most parent classes are from the `law` library.
 
-## Key Workflows
+## Legend
 
-- **CROWN Ntuple Production**: `ProduceSamples` → `CROWNRun` ← `CROWNBuild` ← `BuildCROWNLib`
-- **CROWN Friend Production**: `ProduceFriends` → `CROWNFriends` ← `CROWNBuildFriend` ← `QuantitiesMap` ← `CROWNRun`
-- **CROWN Multi-Friend Production**: `ProduceMultiFriends` → `CROWNMultiFriends` combos `CROWNFriends` and `CROWNRun`
-
-## Relationship Legend
-
-- **`<|--`** = Inheritance (solid triangle)
-- **`..>`** = Task dependency via `requires()` or `workflow_requires()` (dashed arrow)
+- **`<|--`** = Inheritance (solid triangle, child ← parent)
 
 ```mermaid
 classDiagram
@@ -63,10 +56,10 @@ classDiagram
 
   %% Framework & CROWN base classes
   LawWrapperTask <|-- ProduceBase
+  Task <|-- CROWNBuildBase
   Task <|-- ProduceBase
   LawLocalWorkflow <|-- CROWNExecuteBase
   HTCondorWorkflow <|-- CROWNExecuteBase
-  Task <|-- CROWNBuildBase
 
   %% CROWN Ntuple Production hierarchy
   ProduceBase <|-- ProduceSamples
@@ -89,32 +82,5 @@ classDiagram
   CROWNExecuteBase <|-- CROWNMultiFriends
   Task <|-- FriendQuantitiesMap
   LawLocalWorkflow <|-- FriendQuantitiesMap
-
-  %% === TASK DEPENDENCIES (requires/workflow_requires) ===
-
-  %% CROWN Ntuple Production dependencies
-  CROWNRun ..> ConfigureDatasets : requires/workflow_requires
-  CROWNRun ..> CROWNBuild : requires/workflow_requires
-  CROWNBuildCombined ..> BuildCROWNLib : requires
-  CROWNBuild ..> CROWNBuildCombined : requires
-  ProduceSamples ..> CROWNRun : requires
-
-  %% CROWN Friend Production dependencies
-  CROWNFriends ..> CROWNRun : workflow_requires
-  CROWNFriends ..> CROWNBuildFriend : requires/workflow_requires
-  CROWNBuildFriend ..> BuildCROWNLib : requires
-  CROWNBuildFriend ..> QuantitiesMap : requires
-  QuantitiesMap ..> CROWNRun : requires/workflow_requires
-  ProduceFriends ..> CROWNFriends : requires
-
-  %% CROWN Multi-Friend Production dependencies
-  CROWNMultiFriends ..> CROWNRun : workflow_requires
-  CROWNMultiFriends ..> CROWNBuildMultiFriend : requires/workflow_requires
-  CROWNMultiFriends ..> CROWNFriends : workflow_requires
-  CROWNBuildMultiFriend ..> BuildCROWNLib : requires
-  CROWNBuildMultiFriend ..> FriendQuantitiesMap : requires
-  FriendQuantitiesMap ..> CROWNRun : requires/workflow_requires
-  FriendQuantitiesMap ..> CROWNFriends : requires/workflow_requires
-  ProduceMultiFriends ..> CROWNMultiFriends : requires
 
 ```
