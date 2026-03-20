@@ -46,7 +46,7 @@ class CROWNMultiFriends(CROWNExecuteBase):
         friend_inputs = [
             self.workflow_input()[
                 f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-                ]["collection"]
+            ]["collection"]
             for friend in self.friend_mapping  # type: ignore
         ]
         friend_branches = [
