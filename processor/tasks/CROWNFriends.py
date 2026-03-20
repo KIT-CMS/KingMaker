@@ -30,9 +30,6 @@ class CROWNFriends(CROWNExecuteBase):
         requirements["friend_tarball"] = CROWNBuildFriend.req(self)
         return requirements
 
-    def requires(self):
-        return {"friend_tarball": CROWNBuildFriend.req(self)}
-
     def create_branch_map(self):
         """
         The function `create_branch_map` creates a dictionary `branch_map` that maps file counters to
@@ -41,7 +38,7 @@ class CROWNFriends(CROWNExecuteBase):
         """
         branch_map = {}
         counter = 0
-        inputs = self.input()["ntuples"]["collection"]
+        inputs = self.workflow_input()["ntuples"]["collection"]
         branches = inputs._flat_target_list
         # get all files from the dataset, including missing ones
         for inputfile in branches:
@@ -122,10 +119,10 @@ class CROWNFriends(CROWNExecuteBase):
         )
         console.log(
             "Getting CROWN friend_tarball from {}".format(
-                self.input()["friend_tarball"].uri()
+                self.workflow_input()["friend_tarball"].uri()
             )
         )
-        with self.input()["friend_tarball"].localize("r") as _file:
+        with self.workflow_input()["friend_tarball"].localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
         tempfile = os.path.join(

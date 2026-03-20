@@ -34,20 +34,17 @@ class CROWNMultiFriends(CROWNExecuteBase):
             )
         return requirements
 
-    def requires(self):
-        return {"friend_tarball": CROWNBuildMultiFriend.req(self)}
-
     def create_branch_map(self):
         branch_map = {}
         counter = 0
-        inputs = self.input()["ntuples"]["collection"]
+        inputs = self.workflow_input()["ntuples"]["collection"]
         branches = [
             inputfile
             for inputfile in inputs._flat_target_list
             if inputfile.path.endswith(".root")
         ]
         friend_inputs = [
-            self.input()[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"][
+            self.workflow_input()[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"][
                 "collection"
             ]
             for friend in self.friend_mapping  # type: ignore
@@ -160,10 +157,10 @@ class CROWNMultiFriends(CROWNExecuteBase):
         )
         console.log(
             "Getting CROWN friend_tarball from {}".format(
-                self.input()["friend_tarball"].uri()
+                self.workflow_input()["friend_tarball"].uri()
             )
         )
-        with self.input()["friend_tarball"].localize("r") as _file:
+        with self.workflow_input()["friend_tarball"].localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
         tempfile = os.path.join(

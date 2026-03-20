@@ -29,17 +29,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
             )
         return requirements
 
-    def requires(self):
-        requirements = {}
-        requirements["ntuples"] = CROWNRun.req(self)
-        for friend in self.friend_mapping:
-            requirements[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"] = (
-                CROWNFriends.req(
-                    self, friend_name=self.friend_mapping[friend], friend_config=friend
-                )
-            )
-        return requirements
-
     def create_branch_map(self):
         return [{"era": self.era, "sample_type": self.sample_type}]
 
@@ -63,16 +52,16 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
         quantities_map[era] = {}
         quantities_map[era][sample_type] = {}
         # go through all input files and get all quantities maps
-        samples = self.input()["ntuples"]
+        samples = self.workflow_input()["ntuples"]
         for sample in samples:
             if isinstance(
-                self.input()["ntuples"][sample], law.NestedSiblingFileCollection
+                self.workflow_input()["ntuples"][sample], law.NestedSiblingFileCollection
             ):
-                inputfiles = self.input()["ntuples"][sample]._flat_target_list
+                inputfiles = self.workflow_input()["ntuples"][sample]._flat_target_list
                 # add all friend files to the inputfiles list
                 for friend in self.friend_mapping:
                     inputfiles.extend(
-                        self.input()[
+                        self.workflow_input()[
                             f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
                         ][sample]._flat_target_list
                     )

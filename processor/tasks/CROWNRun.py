@@ -32,15 +32,6 @@ class CROWNRun(CROWNExecuteBase):
                 )
         return requirements
 
-    def requires(self):
-        requirements = {}
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self, era=era, sample_type=sample_type
-                )
-        return requirements
-
     def create_branch_map(self):
         branch_map = {}
         branchcounter = 0
@@ -133,7 +124,7 @@ class CROWNRun(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, branch_data["sample_type"], branch_data["era"]
         )
-        _tarball = self.input()["tarball_{}_{}".format(_sample_type, _era)]
+        _tarball = self.workflow_input()["tarball_{}_{}".format(_sample_type, _era)]
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
