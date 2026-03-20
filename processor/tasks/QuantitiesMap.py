@@ -50,7 +50,8 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         inputs = self.workflow_input()["ntuples"]
         for sample in inputs:
             if isinstance(
-                self.workflow_input()["ntuples"][sample], law.NestedSiblingFileCollection
+                self.workflow_input()["ntuples"][sample],
+                law.NestedSiblingFileCollection,
             ):
                 inputfiles = self.workflow_input()["ntuples"][sample]._flat_target_list
                 for inputfile in inputfiles:

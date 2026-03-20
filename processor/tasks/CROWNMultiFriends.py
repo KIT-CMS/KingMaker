@@ -44,9 +44,9 @@ class CROWNMultiFriends(CROWNExecuteBase):
             if inputfile.path.endswith(".root")
         ]
         friend_inputs = [
-            self.workflow_input()[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"][
-                "collection"
-            ]
+            self.workflow_input()[
+                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
+                ]["collection"]
             for friend in self.friend_mapping  # type: ignore
         ]
         friend_branches = [

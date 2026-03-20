@@ -55,7 +55,8 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
         samples = self.workflow_input()["ntuples"]
         for sample in samples:
             if isinstance(
-                self.workflow_input()["ntuples"][sample], law.NestedSiblingFileCollection
+                self.workflow_input()["ntuples"][sample],
+                law.NestedSiblingFileCollection,
             ):
                 inputfiles = self.workflow_input()["ntuples"][sample]._flat_target_list
                 # add all friend files to the inputfiles list
