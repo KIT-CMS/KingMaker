@@ -5,107 +5,178 @@ These are the actual execution flow dependencies that determine task ordering.
 
 ## Legend
 
-- **`..>`** = Task dependency via `requires()` or `workflow_requires()` (dashed arrow)
-- **`(Workflow)`** = Workflow task inheriting from `HTCondorWorkflow` (executes on remote cluster)
-- **`(Local)`** = Local task (does not inherit from `HTCondorWorkflow`)
-
-## Key Task Flows
-
-### CROWN Ntuple Production
-```
-ProduceSamples 
-  → CROWNRun 
-    ← CROWNBuild 
-      ← BuildCROWNLib
-    ← ConfigureDatasets
-```
-
-### CROWN Friend Production
-```
-ProduceFriends 
-  → CROWNFriends 
-    ← CROWNBuildFriend 
-      ← BuildCROWNLib
-      ← QuantitiesMap 
-        ← CROWNRun
-```
-
-### CROWN Multi-Friend Production
-```
-ProduceMultiFriends 
-  → CROWNMultiFriends 
-    ← CROWNRun
-    ← CROWNBuildMultiFriend 
-      ← BuildCROWNLib
-      ← FriendQuantitiesMap 
-        ← CROWNRun
-        ← CROWNFriends
-    ← CROWNFriends
-```
+- **⤑** (dashed arrow) = Task dependency via `workflow_requires()`
+- **⟶** (solid arrow) = Task dependency via `requires()`
+- <span style="border: 2px solid #4682B4;white-space: pre;">&numsp;&numsp;&numsp;&numsp;</span> = Workflow task inheriting from `HTCondorWorkflow` (executes on remote cluster)
+- <span style="border: 2px solid #228B22;">&numsp;&numsp;&numsp;&numsp;</span> = Local task (does not inherit from `HTCondorWorkflow`)
+- <span style="border: 2px solid #228B22;background-color:#90EE90">&numsp;&numsp;&numsp;&numsp;</span> = Task which is executed by the user. Spawns workflows but is not a workflow itself (i.e. does not inherit from `HTCondorWorkflow`)
 
 
 ```mermaid
-classDiagram
-  direction TB
-
+flowchart BT
   %% CROWN Ntuple Production Tasks
-  class ProduceSamples["ProduceSamples (Local)"]
-  class CROWNRun["CROWNRun (Workflow)"]
-  class ConfigureDatasets["ConfigureDatasets (Local)"]
-  class CROWNBuildCombined["CROWNBuildCombined (Local)"]
-  class CROWNBuild["CROWNBuild (Local)"]
-  class BuildCROWNLib["BuildCROWNLib (Local)"]
+  ProduceSamples["ProduceSamples"]
+  CROWNRun["CROWNRun"]
+  ConfigureDatasets["ConfigureDatasets"]
+  CROWNBuildCombined["CROWNBuildCombined"]
+  CROWNBuild["CROWNBuild"]
+  BuildCROWNLib["BuildCROWNLib"]
 
   %% CROWN Friend Production Tasks
-  class ProduceFriends["ProduceFriends (Local)"]
-  class CROWNFriends["CROWNFriends (Workflow)"]
-  class CROWNBuildFriend["CROWNBuildFriend (Local)"]
-  class QuantitiesMap["QuantitiesMap (Local)"]
+  ProduceFriends["ProduceFriends"]
+  CROWNFriends["CROWNFriends"]
+  CROWNBuildFriend["CROWNBuildFriend"]
+  QuantitiesMap["QuantitiesMap"]
 
   %% CROWN Multi-Friend Production Tasks
-  class ProduceMultiFriends["ProduceMultiFriends (Local)"]
-  class CROWNMultiFriends["CROWNMultiFriends (Workflow)"]
-  class CROWNBuildMultiFriend["CROWNBuildMultiFriend (Local)"]
-  class FriendQuantitiesMap["FriendQuantitiesMap (Local)"]
-
+  ProduceMultiFriends["ProduceMultiFriends"]
+  CROWNMultiFriends["CROWNMultiFriends"]
+  CROWNBuildMultiFriend["CROWNBuildMultiFriend"]
+  FriendQuantitiesMap["FriendQuantitiesMap"]
 
   %% === TASK DEPENDENCIES (requires/workflow_requires) ===
 
   %% CROWN Ntuple Production dependencies
-  CROWNRun ..> ConfigureDatasets : requires/workflow_requires
-  CROWNRun ..> CROWNBuild : requires/workflow_requires
-  CROWNBuildCombined ..> BuildCROWNLib : requires
-  CROWNBuild ..> CROWNBuildCombined : requires
-  ProduceSamples ..> CROWNRun : requires
+  CROWNRun -.->|workflow_requires| ConfigureDatasets
+  CROWNRun -.->|workflow_requires| CROWNBuild
+  CROWNBuildCombined -->|requires| BuildCROWNLib
+  CROWNBuild -->|requires| CROWNBuildCombined
+  ProduceSamples -------->|requires| CROWNRun
 
   %% CROWN Friend Production dependencies
-  CROWNFriends ..> CROWNRun : workflow_requires
-  CROWNFriends ..> CROWNBuildFriend : requires/workflow_requires
-  CROWNBuildFriend ..> BuildCROWNLib : requires
-  CROWNBuildFriend ..> QuantitiesMap : requires
-  QuantitiesMap ..> CROWNRun : requires/workflow_requires
-  ProduceFriends ..> CROWNFriends : requires
+  CROWNFriends -.->|workflow_requires| CROWNRun
+  CROWNFriends -.->|workflow_requires| CROWNBuildFriend
+  CROWNBuildFriend -->|requires| QuantitiesMap
+  CROWNBuildFriend -->|requires| BuildCROWNLib
+  ProduceFriends ----->|requires| CROWNFriends
 
   %% CROWN Multi-Friend Production dependencies
-  CROWNMultiFriends ..> CROWNRun : workflow_requires
-  CROWNMultiFriends ..> CROWNBuildMultiFriend : requires/workflow_requires
-  CROWNMultiFriends ..> CROWNFriends : workflow_requires
-  CROWNBuildMultiFriend ..> BuildCROWNLib : requires
-  CROWNBuildMultiFriend ..> FriendQuantitiesMap : requires
-  FriendQuantitiesMap ..> CROWNRun : requires/workflow_requires
-  FriendQuantitiesMap ..> CROWNFriends : requires/workflow_requires
-  ProduceMultiFriends ..> CROWNMultiFriends : requires
+  CROWNMultiFriends -.->|workflow_requires| CROWNRun
+  CROWNMultiFriends -.->|workflow_requires| CROWNBuildMultiFriend
+  CROWNMultiFriends -.->|workflow_requires| CROWNFriends
+  CROWNBuildMultiFriend -->|requires| BuildCROWNLib
+  CROWNBuildMultiFriend -->|requires| FriendQuantitiesMap
+  FriendQuantitiesMap -.->|workflow_requires| CROWNRun
+  FriendQuantitiesMap -.->|workflow_requires| CROWNFriends
+  ProduceMultiFriends -->|requires| CROWNMultiFriends
+  QuantitiesMap -.->|workflow_requires| CROWNRun
 
   %% Styling for top-level entry points
-  style ProduceSamples fill:#90EE90,stroke:#228B22,stroke-width:3px
-  style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px
-  style ProduceMultiFriends fill:#90EE90,stroke:#228B22,stroke-width:3px
+  style ProduceSamples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+  style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+  style ProduceMultiFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
 
   %% Styling for workflow tasks
-  style CROWNRun fill:#87CEEB,stroke:#4682B4,stroke-width:2px
-  style CROWNFriends fill:#87CEEB,stroke:#4682B4,stroke-width:2px
-  style CROWNMultiFriends fill:#87CEEB,stroke:#4682B4,stroke-width:2px
+  style CROWNRun stroke:#4682B4,stroke-width:2px
+  style CROWNFriends stroke:#4682B4,stroke-width:2px
+  style CROWNMultiFriends stroke:#4682B4,stroke-width:2px
+
+  %% Styling for local tasks with green border
+  style ConfigureDatasets stroke:#228B22,stroke-width:2px
+  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
+  style CROWNBuild stroke:#228B22,stroke-width:2px
+  style BuildCROWNLib stroke:#228B22,stroke-width:2px
+  style CROWNBuildFriend stroke:#228B22,stroke-width:2px
+  style QuantitiesMap stroke:#228B22,stroke-width:2px
+  style CROWNBuildMultiFriend stroke:#228B22,stroke-width:2px
+  style FriendQuantitiesMap stroke:#228B22,stroke-width:2px
 ```
+
+## Reduced Task Flows
+
+### CROWN Ntuple Production
+
+<details>
+<summary>Click to expand CROWN Ntuple Production flow details</summary>
+
+```mermaid
+flowchart BT
+  %% CROWN Ntuple Production Tasks
+  ProduceSamples["ProduceSamples"]
+  CROWNRun["CROWNRun"]
+  ConfigureDatasets["ConfigureDatasets"]
+  CROWNBuildCombined["CROWNBuildCombined"]
+  CROWNBuild["CROWNBuild"]
+  BuildCROWNLib["BuildCROWNLib"]
+
+  %% CROWN Ntuple Production dependencies
+  CROWNRun -.->|workflow_requires| ConfigureDatasets
+  CROWNRun -.->|workflow_requires| CROWNBuild
+  CROWNBuildCombined -->|requires| BuildCROWNLib
+  CROWNBuild -->|requires| CROWNBuildCombined
+  ProduceSamples -->|requires| CROWNRun
+
+  %% Styling for top-level entry points
+  style ProduceSamples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+
+  %% Styling for workflow tasks
+  style CROWNRun stroke:#4682B4,stroke-width:2px
+
+  %% Styling for local tasks with green border
+  style ConfigureDatasets stroke:#228B22,stroke-width:2px
+  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
+  style CROWNBuild stroke:#228B22,stroke-width:2px
+  style BuildCROWNLib stroke:#228B22,stroke-width:2px
+```
+
+</details>
+
+### CROWN Friend Production
+
+<details>
+<summary>Click to expand CROWN Friend Production flow details</summary>
+
+
+```mermaid
+flowchart BT
+  %% CROWN Ntuple Production Tasks
+  CROWNRun["CROWNRun"]
+  ConfigureDatasets["ConfigureDatasets"]
+  CROWNBuildCombined["CROWNBuildCombined"]
+  CROWNBuild["CROWNBuild"]
+  BuildCROWNLib["BuildCROWNLib"]
+
+  %% CROWN Friend Production Tasks
+  ProduceFriends["ProduceFriends"]
+  CROWNFriends["CROWNFriends"]
+  CROWNBuildFriend["CROWNBuildFriend"]
+  QuantitiesMap["QuantitiesMap"]
+
+  %% === TASK DEPENDENCIES (requires/workflow_requires) ===
+
+  %% CROWN Ntuple Production dependencies
+  CROWNRun -.->|workflow_requires| ConfigureDatasets
+  CROWNRun -.->|workflow_requires| CROWNBuild
+  CROWNBuildCombined -->|requires| BuildCROWNLib
+  CROWNBuild -->|requires| CROWNBuildCombined
+
+  %% CROWN Friend Production dependencies
+  CROWNFriends -.->|workflow_requires| CROWNRun
+  CROWNFriends -.->|workflow_requires| CROWNBuildFriend
+  CROWNBuildFriend -->|requires| QuantitiesMap
+  CROWNBuildFriend -->|requires| BuildCROWNLib
+  ProduceFriends -->|requires| CROWNFriends
+
+  %% CROWN Multi-Friend Production dependencies
+  QuantitiesMap -.->|workflow_requires| CROWNRun
+
+  %% Styling for top-level entry points
+  style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+
+  %% Styling for workflow tasks
+  style CROWNRun stroke:#4682B4,stroke-width:2px
+  style CROWNFriends stroke:#4682B4,stroke-width:2px
+
+  %% Styling for local tasks with green border
+  style ConfigureDatasets stroke:#228B22,stroke-width:2px
+  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
+  style CROWNBuild stroke:#228B22,stroke-width:2px
+  style BuildCROWNLib stroke:#228B22,stroke-width:2px
+  style CROWNBuildFriend stroke:#228B22,stroke-width:2px
+  style QuantitiesMap stroke:#228B22,stroke-width:2px
+```
+
+</details>
 
 ## Task Classification
 

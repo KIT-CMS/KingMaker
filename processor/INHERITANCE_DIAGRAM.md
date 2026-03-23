@@ -1,86 +1,107 @@
 # Processor Class Inheritance Hierarchy
 
-This diagram shows only the inheritance relationships (parent-child) between Python classes in `processor/`.
+This diagram shows the inheritance relationships (parent-child) between Python classes in `processor/`.
 The top-most parent classes are from the `law` library.
 
-## Legend
-
-- **`<|--`** = Inheritance (solid triangle, child ← parent)
 
 ```mermaid
-classDiagram
-  direction TB
-
+flowchart TD
   %% LAW Library Base Classes
-  class LawTask["law.Task"]
-  class LawLocalWorkflow["law.LocalWorkflow"]
-  class LawHTCondorWorkflow["law.htcondor.HTCondorWorkflow"]
-  class LawWrapperTask["law.task.base.WrapperTask"]
-  class LawRunOnceTask["law.tasks.RunOnceTask"]
+  LawTask["law.Task"]
+  LawLocalWorkflow["law.LocalWorkflow"]
+  LawHTCondorWorkflow["law.htcondor.HTCondorWorkflow"]
+  LawWrapperTask["law.task.base.WrapperTask"]
 
-  %% Framework Base Classes (from processor/framework.py)
-  class Task
-  class HTCondorWorkflow
+  %% Framework Base Classes
+  Task["Task"]
+  HTCondorWorkflow["HTCondorWorkflow"]
 
   %% CROWN Base Classes
-  class ProduceBase
-  class CROWNExecuteBase
-  class CROWNBuildBase
+  ProduceBase["ProduceBase"]
+  CROWNExecuteBase["CROWNExecuteBase"]
+  CROWNBuildBase["CROWNBuildBase"]
 
   %% CROWN Ntuple Production Tasks
-  class ProduceSamples
-  class CROWNRun
-  class ConfigureDatasets
-  class CROWNBuildCombined
-  class CROWNBuild
-  class BuildCROWNLib
+  ProduceSamples["ProduceSamples"]
+  CROWNRun["CROWNRun"]
+  ConfigureDatasets["ConfigureDatasets"]
+  CROWNBuildCombined["CROWNBuildCombined"]
+  CROWNBuild["CROWNBuild"]
+  BuildCROWNLib["BuildCROWNLib"]
 
   %% CROWN Friend Production Tasks
-  class ProduceFriends
-  class CROWNFriends
-  class CROWNBuildFriend
-  class QuantitiesMap
+  ProduceFriends["ProduceFriends"]
+  CROWNFriends["CROWNFriends"]
+  CROWNBuildFriend["CROWNBuildFriend"]
+  QuantitiesMap["QuantitiesMap"]
 
   %% CROWN Multi-Friend Production Tasks
-  class ProduceMultiFriends
-  class CROWNMultiFriends
-  class CROWNBuildMultiFriend
-  class FriendQuantitiesMap
+  ProduceMultiFriends["ProduceMultiFriends"]
+  CROWNMultiFriends["CROWNMultiFriends"]
+  CROWNBuildMultiFriend["CROWNBuildMultiFriend"]
+  FriendQuantitiesMap["FriendQuantitiesMap"]
 
-  %% === INHERITANCE HIERARCHY ===
+  %% Connections and Arrows
+  %% The more --- in the arrow, the longer the arrow gets. This is important for better visibility of the graph.
+  LawTask --> Task
 
-  %% Law library base classes
-  LawTask <|-- Task
-  LawHTCondorWorkflow <|-- HTCondorWorkflow
-  Task <|-- HTCondorWorkflow
+  LawHTCondorWorkflow ---> HTCondorWorkflow
+  Task --> HTCondorWorkflow
+  HTCondorWorkflow --> CROWNExecuteBase
 
-  %% Framework & CROWN base classes
-  LawWrapperTask <|-- ProduceBase
-  Task <|-- CROWNBuildBase
-  Task <|-- ProduceBase
-  LawLocalWorkflow <|-- CROWNExecuteBase
-  HTCondorWorkflow <|-- CROWNExecuteBase
+  LawLocalWorkflow ----> CROWNExecuteBase
+  LawLocalWorkflow -----> QuantitiesMap
+  LawLocalWorkflow -----> FriendQuantitiesMap
 
-  %% CROWN Ntuple Production hierarchy
-  ProduceBase <|-- ProduceSamples
-  CROWNBuildBase <|-- CROWNBuildCombined
-  CROWNBuildBase <|-- CROWNBuild
-  CROWNExecuteBase <|-- CROWNRun
-  Task <|-- ConfigureDatasets
-  Task <|-- BuildCROWNLib
+  Task ----> QuantitiesMap
+  Task ----> FriendQuantitiesMap
 
-  %% CROWN Friend Production hierarchy
-  ProduceBase <|-- ProduceFriends
-  CROWNBuildBase <|-- CROWNBuildFriend
-  CROWNExecuteBase <|-- CROWNFriends
-  Task <|-- QuantitiesMap
-  LawLocalWorkflow <|-- QuantitiesMap
+  Task ----> BuildCROWNLib
+  Task ----> ConfigureDatasets
+  Task ---> CROWNBuildBase
+  Task ---> ProduceBase
 
-  %% CROWN Multi-Friend Production hierarchy
-  ProduceBase <|-- ProduceMultiFriends
-  CROWNBuildBase <|-- CROWNBuildMultiFriend
-  CROWNExecuteBase <|-- CROWNMultiFriends
-  Task <|-- FriendQuantitiesMap
-  LawLocalWorkflow <|-- FriendQuantitiesMap
+  CROWNBuildBase --> CROWNBuildFriend
+  CROWNBuildBase --> CROWNBuildMultiFriend
+  CROWNBuildBase --> CROWNBuild
+  CROWNBuildBase --> CROWNBuildCombined
 
+  ProduceBase --> ProduceFriends
+  ProduceBase --> ProduceMultiFriends
+  ProduceBase --> ProduceSamples
+
+  CROWNExecuteBase --> CROWNRun
+  CROWNExecuteBase --> CROWNFriends
+  CROWNExecuteBase --> CROWNMultiFriends
+
+  LawWrapperTask ----> ProduceBase
+
+  %% Add Links to the classes
+  click LawTask https://github.com/riga/law/blob/master/law/task/base.py "https://github.com/riga/law/blob/master/law/task/base.py"
+  click LawLocalWorkflow https://law.readthedocs.io/en/latest/api/workflow/local.html "https://law.readthedocs.io/en/latest/api/workflow/local.html"
+  click LawHTCondorWorkflow https://law.readthedocs.io/en/latest/contrib/htcondor.html "https://law.readthedocs.io/en/latest/contrib/htcondor.html"
+  
+  click Task https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py"
+  click HTCondorWorkflow https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py"
+  
+  click ProduceBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  click CROWNExecuteBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  click CROWNBuildBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  
+  click ProduceSamples https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceSamples.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceSamples.py"
+  click CROWNRun https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNRun.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNRun.py"
+  click ConfigureDatasets https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ConfigureDatasets.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ConfigureDatasets.py"
+  click CROWNBuildCombined https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuild.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuild.py"
+  click CROWNBuild https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuild.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuild.py"
+  click BuildCROWNLib https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/BuildCROWNLib.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/BuildCROWNLib.py"
+  
+  click ProduceFriends https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceFriends.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceFriends.py"
+  click CROWNFriends https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriends.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriends.py"
+  click CROWNBuildFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuildFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuildFriend.py"
+  click QuantitiesMap https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/QuantitiesMap.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/QuantitiesMap.py"
+  
+  click ProduceMultiFriends https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceMultiFriends.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceMultiFriends.py"
+  click CROWNMultiFriends https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMultiFriends.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMultiFriends.py"
+  click CROWNBuildMultiFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuildMultiFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBuildMultiFriend.py"
+  click FriendQuantitiesMap https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/FriendQuantitiesMap.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/FriendQuantitiesMap.py"
 ```
