@@ -47,13 +47,13 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         quantities_map[era] = {}
         quantities_map[era][sample_type] = {}
         # go through all input files and get all quantities maps
-        inputs = self.workflow_input()["ntuples"]
-        for sample in inputs:
+        inputs = self.workflow_input()
+        for sample in inputs["ntuples"]:
             if isinstance(
-                self.workflow_input()["ntuples"][sample],
+                inputs["ntuples"][sample],
                 law.NestedSiblingFileCollection,
             ):
-                inputfiles = self.workflow_input()["ntuples"][sample]._flat_target_list
+                inputfiles = inputs["ntuples"][sample]._flat_target_list
                 for inputfile in inputfiles:
                     if inputfile.path.endswith("quantities_map.json"):
                         with inputfile.localize("r") as _file:

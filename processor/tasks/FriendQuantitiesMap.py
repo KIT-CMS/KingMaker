@@ -52,17 +52,17 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
         quantities_map[era] = {}
         quantities_map[era][sample_type] = {}
         # go through all input files and get all quantities maps
-        samples = self.workflow_input()["ntuples"]
-        for sample in samples:
+        inputs = self.workflow_input()
+        for sample in inputs["ntuples"]:
             if isinstance(
-                self.workflow_input()["ntuples"][sample],
+                inputs["ntuples"][sample],
                 law.NestedSiblingFileCollection,
             ):
-                inputfiles = self.workflow_input()["ntuples"][sample]._flat_target_list
+                inputfiles = inputs["ntuples"][sample]._flat_target_list
                 # add all friend files to the inputfiles list
                 for friend in self.friend_mapping:
                     inputfiles.extend(
-                        self.workflow_input()[
+                        inputs[
                             f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
                         ][sample]._flat_target_list
                     )

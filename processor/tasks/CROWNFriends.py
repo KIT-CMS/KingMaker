@@ -95,6 +95,7 @@ class CROWNFriends(CROWNExecuteBase):
         """
         outputs = self.output()
         output = outputs[0]
+        inputs = self.workflow_input()
         branch_data = self.branch_data
         scope = branch_data["scope"]
         era = branch_data["era"]
@@ -119,10 +120,10 @@ class CROWNFriends(CROWNExecuteBase):
         )
         console.log(
             "Getting CROWN friend_tarball from {}".format(
-                self.workflow_input()["friend_tarball"].uri()
+                inputs["friend_tarball"].uri()
             )
         )
-        with self.workflow_input()["friend_tarball"].localize("r") as _file:
+        with inputs["friend_tarball"].localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
         tempfile = os.path.join(

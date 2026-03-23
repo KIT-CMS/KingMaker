@@ -101,6 +101,7 @@ class CROWNRun(CROWNExecuteBase):
 
     def run(self):
         outputs = self.output()
+        inputs = self.workflow_input()
         rootfile_outputs = [x for x in outputs if x.path.endswith(".root")]
         quantities_map_outputs = [
             x for x in outputs if x.path.endswith("quantities_map.json")
@@ -124,7 +125,7 @@ class CROWNRun(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, branch_data["sample_type"], branch_data["era"]
         )
-        _tarball = self.workflow_input()["tarball_{}_{}".format(_sample_type, _era)]
+        _tarball = inputs["tarball_{}_{}".format(_sample_type, _era)]
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path

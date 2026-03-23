@@ -38,12 +38,13 @@ class CROWNBuildFriend(CROWNBuildBase):
         return target
 
     def run(self):
-        crownlib = self.input()["crownlib"]
+        inputs = self.input()
+        crownlib = inputs["crownlib"]
         # get output file path
         output = self.output()
         quantity_target = []
         # get quantities map
-        for target in self.input()["quantities_map"]["collection"]._iter_flat():
+        for target in inputs["quantities_map"]["collection"]._iter_flat():
             quantity_target = target[1]
         if len(quantity_target) != 1:
             raise Exception(
