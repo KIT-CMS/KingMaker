@@ -21,11 +21,6 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         requirements["ntuples"] = CROWNRun.req(self)
         return requirements
 
-    def requires(self):
-        requirements = {}
-        requirements["ntuples"] = CROWNRun.req(self)
-        return requirements
-
     def create_branch_map(self):
         return {
             0: {
@@ -38,7 +33,6 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         target = self.remote_target(
             f"{self.production_tag}/{self.era}_{'-'.join(list(self.scopes))}_{self.sample_type}_quantities_map.json".format()
         )
-        target.parent.touch()
         return target
 
     def run(self):
@@ -52,12 +46,13 @@ class QuantitiesMap(law.LocalWorkflow, Task):
         quantities_map[era] = {}
         quantities_map[era][sample_type] = {}
         # go through all input files and get all quantities maps
-        inputs = self.input()["ntuples"]
-        for sample in inputs:
+        inputs = self.workflow_input()
+        for sample in inputs["ntuples"]:
             if isinstance(
-                self.input()["ntuples"][sample], law.NestedSiblingFileCollection
+                inputs["ntuples"][sample],
+                law.NestedSiblingFileCollection,
             ):
-                inputfiles = self.input()["ntuples"][sample]._flat_target_list
+                inputfiles = inputs["ntuples"][sample]._flat_target_list
                 for inputfile in inputfiles:
                     if inputfile.path.endswith("quantities_map.json"):
                         with inputfile.localize("r") as _file:

@@ -30,9 +30,6 @@ class CROWNFriends(CROWNExecuteBase):
         requirements["friend_tarball"] = CROWNBuildFriend.req(self)
         return requirements
 
-    def requires(self):
-        return {"friend_tarball": CROWNBuildFriend.req(self)}
-
     def create_branch_map(self):
         """
         The function `create_branch_map` creates a dictionary `branch_map` that maps file counters to
@@ -41,7 +38,7 @@ class CROWNFriends(CROWNExecuteBase):
         """
         branch_map = {}
         counter = 0
-        inputs = self.input()["ntuples"]["collection"]
+        inputs = self.workflow_input()["ntuples"]["collection"]
         branches = inputs._flat_target_list
         # get all files from the dataset, including missing ones
         for inputfile in branches:
@@ -87,8 +84,6 @@ class CROWNFriends(CROWNExecuteBase):
                 )
             )
         targets = self.remote_target(nicks)
-        for target in targets:
-            target.parent.touch()
         return targets
 
     def run(self):
@@ -98,6 +93,7 @@ class CROWNFriends(CROWNExecuteBase):
         """
         outputs = self.output()
         output = outputs[0]
+        inputs = self.workflow_input()
         branch_data = self.branch_data
         scope = branch_data["scope"]
         era = branch_data["era"]
@@ -122,10 +118,10 @@ class CROWNFriends(CROWNExecuteBase):
         )
         console.log(
             "Getting CROWN friend_tarball from {}".format(
-                self.input()["friend_tarball"].uri()
+                inputs["friend_tarball"].uri()
             )
         )
-        with self.input()["friend_tarball"].localize("r") as _file:
+        with inputs["friend_tarball"].localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
         tempfile = os.path.join(
@@ -181,7 +177,6 @@ class CROWNFriends(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
-        output.parent.touch()
         local_filename = os.path.join(
             _workdir,
             _outputfile.replace(".root", "_{}.root".format(scope)),
@@ -191,7 +186,6 @@ class CROWNFriends(CROWNExecuteBase):
         console.log("Uploaded {}".format(output.uri()))
         if create_quantities_map and quantities_map_output is not None:
             console.log("Creating quantities_map.json")
-            quantities_map_output.parent.touch()
             inputfile = os.path.join(
                 _workdir,
                 _outputfile.replace(".root", "_{}.root".format(scope)),
