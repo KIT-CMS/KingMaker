@@ -32,15 +32,6 @@ class CROWNRun(CROWNExecuteBase):
                 )
         return requirements
 
-    def requires(self):
-        requirements = {}
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self, era=era, sample_type=sample_type
-                )
-        return requirements
-
     def create_branch_map(self):
         branch_map = {}
         branchcounter = 0
@@ -104,12 +95,11 @@ class CROWNRun(CROWNExecuteBase):
                 for scope in self.scopes
             ]
         targets = self.remote_target(nicks)
-        for target in targets:
-            target.parent.touch()
         return targets
 
     def run(self):
         outputs = self.output()
+        inputs = self.workflow_input()
         rootfile_outputs = [x for x in outputs if x.path.endswith(".root")]
         quantities_map_outputs = [
             x for x in outputs if x.path.endswith("quantities_map.json")
@@ -133,7 +123,7 @@ class CROWNRun(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, branch_data["sample_type"], branch_data["era"]
         )
-        _tarball = self.input()["tarball_{}_{}".format(_sample_type, _era)]
+        _tarball = inputs["tarball_{}_{}".format(_sample_type, _era)]
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
@@ -190,7 +180,6 @@ class CROWNRun(CROWNExecuteBase):
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
         for i, outputfile in enumerate(rootfile_outputs):
-            outputfile.parent.touch()
             local_filename = os.path.join(
                 _workdir,
                 _outputfile.replace(".root", "_{}.root".format(self.scopes[i])),
@@ -213,7 +202,6 @@ class CROWNRun(CROWNExecuteBase):
         # only do it if the branch number is 0
         if self.branch == 0:
             for i, outputfile in enumerate(quantities_map_outputs):
-                outputfile.parent.touch()
                 inputfile = os.path.join(
                     _workdir,
                     _outputfile.replace(".root", "_{}.root".format(self.scopes[i])),

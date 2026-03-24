@@ -46,9 +46,7 @@ class ConfigureDatasets(Task):
 
     def run(self):
         output = self.output()
-        output.parent.touch()
         if not output.exists():
-            output.parent.touch()
             sample_data = self.load_filelist_config()
             if not self.silent:
                 console.log("Sample: {}".format(self.nick))
