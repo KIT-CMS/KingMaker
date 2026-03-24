@@ -84,8 +84,6 @@ class CROWNFriends(CROWNExecuteBase):
                 )
             )
         targets = self.remote_target(nicks)
-        for target in targets:
-            target.parent.touch()
         return targets
 
     def run(self):
@@ -179,7 +177,6 @@ class CROWNFriends(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
-        output.parent.touch()
         local_filename = os.path.join(
             _workdir,
             _outputfile.replace(".root", "_{}.root".format(scope)),
@@ -189,7 +186,6 @@ class CROWNFriends(CROWNExecuteBase):
         console.log("Uploaded {}".format(output.uri()))
         if create_quantities_map and quantities_map_output is not None:
             console.log("Creating quantities_map.json")
-            quantities_map_output.parent.touch()
             inputfile = os.path.join(
                 _workdir,
                 _outputfile.replace(".root", "_{}.root".format(scope)),

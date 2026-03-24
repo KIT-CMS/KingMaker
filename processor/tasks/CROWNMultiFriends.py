@@ -44,9 +44,9 @@ class CROWNMultiFriends(CROWNExecuteBase):
             if inputfile.path.endswith(".root")
         ]
         friend_inputs = [
-            inputs[
-                f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"
-            ]["collection"]
+            inputs[f"CROWNFriends_{self.nick}_{self.friend_mapping[friend]}"][
+                "collection"
+            ]
             for friend in self.friend_mapping  # type: ignore
         ]
         friend_branches = [
@@ -119,8 +119,6 @@ class CROWNMultiFriends(CROWNExecuteBase):
             )
 
         targets = self.remote_target(nicks)
-        for target in targets:
-            target.parent.touch()
         return targets
 
     def run(self):
@@ -217,7 +215,6 @@ class CROWNMultiFriends(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
-        output.parent.touch()
         local_filename = os.path.join(
             _workdir,
             _outputfile.replace(".root", "_{}.root".format(scope)),
@@ -225,7 +222,6 @@ class CROWNMultiFriends(CROWNExecuteBase):
         # for each outputfile, add the scope suffix
         output.copy_from_local(local_filename)
         if create_quantities_map and quantities_map_output is not None:
-            quantities_map_output.parent.touch()
             inputfile = os.path.join(
                 _workdir,
                 _outputfile.replace(".root", "_{}.root".format(scope)),

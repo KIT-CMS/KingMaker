@@ -38,7 +38,6 @@ class FriendQuantitiesMap(law.LocalWorkflow, Task):
                 self.production_tag, self.era, self.sample_type
             )
         )
-        target.parent.touch()
         return target
 
     def run(self):

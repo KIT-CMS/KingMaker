@@ -95,8 +95,6 @@ class CROWNRun(CROWNExecuteBase):
                 for scope in self.scopes
             ]
         targets = self.remote_target(nicks)
-        for target in targets:
-            target.parent.touch()
         return targets
 
     def run(self):
@@ -192,7 +190,6 @@ class CROWNRun(CROWNExecuteBase):
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
         for i, outputfile in enumerate(rootfile_outputs):
-            outputfile.parent.touch()
             local_filename = os.path.join(
                 _workdir,
                 _outputfile.replace(".root", "_{}.root".format(self.scopes[i])),
@@ -218,7 +215,6 @@ class CROWNRun(CROWNExecuteBase):
         # only do it if the branch number is 0
         if self.branch == 0:
             for i, outputfile in enumerate(quantities_map_outputs):
-                outputfile.parent.touch()
                 inputfile = os.path.join(
                     _workdir,
                     _outputfile.replace(".root", "_{}.root".format(self.scopes[i])),
