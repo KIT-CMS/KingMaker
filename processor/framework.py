@@ -73,7 +73,7 @@ class Task(law.Task):
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
     nanoAOD_version = luigi.Parameter(
-        default=NanoAODVersions.v9.value,
+        default=NanoAODVersions.v15.value,
         description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v12' is the default.",
     )
 
