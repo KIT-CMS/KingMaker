@@ -74,7 +74,7 @@ class Task(law.Task):
     )
     nanoAOD_version = luigi.Parameter(
         default=NanoAODVersions.v15.value,
-        description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v12' is the default.",
+        description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v15' is the default.",
     )
 
     # Ensure that branch parameter is processed normally
