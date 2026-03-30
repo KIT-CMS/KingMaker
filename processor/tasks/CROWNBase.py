@@ -152,6 +152,11 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     analysis = luigi.Parameter()
     config = luigi.Parameter()
     files_per_task = luigi.IntParameter()
+    custom_files_per_task = luigi.DictParameter(
+        default={},
+        significant=False,
+        description="Map specific nicks to custom files_per_task",
+    )
 
     def htcondor_output_directory(self):
         return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.nick}"))
