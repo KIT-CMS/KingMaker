@@ -5,6 +5,11 @@ The top-most parent classes are from the `law` library.
 
 
 ```mermaid
+---
+title: KingMaker Class Inheritance
+---
+%% keep a title to enlarge the diagram
+%%{init: {"flowchart": {"titleTopMargin": 400}} }%%
 flowchart TD
   %% LAW Library Base Classes
   LawTask["law.Task"]

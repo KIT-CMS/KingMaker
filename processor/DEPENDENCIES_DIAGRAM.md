@@ -3,17 +3,32 @@
 This diagram shows only the task dependencies (requires/workflow_requires) between Python classes in `processor/`.
 These are the actual execution flow dependencies that determine task ordering.
 
-## Legend
-
-- **⤑** (dashed arrow) = Task dependency via `workflow_requires()`
-- **⟶** (solid arrow) = Task dependency via `requires()`
-- <span style="border: 2px solid #4682B4;white-space: pre;">&numsp;&numsp;&numsp;&numsp;</span> = Workflow task inheriting from `HTCondorWorkflow` (executes on remote cluster)
-- <span style="border: 2px solid #228B22;">&numsp;&numsp;&numsp;&numsp;</span> = Local task (does not inherit from `HTCondorWorkflow`)
-- <span style="border: 2px solid #228B22;background-color:#90EE90">&numsp;&numsp;&numsp;&numsp;</span> = Task which is executed by the user. Spawns workflows but is not a workflow itself (i.e. does not inherit from `HTCondorWorkflow`)
-
-
 ```mermaid
 flowchart BT
+  %% Legend nodes
+  L2["Workflow task inheriting from <code>HTCondorWorkflow</code> (executes on remote cluster)"]
+  L3["Local task (does not inherit from <code>HTCondorWorkflow</code>)"]
+  L1["Task which is executed by the user. Spawns workflows but is not a workflow itself."]
+  L4["────▶ requires()"]
+  L5["· · · ▶ workflow_requires()"]
+
+  %% Legend styling
+  subgraph LEGEND["Legend"]
+    L1
+    L2
+    L3
+    L4
+    L5
+  end
+  style LEGEND stroke:#999,stroke-width:2px,text-decoration: underline
+  style L1 fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000,font-size:14px
+  style L2 stroke:#4682B4,stroke-width:2px,font-size:14px
+  style L3 stroke:#228B22,stroke-width:2px,font-size:14px
+  style L4 fill:none,stroke:none
+  style L5 fill:none,stroke:none
+```
+```mermaid
+flowchart TD
   %% CROWN Ntuple Production Tasks
   ProduceSamples["ProduceSamples"]
   CROWNRun["CROWNRun"]
@@ -90,7 +105,7 @@ flowchart BT
 <summary>Click to expand CROWN Ntuple Production flow details</summary>
 
 ```mermaid
-flowchart BT
+flowchart TD
   %% CROWN Ntuple Production Tasks
   ProduceSamples["ProduceSamples"]
   CROWNRun["CROWNRun"]
@@ -117,6 +132,7 @@ flowchart BT
   style CROWNBuildCombined stroke:#228B22,stroke-width:2px
   style CROWNBuild stroke:#228B22,stroke-width:2px
   style BuildCROWNLib stroke:#228B22,stroke-width:2px
+
 ```
 
 </details>
@@ -128,7 +144,7 @@ flowchart BT
 
 
 ```mermaid
-flowchart BT
+flowchart TD
   %% CROWN Ntuple Production Tasks
   CROWNRun["CROWNRun"]
   ConfigureDatasets["ConfigureDatasets"]
@@ -142,7 +158,8 @@ flowchart BT
   CROWNBuildFriend["CROWNBuildFriend"]
   QuantitiesMap["QuantitiesMap"]
 
-  %% === TASK DEPENDENCIES (requires/workflow_requires) ===
+  %% CROWN Multi-Friend Production dependencies
+  QuantitiesMap -.->|workflow_requires| CROWNRun
 
   %% CROWN Ntuple Production dependencies
   CROWNRun -.->|workflow_requires| ConfigureDatasets
@@ -156,9 +173,6 @@ flowchart BT
   CROWNBuildFriend -->|requires| QuantitiesMap
   CROWNBuildFriend -->|requires| BuildCROWNLib
   ProduceFriends -->|requires| CROWNFriends
-
-  %% CROWN Multi-Friend Production dependencies
-  QuantitiesMap -.->|workflow_requires| CROWNRun
 
   %% Styling for top-level entry points
   style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
