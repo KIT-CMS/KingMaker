@@ -80,7 +80,7 @@ def get_alternate_file_uri(
     expression is used:
 
     ```python
-    re.match(r"^root:\/\/[^\/]\/+(.*)$", file)
+    re.match(r"^root:\\/\\/[^\\/]\\/+(.*)$", file)
     ```
 
     If `file` is not consistent with a XRootD URI or the file is not found on

@@ -222,7 +222,7 @@ action() {
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
-                git submodule update --init --recursive -- CROWN
+                git -C "${BASE_DIR}" submodule update --init --recursive -- CROWN
             fi
             # Add CROWN analysis checkout option using init.sh
             if [ ! -z "${CROWN_ANALYSIS}" ]; then
@@ -238,7 +238,7 @@ action() {
                 )
             fi
             if [ -z "$(ls -A ${BASE_DIR}/sample_database)" ]; then
-                git submodule update --init --recursive -- sample_database
+                git -C "${BASE_DIR}" submodule update --init --recursive -- sample_database
             fi
             # Set the alias
             sample_manager () {
@@ -265,7 +265,7 @@ action() {
 
     # Check is law was set up, and do so if not
     if [ -z "$(ls -A ${BASE_DIR}/law)" ]; then
-        git submodule update --init --recursive -- law
+        git -C "${BASE_DIR}" submodule update --init --recursive -- law
     fi
 
     # Check for voms proxy
