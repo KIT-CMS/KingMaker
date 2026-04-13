@@ -13,7 +13,7 @@ EXECUTABLE_THREADS=${11}
 # setup with analysis clone if needed
 set -o pipefail
 set -e
-source ${CROWNFOLDER}/init.sh ${ANALYSIS}
+source ${ANALYSIS_PATH}/CROWN/init.sh ${ANALYSIS}
 # remove conda prefix from $PATH so cmakes uses the LCG stack python and not the conda one
 if [[ ! -z "${CONDA_PREFIX}" ]]; then
 	PATH=$(echo ${PATH} | sed "s@${CONDA_PREFIX}@@g")
