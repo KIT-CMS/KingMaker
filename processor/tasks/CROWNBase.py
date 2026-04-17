@@ -167,7 +167,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         )
         class_name = self.__class__.__name__
         if "Friend" in class_name:
-             path = os.path.join(
+            path = os.path.join(
                 KINGMAKER_BASE,
                 "data",
                 self.production_tag,
