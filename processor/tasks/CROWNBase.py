@@ -163,7 +163,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             self.production_tag,
             "htcondor_files",
             "ntuples",
-            self.nick
+            self.nick,
         )
         class_name = self.__class__.__name__
         if "Friend" in class_name:
@@ -173,7 +173,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
                 self.production_tag,
                 "htcondor_files",
                 self.friend_name,
-                self.nick
+                self.nick,
             )
         return law.LocalDirectoryTarget(path)
 
