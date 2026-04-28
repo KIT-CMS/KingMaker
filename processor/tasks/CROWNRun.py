@@ -52,9 +52,6 @@ class CROWNRun(CROWNExecuteBase):
         for filecounter, filename in enumerate(inputdata["filelist"]):
             if (int(filecounter / files_per_task)) not in branches:
                 branches[int(filecounter / files_per_task)] = []
-            # This call aims to get a "better" XRootD server to access the file.
-            # If the file is available on GridKA, take it from there.
-            # Otherwise, use the official European or global redirector.
             branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
@@ -107,7 +104,9 @@ class CROWNRun(CROWNExecuteBase):
         _sample_type = branch_data["sample_type"]
         _era = branch_data["era"]
 
-        # Try to get 'better' redirector for input files
+        # This call aims to get a "better" XRootD server to access the file.
+        # If the file is available on GridKA, take it from there.
+        # Otherwise, use the official European or global redirector.
         _inputfiles = [
             get_alternate_file_uri(
                 filename,
