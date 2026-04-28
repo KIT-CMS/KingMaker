@@ -55,14 +55,6 @@ class CROWNRun(CROWNExecuteBase):
             # This call aims to get a "better" XRootD server to access the file.
             # If the file is available on GridKA, take it from there.
             # Otherwise, use the official European or global redirector.
-            filename = get_alternate_file_uri(
-                filename,
-                [
-                    "root://cmsdcache-kit-disk.gridka.de",
-                    "root://xrootd-cms.infn.it",
-                    "root://cms-xrd-global.cern.ch",
-                ],
-            )
             branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
@@ -114,6 +106,20 @@ class CROWNRun(CROWNExecuteBase):
         _inputfiles = branch_data["files"]
         _sample_type = branch_data["sample_type"]
         _era = branch_data["era"]
+
+        # Try to get 'better' redirector for input files
+        _inputfiles = [
+            get_alternate_file_uri(
+                filename,
+                [
+                    "root://cmsdcache-kit-disk.gridka.de",
+                    "root://xrootd-cms.infn.it",
+                    "root://cms-xrd-global.cern.ch",
+                ],
+            )
+            for filename in _inputfiles
+        ]
+
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(
             rootfile_outputs[0].basename.replace(
