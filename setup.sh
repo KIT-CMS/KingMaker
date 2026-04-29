@@ -230,7 +230,7 @@ action() {
                     # Run in subprocess to prevent environment changes
                     if [ -f "${BASE_DIR}/CROWN/init.sh" ]; then
                         echo "Checking out CROWN analysis: ${CROWN_ANALYSIS}"
-                        bash ${BASE_DIR}/init.sh -a "${CROWN_ANALYSIS}" --dry-run
+                        bash ${BASE_DIR}/CROWN/init.sh -a "${CROWN_ANALYSIS}" --dry-run
                     else
                         echo "Error: CROWN init.sh not found at ${BASE_DIR}/CROWN/init.sh"
                         return 1
