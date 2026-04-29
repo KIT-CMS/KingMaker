@@ -6,4 +6,4 @@
 	url = git@github.com:KIT-CMS/KingMaker_sample_database.git
 [submodule "CROWN"]
 	path = CROWN
-	url = https://github.com/KIT-CMS/CROWN.git
+	url = git@github.com:KIT-CMS/CROWN.git
