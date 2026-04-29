@@ -25,13 +25,15 @@ Example for build, tag and push:
 
 ```bash
 docker build --build-arg ENV_FILE_NAME=KingMaker_env.yml -t testing_abc
-docker tag testing_abc kingmakerimages/kingmaker:V0.3
-docker push kingmakerimages/kingmaker:V0.3
+docker tag testing_abc kingmakerimages/kingmaker_standalone:V0.1
+docker push kingmakerimages/kingmaker_standalone:V0.1
 ```
 
 Usage with KingMaker
 
-Container images built this way can be utilized for both local sandboxing and for use in the batch system.
-KingMaker relies on apptainer-style addresses (i.e. ``docker://kingmakerimages/kingmaker:V0.3``)
+Container images built this way can be utilized for both local sandboxing (`sandbox`) and for use in the batch system (`htcondor_container_image`).
+Both can be set in the `*_luigi.cfg` files in the `lawluigi_configs` directory.
+
+KingMaker relies on apptainer-style addresses (i.e. ``kingmakerimages/kingmaker_standalone:V0.1``)
 The built container can also be added to [CERN CVMFS unpacked](https://gitlab.cern.ch/unpacked/sync/) once it is considered stable.
 The default container (``/cvmfs/unpacked.cern.ch/registry.hub.docker.com/tvoigtlaender/kingmaker_standalone:V1.3/``) is one such example.

@@ -7,7 +7,7 @@ KingMaker is the workflow management for producing ntuples with the [CROWN](http
 
 ## 🛠 Infrastructure & Containers
 
-KingMaker can runs within container environments to ensure reproducibility.
+KingMaker can run within container environments to ensure reproducibility.
 
 * **Container Images and Environments**: Dockerfiles and Conda environment specifications are located in the [`/containers`](./containers) directory.
 * **Usage**: For instructions on building custom images or using existing ones from CVMFS, see the [Container Documentation](./containers/README.md).
