@@ -31,9 +31,9 @@ action() {
     fi
 
     echo "Setting up Luigi/Law ..."
-    export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
-    export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_law.cfg"
-    export LUIGI_CONFIG_PATH="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg"
+    export LAW_HOME="${BASE_DIR}/.law/${WF_NAME}"
+    export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${WF_NAME}_law.cfg"
+    export LUIGI_CONFIG_PATH="${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg"
     export ANALYSIS_PATH="${BASE_DIR}"
     export ANALYSIS_DATA_PATH="${ANALYSIS_PATH}/data"
 

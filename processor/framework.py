@@ -380,7 +380,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             print("Unknown domain, default to CERN lxplus settings.")
             domain = "CERN"
 
-        analysis_name = os.getenv("ANA_NAME")
+        workflow_name = os.getenv("WF_NAME")
         task_name = self.__class__.__name__
 
         # Write job config file
@@ -465,8 +465,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "-czf",
                 tarball_local.path,
                 "processor",
-                f"lawluigi_configs/{analysis_name}_luigi.cfg",
-                f"lawluigi_configs/{analysis_name}_law.cfg",
+                f"lawluigi_configs/{workflow_name}_luigi.cfg",
+                f"lawluigi_configs/{workflow_name}_law.cfg",
                 "law",
             ] + list(self.additional_files)
             code, out, error = interruptable_popen(
@@ -489,7 +489,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             tarball.copy_from_local(src=tarball_local.path)
             console.rule("Framework tarball uploaded!")
         config.render_variables["USER"] = self.local_user
-        config.render_variables["ANA_NAME"] = os.getenv("ANA_NAME")
+        config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME
         config.render_variables["TAG"] = self.production_tag
         config.render_variables["NTHREADS"] = self.htcondor_request_cpus
@@ -507,7 +507,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
-        # only needed for $ANA_NAME=ML_train see setup.sh line 207
+        # only needed for $WF_NAME=ML_train see setup.sh line 207
         if os.getenv("MODULE_PYTHONPATH"):
             config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
                 "MODULE_PYTHONPATH"
@@ -542,5 +542,5 @@ class KingmakerSandbox(law.SandboxTask):
 
     # Default sandbox init
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT", "ANA_NAME"
+        "X509_USER_PROXY", "LUIGIPORT", "WF_NAME"
     )

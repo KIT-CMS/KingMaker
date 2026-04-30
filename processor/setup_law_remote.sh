@@ -32,7 +32,7 @@ action() {
     echo "------------------------------------------"
     echo " | USER = ${USER}"
     echo " | HOSTNAME = $(hostname)"
-    echo " | ANA_NAME = {{ANA_NAME}}"
+    echo " | WF_NAME = {{WF_NAME}}"
     echo " | ENV_NAME = {{ENV_NAME}}"
     echo " | TAG = {{TAG}}"
     echo " | XRD_WORKERTHREADS = ${XRD_WORKERTHREADS}"
@@ -67,8 +67,8 @@ action() {
 
     # setup law variables
     export LAW_HOME="${SPAWNPOINT}/.law"
-    export LAW_CONFIG_FILE="${SPAWNPOINT}/lawluigi_configs/{{ANA_NAME}}_law.cfg"
-    export LUIGI_CONFIG_PATH="${SPAWNPOINT}/lawluigi_configs/{{ANA_NAME}}_luigi.cfg"
+    export LAW_CONFIG_FILE="${SPAWNPOINT}/lawluigi_configs/{{WF_NAME}}_law.cfg"
+    export LUIGI_CONFIG_PATH="${SPAWNPOINT}/lawluigi_configs/{{WF_NAME}}_luigi.cfg"
 
     # Variables set by local LAW instance and used by batch job LAW instance
     export LOCAL_TIMESTAMP="{{LOCAL_TIMESTAMP}}"
