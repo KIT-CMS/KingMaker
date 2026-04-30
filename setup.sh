@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-ANA_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example")
+WF_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -26,33 +26,33 @@ _addbin() {
 
 parse_arguments() {
     # Default values
-    DEFAULT_ANALYSIS="KingMaker"
+    DEFAULT_WORKFLOW="KingMaker"
     DEFAULT_ENV_PATH=""
     DEFAULT_CROWN_ANALYSIS=""
-    ANALYSIS=${DEFAULT_ANALYSIS}
+    WORKFLOW=${DEFAULT_WORKFLOW}
     ENV_PATH=${DEFAULT_ENV_PATH}
     CROWN_ANALYSIS=${DEFAULT_CROWN_ANALYSIS}
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -a|--analysis)
-                ANALYSIS="$2"
+            -w|--workflow)
+                WORKFLOW="$2"
                 shift 2
                 ;;
             -e|--env-path)
                 ENV_PATH="$2"
                 shift 2
                 ;;
-            -c|--crown-analysis)
+            -a|--analysis)
                 CROWN_ANALYSIS="$2"
                 shift 2
                 ;;
             -l|--list)
                 echo "Available workflows:"
                 echo "-------------------"
-                for workflow in "${ANA_LIST[@]}"; do
-                    if [[ "${workflow}" == "${DEFAULT_ANALYSIS}" ]]; then
+                for workflow in "${WF_LIST[@]}"; do
+                    if [[ "${workflow}" == "${DEFAULT_WORKFLOW}" ]]; then
                         echo "* ${workflow} (default)"
                     else
                         echo "* ${workflow}"
@@ -64,11 +64,11 @@ parse_arguments() {
                 echo "Usage: source setup.sh [options]"
                 echo ""
                 echo "Options:"
-                echo "  -a, --analysis ANALYSIS    Specify the analysis workflow to use"
-                echo "                            [default: ${DEFAULT_ANALYSIS}]"
+                echo "  -w, --workflow WORKFLOW   Specify the workflow to use"
+                echo "                            [default: ${DEFAULT_WORKFLOW}]"
                 echo "  -e, --env-path PATH       Specify custom environment path"
                 echo "                            [default: auto-detected]"
-                echo "  -c, --crown-analysis NAME  Specify CROWN analysis to check out"
+                echo "  -a, --analysis NAME       Specify CROWN analysis to check out"
                 echo "                            (only with KingMaker workflow)"
                 echo "                            Available: https://crown.readthedocs.io/en/latest/introduction.html#id1"
                 echo "  -l, --list                List available workflows"
@@ -90,7 +90,7 @@ parse_arguments() {
     done
 
     # Export for use in main script
-    export PARSED_ANALYSIS="${ANALYSIS}"
+    export PARSED_WORKFLOW="${WORKFLOW}"
     export PARSED_ENV_PATH="${ENV_PATH}"
     export CROWN_ANALYSIS="${CROWN_ANALYSIS}"
 }
@@ -120,19 +120,19 @@ action() {
     BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
 
     # Handle analysis selection
-    if [[ -z "${PARSED_ANALYSIS}" ]]; then
+    if [[ -z "${PARSED_WORKFLOW}" ]]; then
         echo "No workflow chosen. Please choose from:"
-        printf '%s\n' "${ANA_LIST[@]}"
+        printf '%s\n' "${WF_LIST[@]}"
         return 1
     else
         # Check if given workflow is in list
-        if [[ ! " ${ANA_LIST[*]} " =~ " ${PARSED_ANALYSIS} " ]] ; then
+        if [[ ! " ${WF_LIST[*]} " =~ " ${PARSED_WORKFLOW} " ]] ; then
             echo "Not a valid name. Allowed choices are:"
-            printf '%s\n' "${ANA_LIST[@]}"
+            printf '%s\n' "${WF_LIST[@]}"
             return 1
         else
-            echo "Using ${PARSED_ANALYSIS} workflow."
-            export ANA_NAME="${PARSED_ANALYSIS}"
+            echo "Using ${PARSED_WORKFLOW} workflow."
+            export WF_NAME="${PARSED_WORKFLOW}"
         fi
     fi
 
@@ -140,7 +140,7 @@ action() {
     export USER_FIRST_LETTER=${USER:0:1}
 
     # Parse the necessary environments from the luigi config files.
-    PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "ENV_NAME")
+    PARSED_ENVS=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "ENV_NAME")
     PARSED_ENVS_STATUS=$?
     if [[ "${PARSED_ENVS_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${PARSED_ENVS}"
@@ -201,7 +201,7 @@ action() {
 
     # Check if correct miniforge env is running
     if [ -d "${ENV_PATH}/miniforge/envs/${STARTING_ENV}" ]; then
-        echo  "${STARTING_ENV} env found using miniforge."
+        echo "${STARTING_ENV} env found using miniforge."
     else
         # Create miniforge env from yaml file if necessary
         echo "Creating ${STARTING_ENV} env from containers/${STARTING_ENV}_env.yml..."
@@ -210,14 +210,14 @@ action() {
             return 1
         fi
         conda env create -f ${BASE_DIR}/containers/${STARTING_ENV}_env.yml -n ${STARTING_ENV}
-        echo  "${STARTING_ENV} env built using miniforge."
+        echo "${STARTING_ENV} env built using miniforge."
     fi
     echo "Activating starting-env ${STARTING_ENV} from miniforge."
     conda activate ${STARTING_ENV}
 
     # Set up other dependencies based on workflow
     ############################################
-    case ${ANA_NAME} in
+    case ${WF_NAME} in
         KingMaker|KingMaker_lxplus)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
@@ -280,7 +280,7 @@ action() {
     fi
 
     # Parse the necessary environments from the luigi config files.
-    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg "local_scheduler")
+    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "local_scheduler")
     LOCAL_SCHEDULER_STATUS=$?
     if [[ "${LOCAL_SCHEDULER_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${LOCAL_SCHEDULER}"
@@ -327,9 +327,9 @@ action() {
     fi
 
     echo "Setting up Luigi/Law ..."
-    export LAW_HOME="${BASE_DIR}/.law/${ANA_NAME}"
-    export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_law.cfg"
-    export LUIGI_CONFIG_PATH="${BASE_DIR}/lawluigi_configs/${ANA_NAME}_luigi.cfg"
+    export LAW_HOME="${BASE_DIR}/.law/${WF_NAME}"
+    export LAW_CONFIG_FILE="${BASE_DIR}/lawluigi_configs/${WF_NAME}_law.cfg"
+    export LUIGI_CONFIG_PATH="${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg"
     export ANALYSIS_PATH="${BASE_DIR}"
     export ANALYSIS_DATA_PATH="${ANALYSIS_PATH}/data"
 
