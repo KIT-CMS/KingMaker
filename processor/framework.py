@@ -507,11 +507,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
-        # only needed for $WF_NAME=ML_train see setup.sh line 207
-        if os.getenv("MODULE_PYTHONPATH"):
-            config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
-                "MODULE_PYTHONPATH"
-            )
         return config
 
 
