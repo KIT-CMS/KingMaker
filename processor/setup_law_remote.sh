@@ -22,7 +22,6 @@ action() {
     # if no XRD_LOGLEVEL set: no xrootd debug output written
     # set export XRD_LOGLEVEL=Debug for xrootd debug output
     export XRD_LOGLEVEL=""
-    export TRACE_XRD_STAT="{{TRACE_XRD_STAT}}"
     if [[ -n "${XRD_LOGLEVEL}" ]]; then
         export XRD_LOGFILE=${SPAWNPOINT}/xrd_error_log.log
         echo "XRD_LOGLEVEL variable set to ${XRD_LOGLEVEL}: XRD_LOGFILE will be stored at ${XRD_LOGFILE}"
