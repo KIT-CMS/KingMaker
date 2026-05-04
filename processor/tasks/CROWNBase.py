@@ -16,6 +16,9 @@ from helpers.helpers import convert_to_comma_seperated
 import hashlib
 import time
 
+# Determine KingMaker base directory dynamically from this file's location
+KINGMAKER_BASE = os.path.normpath(os.path.join(os.path.dirname(__file__), "../.."))
+
 
 class ProduceBase(Task, WrapperTask):
     """
@@ -159,7 +162,25 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     files_per_task = luigi.IntParameter()
 
     def htcondor_output_directory(self):
-        return law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.nick}"))
+        path = os.path.join(
+            KINGMAKER_BASE,
+            "data",
+            self.production_tag,
+            "htcondor_files",
+            "ntuples",
+            self.nick,
+        )
+        class_name = self.__class__.__name__
+        if "Friend" in class_name:
+            path = os.path.join(
+                KINGMAKER_BASE,
+                "data",
+                self.production_tag,
+                "htcondor_files",
+                self.friend_name,
+                self.nick,
+            )
+        return law.LocalDirectoryTarget(path)
 
     def htcondor_job_config(self, config, job_num, branches):
         class_name = self.__class__.__name__

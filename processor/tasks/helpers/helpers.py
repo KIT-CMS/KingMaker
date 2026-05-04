@@ -1,8 +1,30 @@
 from functools import cache
 import os
 import re
+import traceback
+import logging
+from law.logger import get_logger
 from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
+
+
+# Get law loggers for this module
+logger = get_logger("xrootd.stat")
+
+
+# Patch FileSystem.stat to trace all XRootD stat calls with their call site.
+# Only active when TRACE_XRD_STAT=1 is set at call time.
+_original_fs_stat = FileSystem.stat
+
+
+def _traced_fs_stat(self, path, *args, **kwargs):
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"[XRootD STAT] {self.url}{path}")
+        logger.debug("".join(traceback.format_stack(limit=6)))
+    return _original_fs_stat(self, path, *args, **kwargs)
+
+
+FileSystem.stat = _traced_fs_stat
 
 
 def convert_to_comma_seperated(listobject):
@@ -98,10 +120,10 @@ def get_alternate_file_uri(
     # Check whether the file fulfills the pattern of a usual XRootD file path.
     # If not, just return the file without modifying the path. Otherwise,
     # extract the file path without the server address.
-    m = re.match(r"^(root://[^/]+)/+(.+)$", file)
+    m = re.match(r"^((root|davs)://[^/]+)/+(.+)$", file)
     if m is None:
         return file
-    path = f"/{m.group(2).rstrip('/')}"
+    path = f"/{m.group(3).rstrip('/')}"
 
     # Cycle through the given XRootD servers and check if the file exists
     # there. Return the first one that is found. If no file is found on the
