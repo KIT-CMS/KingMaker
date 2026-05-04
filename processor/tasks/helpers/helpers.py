@@ -9,11 +9,13 @@ from XRootD.client.flags import StatInfoFlags
 # Only active when XRD_LOGLEVEL=Debug is set at call time.
 _original_fs_stat = FileSystem.stat
 
+
 def _traced_fs_stat(self, path, *args, **kwargs):
     if os.environ.get("XRD_LOGLEVEL", "").lower() == "debug":
         print(f"[XRootD STAT] {self.url}{path}", flush=True)
         traceback.print_stack(limit=6)
     return _original_fs_stat(self, path, *args, **kwargs)
+
 
 FileSystem.stat = _traced_fs_stat
 
