@@ -10,6 +10,9 @@ from XRootD.client.flags import StatInfoFlags
 
 # Get law loggers for this module
 logger_xrootd = get_logger("xrootd")
+logger_helpers = get_logger("processor.helpers.helpers")
+
+
 # Patch FileSystem.stat to trace all XRootD stat calls with their call site.
 # Only active when TRACE_XRD_STAT=1 is set at call time.
 _original_fs_stat = FileSystem.stat
@@ -114,11 +117,12 @@ def get_alternate_file_uri(
 
     :returns: The final file name.
     """
+    logger_helpers.debug(f"find alternative location for file {file}, test servers {xrootd_servers}")
 
     # Check whether the file fulfills the pattern of a usual XRootD file path.
     # If not, just return the file without modifying the path. Otherwise,
     # extract the file path without the server address.
-    m = re.match(r"^(root://[^/]+)/+(.+)$", file)
+    m = re.match(r"^((root|davs)://[^/]+)/+(.+)$", file)
     if m is None:
         return file
     path = f"/{m.group(2).rstrip('/')}"
