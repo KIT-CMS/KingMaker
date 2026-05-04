@@ -9,8 +9,7 @@ from XRootD.client.flags import StatInfoFlags
 
 
 # Get law loggers for this module
-logger_xrootd = get_logger("xrootd")
-logger_helpers = get_logger("processor.helpers.helpers")
+logger = get_logger("xrootd.stat")
 
 
 # Patch FileSystem.stat to trace all XRootD stat calls with their call site.
@@ -19,9 +18,9 @@ _original_fs_stat = FileSystem.stat
 
 
 def _traced_fs_stat(self, path, *args, **kwargs):
-    if logger_xrootd.isEnabledFor(logging.DEBUG):
-        logger_xrootd.debug(f"[XRootD STAT] {self.url}{path}")
-        logger_xrootd.debug("".join(traceback.format_stack(limit=6)))
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"[XRootD STAT] {self.url}{path}")
+        logger.debug("".join(traceback.format_stack(limit=6)))
     return _original_fs_stat(self, path, *args, **kwargs)
 
 
@@ -117,9 +116,6 @@ def get_alternate_file_uri(
 
     :returns: The final file name.
     """
-    logger_helpers.debug(
-        f"find alternative location for file {file}, test servers {xrootd_servers}"
-    )
 
     # Check whether the file fulfills the pattern of a usual XRootD file path.
     # If not, just return the file without modifying the path. Otherwise,
@@ -127,7 +123,7 @@ def get_alternate_file_uri(
     m = re.match(r"^((root|davs)://[^/]+)/+(.+)$", file)
     if m is None:
         return file
-    path = f"/{m.group(2).rstrip('/')}"
+    path = f"/{m.group(3).rstrip('/')}"
 
     # Cycle through the given XRootD servers and check if the file exists
     # there. Return the first one that is found. If no file is found on the
