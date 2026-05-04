@@ -37,7 +37,8 @@ class CROWNRun(CROWNExecuteBase):
         branchcounter = 0
         dataset = ConfigureDatasets.req(self)
         # since we use the filelist from the dataset, we need to run it first
-        dataset.run()
+        if not dataset.complete():
+            dataset.run()
         datsetinfo = dataset.output()
         with datsetinfo.localize("r") as _file:
             inputdata = _file.load()

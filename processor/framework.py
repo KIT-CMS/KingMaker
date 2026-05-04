@@ -327,11 +327,16 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         default="source /opt/conda/bin/activate env",
         significant=False,
     )
+    force_repack_tarball = luigi.BoolParameter(
+        default=False,
+        description="Force repacking and re-uploading of the job tarball, even if it already exists remotely. Use this after updating task code without removing task outputs.",
+        significant=False,
+    )
 
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
     htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
 
-    # Do not propagate certain parameters via the ".req()" methode
+    # Do not propagate certain parameters via the ".req()" method
     exclude_set = {
         "ENV_NAME",
         "htcondor_requirements",
@@ -344,6 +349,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_universe",
         "htcondor_docker_image",
         "additional_files",
+        "force_repack_tarball",
         "workflow",
     }
     exclude_params_req = (
@@ -508,7 +514,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     "processor.tar.gz",
                 )
             )
-        if not tarball.exists():
+        if not tarball.exists() or self.force_repack_tarball:
             # Make new tarball
             # get absolute path to tarball dir
             tarball_dir = os.path.abspath(f"tarballs/{self.production_tag}")
@@ -524,7 +530,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
             tarball_local.parent.touch()
             # Create tarball containing:
-            #   The processor directory, thhe relevant config files, law
+            #   The processor directory, the relevant config files, law
             #   and any other files specified in the additional_files parameter
             command = [
                 "tar",
