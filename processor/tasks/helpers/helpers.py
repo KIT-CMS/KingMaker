@@ -117,7 +117,9 @@ def get_alternate_file_uri(
 
     :returns: The final file name.
     """
-    logger_helpers.debug(f"find alternative location for file {file}, test servers {xrootd_servers}")
+    logger_helpers.debug(
+        f"find alternative location for file {file}, test servers {xrootd_servers}"
+    )
 
     # Check whether the file fulfills the pattern of a usual XRootD file path.
     # If not, just return the file without modifying the path. Otherwise,
