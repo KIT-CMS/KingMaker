@@ -332,6 +332,11 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         description="Force repacking and re-uploading of the job tarball, even if it already exists remotely. Use this after updating task code without removing task outputs.",
         significant=False,
     )
+    trace_xrd_stat = luigi.BoolParameter(
+        default=False,
+        description="Enable tracing of XRootD stat calls with their call site. Sets TRACE_XRD_STAT=1 in remote jobs.",
+        significant=False,
+    )
 
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
     htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
@@ -350,6 +355,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_docker_image",
         "additional_files",
         "force_repack_tarball",
+        "trace_xrd_stat",
         "workflow",
     }
     exclude_params_req = (
@@ -583,6 +589,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
+        config.render_variables["TRACE_XRD_STAT"] = "1" if self.trace_xrd_stat else ""
         # only needed for $ANA_NAME=ML_train see setup.sh line 207
         if os.getenv("MODULE_PYTHONPATH"):
             config.render_variables["MODULE_PYTHONPATH"] = os.getenv(

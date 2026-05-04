@@ -6,12 +6,12 @@ from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
 
 # Patch FileSystem.stat to trace all XRootD stat calls with their call site.
-# Only active when XRD_LOGLEVEL=Debug is set at call time.
+# Only active when TRACE_XRD_STAT=1 is set at call time.
 _original_fs_stat = FileSystem.stat
 
 
 def _traced_fs_stat(self, path, *args, **kwargs):
-    if os.environ.get("XRD_LOGLEVEL", "").lower() == "debug":
+    if os.environ.get("TRACE_XRD_STAT") == "1":
         print(f"[XRootD STAT] {self.url}{path}", flush=True)
         traceback.print_stack(limit=6)
     return _original_fs_stat(self, path, *args, **kwargs)
