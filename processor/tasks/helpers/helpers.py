@@ -2,18 +2,23 @@ from functools import cache
 import os
 import re
 import traceback
+import logging
+from law.logger import get_logger
 from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
 
+
+# Get law loggers for this module
+logger_xrootd = get_logger("xrootd")
 # Patch FileSystem.stat to trace all XRootD stat calls with their call site.
 # Only active when TRACE_XRD_STAT=1 is set at call time.
 _original_fs_stat = FileSystem.stat
 
 
 def _traced_fs_stat(self, path, *args, **kwargs):
-    if os.environ.get("TRACE_XRD_STAT") == "1":
-        print(f"[XRootD STAT] {self.url}{path}", flush=True)
-        traceback.print_stack(limit=6)
+    if logger_xrootd.isEnabledFor(logging.DEBUG):
+        logger_xrootd.debug(f"[XRootD STAT] {self.url}{path}")
+        logger_xrootd.debug("".join(traceback.format_stack(limit=6)))
     return _original_fs_stat(self, path, *args, **kwargs)
 
 
