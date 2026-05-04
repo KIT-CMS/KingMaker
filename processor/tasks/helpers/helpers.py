@@ -7,7 +7,6 @@ from law.logger import get_logger
 from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
 
-
 # Get law loggers for this module
 logger = get_logger("xrootd.stat")
 
