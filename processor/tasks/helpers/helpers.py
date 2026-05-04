@@ -7,7 +7,6 @@ from law.logger import get_logger
 from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
 
-
 # Get law loggers for this module
 logger = get_logger("xrootd.stat")
 
@@ -102,7 +101,7 @@ def get_alternate_file_uri(
     expression is used:
 
     ```python
-    re.match(r"^root:\/\/[^\/]\/+(.*)$", file)
+    re.match(r"^root:\\/\\/[^\\/]\\/+(.*)$", file)
     ```
 
     If `file` is not consistent with a XRootD URI or the file is not found on

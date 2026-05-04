@@ -139,8 +139,6 @@ class CROWNFriends(CROWNExecuteBase):
             tar = tarfile.open(_tarballpath, "r:gz")
             tar.extractall(_workdir)
             os.remove(tempfile)
-        # set environment using env script
-        my_env = self.set_environment("{}/init.sh".format(_workdir))
         _crown_args = [_outputfile] + [_inputfile]
         _executable = "./{}_{}_{}_{}".format(
             self.friend_config, sample_type, era, scope
@@ -157,7 +155,6 @@ class CROWNFriends(CROWNExecuteBase):
             stderr=subprocess.PIPE,
             bufsize=1,
             universal_newlines=True,
-            env=my_env,
             cwd=_workdir,
         ) as p:
             for line in p.stdout:
@@ -204,9 +201,7 @@ class CROWNFriends(CROWNExecuteBase):
                     "--scope {}".format(scope),
                     "--sample_type {}".format(self.branch_data["sample_type"]),
                     "--output {}".format(local_outputfile),
-                ],
-                sourcescript=[
-                    "{}/init.sh".format(_workdir),
+                    "--libdir {}".format(os.path.join(_workdir, "lib")),
                 ],
                 silent=True,
             )
