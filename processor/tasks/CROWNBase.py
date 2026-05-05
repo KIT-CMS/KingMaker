@@ -160,6 +160,11 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     analysis = luigi.Parameter()
     config = luigi.Parameter()
     files_per_task = luigi.IntParameter()
+    custom_files_per_task = luigi.DictParameter(
+        default={},
+        significant=False,
+        description="Map specific sample_types to custom files_per_task",
+    )
 
     def htcondor_output_directory(self):
         path = os.path.join(

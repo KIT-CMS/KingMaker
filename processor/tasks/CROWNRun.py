@@ -46,6 +46,9 @@ class CROWNRun(CROWNExecuteBase):
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
         files_per_task = self.files_per_task
+        custom_fpt = self.custom_files_per_task.get(self.sample_type)
+        if custom_fpt is not None:
+            files_per_task = int(custom_fpt)
         if self.sample_type == "data" and any(
             era in self.nick for era in self.problematic_eras
         ):
