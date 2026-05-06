@@ -125,6 +125,12 @@ class Task(law.Task):
 
         return law.LocalFileTarget(self.local_path(path))
 
+    def local_dir_target(self, path):
+        if isinstance(path, (list, tuple)):
+            return [law.LocalDirectoryTarget(self.local_path(p)) for p in path]
+
+        return law.LocalDirectoryTarget(self.local_path(path))
+
     def temporarylocal_target(self, *path):
         return law.LocalFileTarget(self.temporary_local_path(*path))
 
