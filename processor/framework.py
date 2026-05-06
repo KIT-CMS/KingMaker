@@ -10,6 +10,7 @@ from rich.console import Console
 from datetime import datetime
 from tempfile import mkdtemp
 from getpass import getuser
+from caching import CachedNestedSiblingFileCollection, CachedSiblingFileCollection, CachedWLCGFileTarget
 
 try:
     from luigi.parameter import UnconsumedParameterWarning
@@ -83,7 +84,11 @@ class Task(law.Task):
     prefer_params_cli = law.Task.prefer_params_cli | {"production_tag"}
 
     # Set default for all inheriting Tasks
-    output_collection_cls = law.NestedSiblingFileCollection
+    output_collection_cls = CachedNestedSiblingFileCollection
+
+    def KingMaker_path(self, *path):
+        parts = (os.getenv("ANALYSIS_PATH"),) + path
+        return os.path.join(*parts)
 
     # Path of local targets.
     #   Composed from the analysis path set during the setup.sh
@@ -126,14 +131,17 @@ class Task(law.Task):
         parts = (self.production_tag,) + (self.__class__.__name__,) + path
         return os.path.join(*parts)
 
+    def get_remote_path(self, target):
+        return target.fs.uri(target.path)
+
     def remote_target(self, path):
         if self.is_local_output:
             return self.local_target(path)
 
         if isinstance(path, (list, tuple)):
-            return [law.wlcg.WLCGFileTarget(self.remote_path(p)) for p in path]
+            return [CachedWLCGFileTarget(self.remote_path(p)) for p in path]
 
-        return law.wlcg.WLCGFileTarget(self.remote_path(path))
+        return CachedWLCGFileTarget(self.remote_path(path))
 
     def convert_env_to_dict(self, env):
         my_env = {}
@@ -380,7 +388,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             print("Unknown domain, default to CERN lxplus settings.")
             domain = "CERN"
 
-        workflow_name = os.getenv("WF_NAME")
+        analysis_name = os.getenv("ANA_NAME")
         task_name = self.__class__.__name__
 
         # Write job config file
@@ -430,7 +438,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 ),
             )
         else:
-            tarball = law.wlcg.WLCGFileTarget(
+            tarball = CachedWLCGFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,
@@ -465,8 +473,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 "-czf",
                 tarball_local.path,
                 "processor",
-                f"lawluigi_configs/{workflow_name}_luigi.cfg",
-                f"lawluigi_configs/{workflow_name}_law.cfg",
+                f"lawluigi_configs/{analysis_name}_luigi.cfg",
+                f"lawluigi_configs/{analysis_name}_law.cfg",
                 "law",
             ] + list(self.additional_files)
             code, out, error = interruptable_popen(
@@ -489,7 +497,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             tarball.copy_from_local(src=tarball_local.path)
             console.rule("Framework tarball uploaded!")
         config.render_variables["USER"] = self.local_user
-        config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
+        config.render_variables["ANA_NAME"] = os.getenv("ANA_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME
         config.render_variables["TAG"] = self.production_tag
         config.render_variables["NTHREADS"] = self.htcondor_request_cpus
@@ -507,6 +515,11 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
+        # only needed for $ANA_NAME=ML_train see setup.sh line 207
+        if os.getenv("MODULE_PYTHONPATH"):
+            config.render_variables["MODULE_PYTHONPATH"] = os.getenv(
+                "MODULE_PYTHONPATH"
+            )
         return config
 
 
@@ -537,5 +550,5 @@ class KingmakerSandbox(law.SandboxTask):
 
     # Default sandbox init
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT", "WF_NAME"
+        "X509_USER_PROXY", "LUIGIPORT", "ANA_NAME"
     )
