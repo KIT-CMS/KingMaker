@@ -37,7 +37,8 @@ class CROWNRun(CROWNExecuteBase):
         branchcounter = 0
         dataset = ConfigureDatasets.req(self)
         # since we use the filelist from the dataset, we need to run it first
-        dataset.run()
+        if not dataset.complete():
+            dataset.run()
         datsetinfo = dataset.output()
         with datsetinfo.localize("r") as _file:
             inputdata = _file.load()
@@ -45,6 +46,9 @@ class CROWNRun(CROWNExecuteBase):
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
         files_per_task = self.files_per_task
+        custom_fpt = self.custom_files_per_task.get(self.sample_type)
+        if custom_fpt is not None:
+            files_per_task = int(custom_fpt)
         if self.sample_type == "data" and any(
             era in self.nick for era in self.problematic_eras
         ):
@@ -52,17 +56,6 @@ class CROWNRun(CROWNExecuteBase):
         for filecounter, filename in enumerate(inputdata["filelist"]):
             if (int(filecounter / files_per_task)) not in branches:
                 branches[int(filecounter / files_per_task)] = []
-            # This call aims to get a "better" XRootD server to access the file.
-            # If the file is available on GridKA, take it from there.
-            # Otherwise, use the official European or global redirector.
-            filename = get_alternate_file_uri(
-                filename,
-                [
-                    "root://cmsdcache-kit-disk.gridka.de",
-                    "root://xrootd-cms.infn.it",
-                    "root://cms-xrd-global.cern.ch",
-                ],
-            )
             branches[int(filecounter / files_per_task)].append(filename)
         for x in branches:
             branch_map[branchcounter] = {}
@@ -114,6 +107,22 @@ class CROWNRun(CROWNExecuteBase):
         _inputfiles = branch_data["files"]
         _sample_type = branch_data["sample_type"]
         _era = branch_data["era"]
+
+        # This call aims to get a "better" XRootD server to access the file.
+        # If the file is available on GridKA, take it from there.
+        # Otherwise, use the official European or global redirector.
+        _inputfiles = [
+            get_alternate_file_uri(
+                filename,
+                [
+                    "root://cmsdcache-kit-disk.gridka.de",
+                    "root://xrootd-cms.infn.it",
+                    "root://cms-xrd-global.cern.ch",
+                ],
+            )
+            for filename in _inputfiles
+        ]
+
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(
             rootfile_outputs[0].basename.replace(

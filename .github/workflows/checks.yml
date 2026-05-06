@@ -12,7 +12,7 @@ jobs:
   code_formatting:
     runs-on: ubuntu-24.04
     container:
-      image: tvoigtlaender/kingmaker_standalone:V1.5
+      image: kingmakerimages/kingmaker_standalone:V1
       options: --user 0
     steps:
       - name: Clone project

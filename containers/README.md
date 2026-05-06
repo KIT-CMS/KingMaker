@@ -36,4 +36,4 @@ Both can be set in the `*_luigi.cfg` files in the `lawluigi_configs` directory.
 
 KingMaker relies on apptainer-style addresses (i.e. ``kingmakerimages/kingmaker_standalone:V0.1``)
 The built container can also be added to [CERN CVMFS unpacked](https://gitlab.cern.ch/unpacked/sync/) once it is considered stable.
-The default container (``/cvmfs/unpacked.cern.ch/registry.hub.docker.com/tvoigtlaender/kingmaker_standalone:V1.5/``) is one such example.
+The default container (``/cvmfs/unpacked.cern.ch/registry.hub.docker.com/kingmakerimages/kingmaker_standalone:V1/``) is one such example.
