@@ -165,9 +165,13 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     def htcondor_output_directory(self):
         if "Friend" in self.__class__.__name__:
-            target = law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}"))
+            target = law.LocalDirectoryTarget(
+                self.local_path(f"htcondor_files/{self.friend_name}/{self.nick}")
+            )
         else:
-            target = law.LocalDirectoryTarget(self.local_path(f"htcondor_files/{self.nick}"))
+            target = law.LocalDirectoryTarget(
+                self.local_path(f"htcondor_files/{self.nick}")
+            )
         return target
 
     def htcondor_job_config(self, config, job_num, branches):

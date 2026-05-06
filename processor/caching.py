@@ -40,7 +40,7 @@ def _save_json_atomic(path, data):
 
 def _update_json_cache_locked(cache_path, key, value_dict):
     lock_path = cache_path + ".lock"
-    
+
     # Use 'a' (append) to avoid truncating if another process is reading
     with open(lock_path, "a") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
@@ -92,11 +92,15 @@ def cached_listdir(fs, path, ttl=3600):
     # expensive call outside lock
     files = fs.listdir(path)
 
-    _DIR_CACHE = _update_json_cache_locked(DIR_CACHE_PATH, key, {
-        "ts": time.time(),
-        "files": files,
-    })
-    
+    _DIR_CACHE = _update_json_cache_locked(
+        DIR_CACHE_PATH,
+        key,
+        {
+            "ts": time.time(),
+            "files": files,
+        },
+    )
+
     try:
         _DIR_CACHE_MTIME = os.path.getmtime(DIR_CACHE_PATH)
     except OSError:
@@ -133,13 +137,16 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
 
         if exists:
             global _TARGET_CACHE, _TARGET_CACHE_MTIME
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
             try:
                 _TARGET_CACHE_MTIME = os.path.getmtime(CACHE_PATH)
             except OSError:
                 pass
 
         return exists
+
 
 class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
     cache_ttl = 3600
@@ -158,23 +165,34 @@ class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
         exists = super().exists()
         if exists:
             global _TARGET_CACHE
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
         return exists
+
 
 class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
 
     cache_ttl = 3600
 
-    def _iter_state(self, existing=True, optional_existing=no_value, basenames=None, keys=False, unpack=True, exists_func=None):
+    def _iter_state(
+        self,
+        existing=True,
+        optional_existing=no_value,
+        basenames=None,
+        keys=False,
+        unpack=True,
+        exists_func=None,
+    ):
         if basenames is None:
             dir_exists = False
             dir_key = self.dir.uri() if hasattr(self.dir, "uri") else str(self.dir.path)
-            
+
             # 1. Check the cache first
             with CACHE_LOCK:
                 _ensure_target_cache_loaded()
                 dir_exists = cache_get_exists(dir_key, self.cache_ttl)
-            
+
             # 2. Only if the cache is empty/expired, do we hit the grid
             if not dir_exists:
                 dir_exists = self.dir.exists()
@@ -188,7 +206,14 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
             else:
                 basenames = []
 
-        return super()._iter_state(existing=existing, optional_existing=optional_existing, basenames=basenames, keys=keys, unpack=unpack, exists_func=exists_func)
+        return super()._iter_state(
+            existing=existing,
+            optional_existing=optional_existing,
+            basenames=basenames,
+            keys=keys,
+            unpack=unpack,
+            exists_func=exists_func,
+        )
 
     def _exists_in_basenames(self, target, basenames, optional_existing, target_dirs):
         key = target.uri() if hasattr(target, "uri") else str(target.path)
@@ -203,7 +228,9 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
 
         if exists:
             global _TARGET_CACHE, _TARGET_CACHE_MTIME
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
             try:
                 _TARGET_CACHE_MTIME = os.path.getmtime(CACHE_PATH)
             except OSError:
@@ -212,43 +239,63 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
         return exists
 
 
-class CachedNestedSiblingFileCollection(law.target.collection.NestedSiblingFileCollection):
+class CachedNestedSiblingFileCollection(
+    law.target.collection.NestedSiblingFileCollection
+):
 
     cache_ttl = 3600
 
-    def _iter_state(self, existing=True, optional_existing=no_value, basenames=None, keys=False, unpack=True, exists_func=None):
+    def _iter_state(
+        self,
+        existing=True,
+        optional_existing=no_value,
+        basenames=None,
+        keys=False,
+        unpack=True,
+        exists_func=None,
+    ):
         if basenames is None:
             from law.util import flatten
-            
+
             # 1. Safely collect all unique parent directory targets
             all_targets = flatten(self.targets.values())
             unique_dirs = {t.parent for t in all_targets if hasattr(t, "parent")}
-            
+
             basenames = {}
             for d in unique_dirs:
                 dir_key = d.uri() if hasattr(d, "uri") else str(d.path)
-                
+
                 # 2. Check the JSON existence cache
                 with CACHE_LOCK:
                     _ensure_target_cache_loaded()
                     dir_exists = cache_get_exists(dir_key, self.cache_ttl)
-                
+
                 # 3. Grid fallback if not in cache
                 if not dir_exists:
                     dir_exists = d.exists()
                     if dir_exists:
-                        _update_json_cache_locked(CACHE_PATH, dir_key, {"ts": time.time()})
+                        _update_json_cache_locked(
+                            CACHE_PATH, dir_key, {"ts": time.time()}
+                        )
 
                 # 4. Populate basenames for this directory
                 if dir_exists:
                     # Use your cached_listdir to avoid kXR_dirlist
-                    basenames[dir_key] = set(cached_listdir(d.fs, d.path, self.cache_ttl))
+                    basenames[dir_key] = set(
+                        cached_listdir(d.fs, d.path, self.cache_ttl)
+                    )
                 else:
                     basenames[dir_key] = set()
 
         # Pass the populated basenames mapping to the parent class logic
-        return super()._iter_state(existing=existing, optional_existing=optional_existing, 
-                                basenames=basenames, keys=keys, unpack=unpack, exists_func=exists_func)
+        return super()._iter_state(
+            existing=existing,
+            optional_existing=optional_existing,
+            basenames=basenames,
+            keys=keys,
+            unpack=unpack,
+            exists_func=exists_func,
+        )
 
     def _exists_in_basenames(self, target, basenames, optional_existing, target_dirs):
         key = target.uri() if hasattr(target, "uri") else str(target.path)
@@ -266,7 +313,9 @@ class CachedNestedSiblingFileCollection(law.target.collection.NestedSiblingFileC
 
         if exists:
             global _TARGET_CACHE, _TARGET_CACHE_MTIME
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
             try:
                 _TARGET_CACHE_MTIME = os.path.getmtime(CACHE_PATH)
             except OSError:

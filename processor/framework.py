@@ -10,7 +10,11 @@ from rich.console import Console
 from datetime import datetime
 from tempfile import mkdtemp
 from getpass import getuser
-from caching import CachedNestedSiblingFileCollection, CachedSiblingFileCollection, CachedWLCGFileTarget
+from caching import (
+    CachedNestedSiblingFileCollection,
+    CachedSiblingFileCollection,
+    CachedWLCGFileTarget,
+)
 
 try:
     from luigi.parameter import UnconsumedParameterWarning
