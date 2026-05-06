@@ -119,7 +119,7 @@ def cache_get_exists(key, ttl):
 
 class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
 
-    cache_ttl = 3600
+    cache_ttl = 86400
 
     def _cache_key(self):
         return self.uri() if hasattr(self, "uri") else str(self.path)
@@ -149,7 +149,7 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
 
 
 class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
-    cache_ttl = 3600
+    cache_ttl = 86400
 
     def _cache_key(self):
         return self.uri() if hasattr(self, "uri") else str(self.path)
@@ -173,7 +173,7 @@ class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
 
 class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
 
-    cache_ttl = 3600
+    cache_ttl = 86400
 
     def _iter_state(
         self,
@@ -243,7 +243,7 @@ class CachedNestedSiblingFileCollection(
     law.target.collection.NestedSiblingFileCollection
 ):
 
-    cache_ttl = 3600
+    cache_ttl = 86400
 
     def _iter_state(
         self,
