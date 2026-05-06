@@ -70,6 +70,8 @@ action() {
     export LAW_CONFIG_FILE="${SPAWNPOINT}/lawluigi_configs/{{WF_NAME}}_law.cfg"
     export LUIGI_CONFIG_PATH="${SPAWNPOINT}/lawluigi_configs/{{WF_NAME}}_luigi.cfg"
 
+    mkdir -p "${LAW_HOME}"
+
     # Variables set by local LAW instance and used by batch job LAW instance
     export LOCAL_TIMESTAMP="{{LOCAL_TIMESTAMP}}"
     export LOCAL_PWD="{{LOCAL_PWD}}"
