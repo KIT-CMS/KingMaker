@@ -1,9 +1,0 @@
-template_multifriend_config:
-  friend_name: PR_update_root_metadata_2
-  requires:
-  - template_friend_config
-  - template_friend_config2
-template_friend_config:
-  friend_name: test_friend_v1
-template_friend_config2:
-  friend_name: test_friend_v2
