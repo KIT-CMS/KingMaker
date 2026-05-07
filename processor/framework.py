@@ -515,6 +515,10 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.render_variables["LOCAL_PWD"] = startup_dir
         return config
 
+    def htcondor_use_local_scheduler(self):
+        # always use a local scheduler in remote jobs
+        return True
+
 
 # Helper function to generate sandbox_pre_setup_cmds functions
 # Adds a list of env variables before the setup_sandbox.sh call
