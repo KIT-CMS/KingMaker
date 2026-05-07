@@ -3,6 +3,8 @@ import os
 import re
 import traceback
 import logging
+import inspect
+import ast
 from law.logger import get_logger
 from XRootD.client import FileSystem
 from XRootD.client.flags import StatInfoFlags
@@ -134,3 +136,29 @@ def get_alternate_file_uri(
                 return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
 
     return file
+
+
+def printi(x):
+    """
+    Print the name `x` and its value"""
+    frame = inspect.currentframe().f_back
+    try:
+        # Get the line of code where printi was called
+        code_line = inspect.getframeinfo(frame).code_context[0].strip()
+
+        # Parse the AST of that line
+        tree = ast.parse(code_line)
+
+        # Find the function call
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'printi':
+                arg_src = ast.get_source_segment(code_line, node.args[0])
+                print(f"{arg_src} = {x}")
+                print()
+                return
+    except Exception:
+        pass
+
+    # Fallback if anything fails
+    print(x)
+    print()

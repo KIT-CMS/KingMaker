@@ -17,7 +17,7 @@ import hashlib
 import time
 
 
-class ProduceBase(Task, WrapperTask):
+class ProduceBase(WrapperTask, Task):
     """
     collective task to trigger friend production for a list of samples,
     if the samples are not already present, trigger ntuple production first
@@ -82,12 +82,12 @@ class ProduceBase(Task, WrapperTask):
             # now convert the list to a comma separated string
             self.shifts = convert_to_comma_seperated(self.shifts)
 
-    def validate_friend_mapping(self):
+    def validate_friend_mapping(self, mapping={}):
         """
         The function validates that the friend_mapping dictionary is not empty.
         If empty, raises an exception since we need the mapping information.
         """
-        if len(self.friend_mapping.keys()) == 0:
+        if len(mapping) == 0:
             raise Exception("Friend mapping cannot be empty")
 
     def set_sample_data(self, samples):
@@ -111,7 +111,6 @@ class ProduceBase(Task, WrapperTask):
         table.add_column("Samplenick", justify="left")
         table.add_column("Era", justify="left")
         table.add_column("Sampletype", justify="left")
-
         with open(str(self.dataset_database), "r") as stream:
             sample_db = json.load(stream)
 
@@ -148,8 +147,8 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     """
 
     scopes = luigi.ListParameter()
-    all_sample_types = luigi.ListParameter(significant=False)
-    all_eras = luigi.ListParameter(significant=False)
+    all_sample_types = luigi.ListParameter() #significant=False)
+    all_eras = luigi.ListParameter() #significant=False)
     nick = luigi.Parameter()
     sample_type = luigi.Parameter()
     era = luigi.Parameter()
@@ -164,22 +163,18 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     )
 
     def htcondor_output_directory(self):
-        if "Friend" in self.__class__.__name__:
-            path = f"htcondor_files/{self.friend_name}/{self.nick}"
+        if hasattr(self, "friend_config") and self.friend_config != "":
+            friend_name = self.friend_mapping[self.friend_config]["friend_name"]
+            path = f"htcondor_files/{friend_name}/{self.nick}"
         else:
             path = f"htcondor_files/ntuples/{self.nick}"
-        return law.LocalDirectoryTarget(path)
+        return self.local_dir_target(path)
 
     def htcondor_job_config(self, config, job_num, branches):
-        class_name = self.__class__.__name__
-        if "Friend" in class_name:
-            condor_batch_name_pattern = (
-                f"{self.nick}-{self.analysis}-{self.friend_name}-{self.production_tag}"
-            )
-        else:
-            condor_batch_name_pattern = (
-                f"{self.nick}-{self.analysis}-{self.config}-{self.production_tag}"
-            )
+        effective_config = self.friend_config if hasattr(self, "friend_config") and self.friend_config != "" else self.config
+        condor_batch_name_pattern = (
+            f"{self.nick}-{self.analysis}-{effective_config}-{self.production_tag}"
+        )
         config = super().htcondor_job_config(config, job_num, branches)
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
         return config
@@ -266,7 +261,6 @@ class CROWNBuildBase(KingmakerSandbox, Task):
         installed
         :param crownlib: The `crownlib` parameter is the crownlib file that will be copied to the build directory
         """
-        # create build directory
         if not os.path.exists(build_dir):
             os.makedirs(build_dir)
         build_dir = os.path.abspath(build_dir)
@@ -277,10 +271,8 @@ class CROWNBuildBase(KingmakerSandbox, Task):
 
         # localize crownlib to build directory
         console.log(f"Localizing crownlib {crownlib.path} to {build_dir}")
-        with crownlib.localize("r") as _file:
-            _crownlib_file = _file.path
         # copy crownlib to build directory
-        shutil.copy(_crownlib_file, os.path.join(build_dir, crownlib.basename))
+        crownlib.copy_to_local(os.path.join(build_dir, crownlib.basename))
 
         return build_dir, install_dir
 

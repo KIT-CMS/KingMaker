@@ -6,6 +6,7 @@ import subprocess
 import socket
 from enum import Enum
 from law.util import interruptable_popen
+from tasks.helpers.helpers import printi
 from rich.console import Console
 from datetime import datetime
 from tempfile import mkdtemp
@@ -124,6 +125,12 @@ class Task(law.Task):
             return [law.LocalFileTarget(self.local_path(p)) for p in path]
 
         return law.LocalFileTarget(self.local_path(path))
+
+    def local_dir_target(self, path):
+        if isinstance(path, (list, tuple)):
+            return [law.LocalDirectoryTarget(self.local_path(p)) for p in path]
+
+        return law.LocalDirectoryTarget(self.local_path(path))
 
     def temporarylocal_target(self, *path):
         return law.LocalFileTarget(self.temporary_local_path(*path))
@@ -448,7 +455,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 ),
             )
         else:
-            tarball = law.wlcg.WLCGFileTarget(
+            tarball = CachedWLCGFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,

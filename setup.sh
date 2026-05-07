@@ -340,6 +340,12 @@ action() {
         rm "${LAW_HOME}/wlcg_dir_cache.json"
     }
 
+    clear_law_cache (){
+        echo "Clearing Law file target cache..."
+        rm "${LAW_HOME}/target_exists_cache.json"
+        rm "${LAW_HOME}/wlcg_dir_cache.json"
+    }
+
     # law
     _addpy "${BASE_DIR}/law"
     _addbin "${BASE_DIR}/law/bin"
