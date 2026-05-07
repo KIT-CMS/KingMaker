@@ -29,7 +29,8 @@ class CROWNFriend(CROWNExecuteBase):
         for requires_config in required_friends:
             if requires_config not in self.friend_mapping:
                 raise Exception(f"Friend config {requires_config} not found in mapping")
-            requirements[f'CROWNFriendsNew_{self.nick}_{self.friend_mapping[requires_config]["friend_name"]}'] = (
+            friend_name = self.friend_mapping[requires_config]["friend_name"]
+            requirements[f'CROWNFriend_{self.nick}_{friend_name}'] = (
                 CROWNFriend.req(self, friend_config=requires_config)
             )
         return requirements
@@ -45,7 +46,7 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         required_friends = self.friend_mapping[self.friend_config].get("requires", [])
         friend_inputs = [
-            inputs[f'CROWNFriendsNew_{self.nick}_{self.friend_mapping[requires_config]["friend_name"]}'][
+            inputs[f'CROWNFriend_{self.nick}_{self.friend_mapping[requires_config]["friend_name"]}'][
                 "collection"
             ]
             for requires_config in required_friends  # type: ignore
@@ -99,9 +100,10 @@ class CROWNFriend(CROWNExecuteBase):
         corresponding file target.
         :return: The `target` variable is being returned.
         """
+        friend_name = self.friend_mapping[self.friend_config]["friend_name"]
         nicks = [
             "{friendname}/{era}/{nick}/{scope}/{nick}_{branch}.root".format(
-                friendname=self.friend_mapping[self.friend_config]["friend_name"],
+                friendname=friend_name,
                 era=self.branch_data["era"],
                 nick=self.branch_data["nick"],
                 branch=self.branch_data["filecounter"],
@@ -110,9 +112,10 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # quantities_map json for each scope only needs to be created once per sample
         if self.branch_data["filecounter"] == 0:
+            friend_name = self.friend_mapping[self.friend_config]["friend_name"]
             nicks.append(
                 "{friendname}/{era}/{nick}/{scope}/{era}_{nick}_{scope}_quantities_map.json".format(
-                    friendname=self.friend_mapping[self.friend_config]["friend_name"],
+                    friendname=friend_name,
                     era=self.branch_data["era"],
                     nick=self.branch_data["nick"],
                     scope=self.branch_data["scope"],
@@ -142,8 +145,9 @@ class CROWNFriend(CROWNExecuteBase):
             quantities_map_output = outputs[1]
         _base_workdir = os.path.abspath("workdir")
         create_abspath(_base_workdir)
+        friend_name = self.friend_mapping[self.friend_config]["friend_name"]
         _workdir = os.path.join(
-            _base_workdir, f'{self.production_tag}_{self.friend_mapping[self.friend_config]["friend_name"]}'
+            _base_workdir, f'{self.production_tag}_{friend_name}'
         )
         create_abspath(_workdir)
         _inputfile = branch_data["inputfile"]
@@ -263,8 +267,9 @@ class CROWNBuildFriend(CROWNBuildBase):
         return requirements
 
     def output(self):
+        friend_name = self.friend_mapping[self.friend_config]["friend_name"]
         target = self.remote_target(
-            f"crown_friends_{self.analysis}_{self.friend_config}_{self.sample_type}_{self.era}.tar.gz"
+            f"crown_friends_{self.analysis}_{friend_name}_{self.sample_type}_{self.era}.tar.gz"
         )
         return target
 
@@ -291,7 +296,7 @@ class CROWNBuildFriend(CROWNBuildBase):
         _friend_config = str(self.friend_config)
         _friend_name = str(friend_name)
         # also use the tag for the local tarball creation
-        _tag = f"{self.production_tag}/CROWNFriends_{_analysis}_{_friend_config}_{_friend_name}_{_sample_type}_{_era}"
+        _tag = f"{self.production_tag}/CROWNFriend_{_analysis}_{_friend_config}_{_friend_name}_{_sample_type}_{_era}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = os.path.abspath("CROWN")
@@ -362,7 +367,6 @@ class QuantitiesMap(CROWNBuildBase):
     config = luigi.Parameter() #significant=False)
     nick = luigi.Parameter() #significant=False)
     friend_config = luigi.Parameter(default="")
-    friend_name = luigi.Parameter(default="")
     friend_mapping = luigi.DictParameter(default={})
 
     def requires(self):
@@ -375,8 +379,11 @@ class QuantitiesMap(CROWNBuildBase):
         
 
     def output(self):
-        effective_config = self.friend_config if self.friend_config != "" else self.config
-        return self.local_target([f"{self.nick}_{effective_config}_{scope}_quantities_map.json" for scope in self.scopes])
+        if self.friend_config != "":
+            name = self.friend_mapping[self.friend_config]["friend_name"]
+        else:
+            name = "ntuple"
+        return self.local_target([f"{self.nick}_{name}_{scope}_quantities_map.json" for scope in self.scopes])
 
     def run(self):
         if self.friend_config != "":

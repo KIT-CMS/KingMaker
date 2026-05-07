@@ -44,12 +44,39 @@ class ProduceNtuples(ProduceBase):
         else:
             parsed_map_data = parsed_map
         if self.friend_name == "" and parsed_map_data[self.friend_config].get("friend_name") is None:
-            raise Exception("friend_name is required in friend_mapping from either command line arguments or dict parameters")
+            self.friend_name = self.friend_config
         else:
             if self.friend_name != "":
                 parsed_map_data[self.friend_config]["friend_name"] = self.friend_name
-        self.friend_mapping = parsed_map_data
+        self.friend_mapping = self.normalize_configs(parsed_map_data)
         
+    def normalize_configs(self, configs: dict) -> dict:
+        """
+        Normalize config dictionary:
+        - If a config value is None -> replace with {}
+        - If a required config is missing -> add it as {}
+        - Add friend_name=<key> if not present
+        """
+
+        # First pass: normalize existing entries
+        for key in list(configs.keys()):
+            if configs[key] is None:
+                configs[key] = {}
+
+        # Second pass: ensure required configs exist
+        for key, cfg in list(configs.items()):
+            requires = cfg.get("requires", [])
+
+            for dep in requires:
+                if dep not in configs or configs[dep] is None:
+                    configs[dep] = {}
+
+        # Third pass: ensure friend_name exists
+        for key, cfg in configs.items():
+            cfg.setdefault("friend_name", key)
+
+        return configs
+
     def recursive_check(self, map, key, visited):
         for k in map[key].get("requires", []):
             if k not in visited:

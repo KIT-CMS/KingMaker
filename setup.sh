@@ -337,13 +337,7 @@ action() {
     clear_law_cache (){
         echo "Clearing Law file target cache..."
         rm "${LAW_HOME}/target_exists_cache.json"
-        rm "${LAW_HOME}/wlcg_dir_cache.json"
-    }
-
-    clear_law_cache (){
-        echo "Clearing Law file target cache..."
-        rm "${LAW_HOME}/target_exists_cache.json"
-        rm "${LAW_HOME}/wlcg_dir_cache.json"
+        rm "${LAW_HOME}/target_exists_cache.json.lock"
     }
 
     # law
