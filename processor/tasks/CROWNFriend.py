@@ -18,7 +18,7 @@ from helpers.helpers import convert_to_comma_seperated, printi
 class CROWNFriend(CROWNExecuteBase):
     friend_mapping = luigi.DictParameter(default={})
     friend_config = luigi.Parameter()
-    config = luigi.Parameter(significant=False)
+    config = luigi.Parameter()
     nick = luigi.Parameter()
     analysis = luigi.Parameter()
 
@@ -242,7 +242,6 @@ class CROWNFriend(CROWNExecuteBase):
         console.rule("Finished CROWNMultiFriends")
 
 
-# class CROWNBuildFriendNew(Task):
 class CROWNBuildFriend(CROWNBuildBase):
     """
     Gather and compile CROWN for friend tree production with the given configuration
@@ -252,7 +251,7 @@ class CROWNBuildFriend(CROWNBuildBase):
     friend_config = luigi.Parameter()
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    nick = luigi.Parameter(significant=False)
+    nick = luigi.Parameter()
     friend_mapping = luigi.DictParameter(default={})
 
     def requires(self):
@@ -369,9 +368,9 @@ class QuantitiesMap(CROWNBuildBase):
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    analysis = luigi.Parameter()  # significant=False)
-    config = luigi.Parameter()  # significant=False)
-    nick = luigi.Parameter()  # significant=False)
+    analysis = luigi.Parameter()
+    config = luigi.Parameter()
+    nick = luigi.Parameter()
     friend_config = luigi.Parameter(default="")
     friend_mapping = luigi.DictParameter(default={})
 

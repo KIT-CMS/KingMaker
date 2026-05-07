@@ -147,15 +147,15 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     """
 
     scopes = luigi.ListParameter()
-    all_sample_types = luigi.ListParameter()  # significant=False)
-    all_eras = luigi.ListParameter()  # significant=False)
+    all_sample_types = luigi.ListParameter(significant=False)
+    all_eras = luigi.ListParameter(significant=False)
     nick = luigi.Parameter()
     sample_type = luigi.Parameter()
     era = luigi.Parameter()
     shifts = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    files_per_task = luigi.IntParameter()
+    files_per_task = luigi.IntParameter(significant=False)
     custom_files_per_task = luigi.DictParameter(
         default={},
         significant=False,
@@ -171,13 +171,13 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         return self.local_dir_target(path)
 
     def htcondor_job_config(self, config, job_num, branches):
-        effective_config = (
-            self.friend_config
+        effective_name = (
+            self.friend_mapping[self.friend_config]["friend_name"]
             if hasattr(self, "friend_config") and self.friend_config != ""
-            else self.config
+            else "Ntuple"
         )
         condor_batch_name_pattern = (
-            f"{self.nick}-{self.analysis}-{effective_config}-{self.production_tag}"
+            f"{self.nick}-{self.analysis}-{effective_name}-{self.production_tag}"
         )
         config = super().htcondor_job_config(config, job_num, branches)
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
