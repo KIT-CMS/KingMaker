@@ -8,6 +8,7 @@ from CROWNFriend import CROWNFriend
 from CROWNMain import CROWNRun
 from helpers.helpers import printi
 
+
 class ProduceNtuples(ProduceBase):
     """
     collective task to trigger friend production for a list of samples,
@@ -43,13 +44,16 @@ class ProduceNtuples(ProduceBase):
             parsed_map_data = defaultdict(dict)
         else:
             parsed_map_data = parsed_map
-        if self.friend_name == "" and parsed_map_data[self.friend_config].get("friend_name") is None:
+        if (
+            self.friend_name == ""
+            and parsed_map_data[self.friend_config].get("friend_name") is None
+        ):
             self.friend_name = self.friend_config
         else:
             if self.friend_name != "":
                 parsed_map_data[self.friend_config]["friend_name"] = self.friend_name
         self.friend_mapping = self.normalize_configs(parsed_map_data)
-        
+
     def normalize_configs(self, configs: dict) -> dict:
         """
         Normalize config dictionary:
@@ -83,15 +87,18 @@ class ProduceNtuples(ProduceBase):
                 visited.append(k)
                 self.recursive_check(map, k, visited)
             else:
-                raise Exception(f"Friend dependency loop detected for {key}: {visited+[k]}")
-
+                raise Exception(
+                    f"Friend dependency loop detected for {key}: {visited+[k]}"
+                )
 
     def requires(self):
 
         if self.friend_config != "":
             self.derive_mapping()
-            self.recursive_check(self.friend_mapping, self.friend_config, [self.friend_config])
-        
+            self.recursive_check(
+                self.friend_mapping, self.friend_config, [self.friend_config]
+            )
+
         self.sanitize_scopes()
         self.sanitize_shifts()
         if not self.silent:

@@ -14,6 +14,7 @@ from CROWNMain import BuildCROWNLib
 from helpers.GetQuantitiesMap import read_quantities_map
 from helpers.helpers import convert_to_comma_seperated, printi
 
+
 class CROWNFriend(CROWNExecuteBase):
     friend_mapping = luigi.DictParameter(default={})
     friend_config = luigi.Parameter()
@@ -30,8 +31,8 @@ class CROWNFriend(CROWNExecuteBase):
             if requires_config not in self.friend_mapping:
                 raise Exception(f"Friend config {requires_config} not found in mapping")
             friend_name = self.friend_mapping[requires_config]["friend_name"]
-            requirements[f'CROWNFriend_{self.nick}_{friend_name}'] = (
-                CROWNFriend.req(self, friend_config=requires_config)
+            requirements[f"CROWNFriend_{self.nick}_{friend_name}"] = CROWNFriend.req(
+                self, friend_config=requires_config
             )
         return requirements
 
@@ -46,9 +47,9 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         required_friends = self.friend_mapping[self.friend_config].get("requires", [])
         friend_inputs = [
-            inputs[f'CROWNFriend_{self.nick}_{self.friend_mapping[requires_config]["friend_name"]}'][
-                "collection"
-            ]
+            inputs[
+                f'CROWNFriend_{self.nick}_{self.friend_mapping[requires_config]["friend_name"]}'
+            ]["collection"]
             for requires_config in required_friends  # type: ignore
         ]
         friend_branches = [
@@ -146,9 +147,7 @@ class CROWNFriend(CROWNExecuteBase):
         _base_workdir = os.path.abspath("workdir")
         create_abspath(_base_workdir)
         friend_name = self.friend_mapping[self.friend_config]["friend_name"]
-        _workdir = os.path.join(
-            _base_workdir, f'{self.production_tag}_{friend_name}'
-        )
+        _workdir = os.path.join(_base_workdir, f"{self.production_tag}_{friend_name}")
         create_abspath(_workdir)
         _inputfile = branch_data["inputfile"]
         _friend_inputs = [
@@ -229,8 +228,15 @@ class CROWNFriend(CROWNExecuteBase):
                 _outputfile.replace(".root", "_{}.root".format(scope)),
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
-            
-            read_quantities_map(input_file=inputfile, era=self.branch_data["era"], sample_type=self.branch_data["sample_type"], scope=scope, outputfile=local_outputfile, libdir=os.path.join(_workdir, "lib"))
+
+            read_quantities_map(
+                input_file=inputfile,
+                era=self.branch_data["era"],
+                sample_type=self.branch_data["sample_type"],
+                scope=scope,
+                outputfile=local_outputfile,
+                libdir=os.path.join(_workdir, "lib"),
+            )
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
         console.rule("Finished CROWNMultiFriends")
@@ -257,11 +263,11 @@ class CROWNBuildFriend(CROWNBuildBase):
         for requires_config in required_friends:
             if requires_config not in self.friend_mapping:
                 raise Exception(f"Friend config {requires_config} not found in mapping")
-            requirements[f'Friend_{requires_config}'] = (
-                CROWNFriend.req(self, friend_config=requires_config)
+            requirements[f"Friend_{requires_config}"] = CROWNFriend.req(
+                self, friend_config=requires_config
             )
-            requirements[f'Friend_{requires_config}_quantities'] = (
-                QuantitiesMap.req(self, friend_config=requires_config)
+            requirements[f"Friend_{requires_config}_quantities"] = QuantitiesMap.req(
+                self, friend_config=requires_config
             )
         requirements["crownlib"] = BuildCROWNLib.req(self)
         return requirements
@@ -363,9 +369,9 @@ class QuantitiesMap(CROWNBuildBase):
     all_eras = luigi.ListParameter(significant=False)
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    analysis = luigi.Parameter() #significant=False)
-    config = luigi.Parameter() #significant=False)
-    nick = luigi.Parameter() #significant=False)
+    analysis = luigi.Parameter()  # significant=False)
+    config = luigi.Parameter()  # significant=False)
+    nick = luigi.Parameter()  # significant=False)
     friend_config = luigi.Parameter(default="")
     friend_mapping = luigi.DictParameter(default={})
 
@@ -376,14 +382,15 @@ class QuantitiesMap(CROWNBuildBase):
         else:
             requirements[f"CROWNRun"] = CROWNRun.req(self)
         return requirements
-        
 
     def output(self):
         if self.friend_config != "":
             name = self.friend_mapping[self.friend_config]["friend_name"]
         else:
             name = "ntuple"
-        return self.local_target([f"{self.nick}_{name}_{scope}_quantities_map.json" for scope in self.scopes])
+        return self.local_target(
+            [f"{self.nick}_{name}_{scope}_quantities_map.json" for scope in self.scopes]
+        )
 
     def run(self):
         if self.friend_config != "":
@@ -395,6 +402,11 @@ class QuantitiesMap(CROWNBuildBase):
             raise Exception("Input should be a single rootfile")
         rootfile_path = self.get_remote_path(single_input)
         for outputfile, scope in zip(self.output(), self.scopes):
-            read_quantities_map(input_file=rootfile_path, era=self.era, sample_type=self.sample_type, scope=scope, outputfile=outputfile.path, libdir=self.KingMaker_path("CROWN/.cache"))
-
-           
+            read_quantities_map(
+                input_file=rootfile_path,
+                era=self.era,
+                sample_type=self.sample_type,
+                scope=scope,
+                outputfile=outputfile.path,
+                libdir=self.KingMaker_path("CROWN/.cache"),
+            )

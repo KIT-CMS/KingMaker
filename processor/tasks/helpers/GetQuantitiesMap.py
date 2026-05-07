@@ -43,6 +43,7 @@ def extract_quantities_map(input_file, libdir):
     print(f"Successfully read quantities map from {input_file}")
     return data, metadata
 
+
 def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir):
     data, metadata = extract_quantities_map(input_file, libdir)
     if not (era == metadata["era"] and sample_type == metadata["sample_type"]):

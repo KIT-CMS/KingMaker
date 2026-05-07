@@ -147,8 +147,8 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     """
 
     scopes = luigi.ListParameter()
-    all_sample_types = luigi.ListParameter() #significant=False)
-    all_eras = luigi.ListParameter() #significant=False)
+    all_sample_types = luigi.ListParameter()  # significant=False)
+    all_eras = luigi.ListParameter()  # significant=False)
     nick = luigi.Parameter()
     sample_type = luigi.Parameter()
     era = luigi.Parameter()
@@ -164,14 +164,18 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     def htcondor_output_directory(self):
         if hasattr(self, "friend_config") and self.friend_config != "":
-            friend_name = self.friend_mapping[self.friend_config].get("friend_name", self.friend_config)
+            friend_name = self.friend_mapping[self.friend_config]["friend_name"]
             path = f"htcondor_files/{friend_name}/{self.nick}"
         else:
             path = f"htcondor_files/ntuples/{self.nick}"
         return self.local_dir_target(path)
 
     def htcondor_job_config(self, config, job_num, branches):
-        effective_config = self.friend_config if hasattr(self, "friend_config") and self.friend_config != "" else self.config
+        effective_config = (
+            self.friend_config
+            if hasattr(self, "friend_config") and self.friend_config != ""
+            else self.config
+        )
         condor_batch_name_pattern = (
             f"{self.nick}-{self.analysis}-{effective_config}-{self.production_tag}"
         )

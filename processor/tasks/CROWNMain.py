@@ -91,9 +91,7 @@ class CROWNRun(CROWNExecuteBase):
         _era = branch_data["era"]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(
-            outputs[0].basename.replace(
-                "_{}.root".format(self.scopes[0]), ".root"
-            )
+            outputs[0].basename.replace("_{}.root".format(self.scopes[0]), ".root")
         )
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, branch_data["sample_type"], branch_data["era"]

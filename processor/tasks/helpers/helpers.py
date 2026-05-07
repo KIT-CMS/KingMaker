@@ -151,7 +151,10 @@ def printi(x):
 
         # Find the function call
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'printi':
+            if (
+                isinstance(node, ast.Call)
+                and getattr(node.func, "id", None) == "printi"
+            ):
                 arg_src = ast.get_source_segment(code_line, node.args[0])
                 print(f"{arg_src} = {x}")
                 print()

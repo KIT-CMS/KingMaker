@@ -9,7 +9,7 @@ from law.util import no_value, flatten
 
 law.contrib.load("wlcg")
 
-# We now only need the target existence cache. 
+# We now only need the target existence cache.
 # The directory cache is removed to prevent "partial state" blindness.
 CACHE_PATH = f'{os.getenv("LAW_HOME", "/tmp")}/target_exists_cache.json'
 
@@ -81,10 +81,10 @@ def _get_collection_key(targets):
     paths = []
     # Handle both list/tuple of targets and dict of targets
     all_targets = flatten(targets.values() if isinstance(targets, dict) else targets)
-    
+
     for t in all_targets:
         paths.append(t.uri() if hasattr(t, "uri") else str(t.path))
-    
+
     paths.sort()
     hash_str = hashlib.sha256(json.dumps(paths).encode("utf-8")).hexdigest()
     return f"collection_{hash_str}"
@@ -107,7 +107,9 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
         exists = super().exists()
         if exists:
             global _TARGET_CACHE
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
         return exists
 
 
@@ -127,16 +129,28 @@ class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
         exists = super().exists()
         if exists:
             global _TARGET_CACHE
-            _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, key, {"ts": time.time()})
+            _TARGET_CACHE = _update_json_cache_locked(
+                CACHE_PATH, key, {"ts": time.time()}
+            )
         return exists
 
 
 class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
     cache_ttl = 86400
 
-    def _iter_state(self, existing=True, optional_existing=no_value, basenames=None, keys=False, unpack=True, exists_func=None):
+    def _iter_state(
+        self,
+        existing=True,
+        optional_existing=no_value,
+        basenames=None,
+        keys=False,
+        unpack=True,
+        exists_func=None,
+    ):
         collection_key = _get_collection_key(self.targets)
-        all_targets = flatten(self.targets.values() if isinstance(self.targets, dict) else self.targets)
+        all_targets = flatten(
+            self.targets.values() if isinstance(self.targets, dict) else self.targets
+        )
 
         # 1. Check if the entire collection is cached as complete
         with CACHE_LOCK:
@@ -146,7 +160,9 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
         if is_cached:
             # Mock the basenames list so the parent class bypasses the grid check automatically
             basenames = {os.path.basename(t.path) for t in all_targets}
-            return super()._iter_state(existing, optional_existing, basenames, keys, unpack, exists_func)
+            return super()._iter_state(
+                existing, optional_existing, basenames, keys, unpack, exists_func
+            )
 
         # 2. If not cached (or incomplete), fetch live directory contents
         if basenames is None:
@@ -162,17 +178,33 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
         if all_present and all_targets:
             with CACHE_LOCK:
                 global _TARGET_CACHE
-                _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, collection_key, {"ts": time.time()})
+                _TARGET_CACHE = _update_json_cache_locked(
+                    CACHE_PATH, collection_key, {"ts": time.time()}
+                )
 
-        return super()._iter_state(existing, optional_existing, basenames, keys, unpack, exists_func)
+        return super()._iter_state(
+            existing, optional_existing, basenames, keys, unpack, exists_func
+        )
 
 
-class CachedNestedSiblingFileCollection(law.target.collection.NestedSiblingFileCollection):
+class CachedNestedSiblingFileCollection(
+    law.target.collection.NestedSiblingFileCollection
+):
     cache_ttl = 86400
 
-    def _iter_state(self, existing=True, optional_existing=no_value, basenames=None, keys=False, unpack=True, exists_func=None):
+    def _iter_state(
+        self,
+        existing=True,
+        optional_existing=no_value,
+        basenames=None,
+        keys=False,
+        unpack=True,
+        exists_func=None,
+    ):
         collection_key = _get_collection_key(self.targets)
-        all_targets = flatten(self.targets.values() if isinstance(self.targets, dict) else self.targets)
+        all_targets = flatten(
+            self.targets.values() if isinstance(self.targets, dict) else self.targets
+        )
 
         # 1. Check if the entire collection is cached as complete
         with CACHE_LOCK:
@@ -180,12 +212,16 @@ class CachedNestedSiblingFileCollection(law.target.collection.NestedSiblingFileC
             is_cached = cache_get_exists(collection_key, self.cache_ttl)
 
         if is_cached:
-            # Mock the basenames dict mapping {dir_key: set(files)} 
+            # Mock the basenames dict mapping {dir_key: set(files)}
             basenames = {}
             for t in all_targets:
-                dir_key = t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
+                dir_key = (
+                    t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
+                )
                 basenames.setdefault(dir_key, set()).add(os.path.basename(t.path))
-            return super()._iter_state(existing, optional_existing, basenames, keys, unpack, exists_func)
+            return super()._iter_state(
+                existing, optional_existing, basenames, keys, unpack, exists_func
+            )
 
         # 2. If not cached, fetch live directory contents for all unique directories
         if basenames is None:
@@ -210,6 +246,10 @@ class CachedNestedSiblingFileCollection(law.target.collection.NestedSiblingFileC
         if all_present and all_targets:
             with CACHE_LOCK:
                 global _TARGET_CACHE
-                _TARGET_CACHE = _update_json_cache_locked(CACHE_PATH, collection_key, {"ts": time.time()})
+                _TARGET_CACHE = _update_json_cache_locked(
+                    CACHE_PATH, collection_key, {"ts": time.time()}
+                )
 
-        return super()._iter_state(existing, optional_existing, basenames, keys, unpack, exists_func)
+        return super()._iter_state(
+            existing, optional_existing, basenames, keys, unpack, exists_func
+        )
