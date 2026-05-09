@@ -25,6 +25,7 @@ dependencies:
   # formatting
   - clang-format
   - black
+  - gdb
   - pip:
       - luigi
       - questionary
