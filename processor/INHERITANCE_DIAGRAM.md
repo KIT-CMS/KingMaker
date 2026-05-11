@@ -77,24 +77,24 @@ flowchart TD
   click LawLocalWorkflow https://law.readthedocs.io/en/latest/api/workflow/local.html "https://law.readthedocs.io/en/latest/api/workflow/local.html"
   click LawHTCondorWorkflow https://law.readthedocs.io/en/latest/contrib/htcondor.html "https://law.readthedocs.io/en/latest/contrib/htcondor.html"
   
-  click Task https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20Task "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20Task"
-  click HTCondorWorkflow https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20HTCondorWorkflow "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20HTCondorWorkflow"
-  click KingmakerSandbox https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20KingmakerSandbox "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py#:~:text=class%20KingmakerSandbox"
+  click Task https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py"
+  click HTCondorWorkflow https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py"
+  click KingmakerSandbox https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/framework.py"
   
-  click ProduceBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20ProduceBase "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20ProduceBase"
-  click CROWNExecuteBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20CROWNExecuteBase "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20CROWNExecuteBase"
-  click CROWNBuildBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20CROWNBuildBase "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py#:~:text=class%20CROWNBuildBase"
+  click ProduceBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  click CROWNExecuteBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  click CROWNBuildBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
   
-  click ProduceNtuples https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py#:~:text=class%20ProduceNtuples "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py#:~:text=class%20ProduceNtuples"
-  click CROWNRun https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNRun "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNRun"
-  click ConfigureDatasets https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20ConfigureDatasets "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20ConfigureDatasets"
-  click CROWNBuildCombined https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNBuildCombined "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNBuildCombined"
-  click CROWNBuild https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNBuild "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20CROWNBuild"
-  click BuildCROWNLib https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20BuildCROWNLib "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py#:~:text=class%20BuildCROWNLib"
+  click ProduceNtuples https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py"
+  click CROWNRun https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
+  click ConfigureDatasets https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
+  click CROWNBuildCombined https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
+  click CROWNBuild https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
+  click BuildCROWNLib https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
   
-  click CROWNFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20CROWNFriend "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20CROWNFriend"
-  click CROWNBuildFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20CROWNBuildFriend "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20CROWNBuildFriend"
-  click QuantitiesMap https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20QuantitiesMap "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py#:~:text=class%20QuantitiesMap"
+  click CROWNFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py"
+  click CROWNBuildFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py"
+  click QuantitiesMap https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py"
 ```
 
 ## Task Classification
