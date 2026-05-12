@@ -29,25 +29,16 @@ flowchart BT
 ```
 ```mermaid
 flowchart TD
-  %% CROWN Ntuple Production Tasks
-  ProduceSamples["ProduceSamples"]
+  %% CROWN Production Tasks (Unified)
+  ProduceNtuples["ProduceNtuples"]
   CROWNRun["CROWNRun"]
+  CROWNFriend["CROWNFriend"]
   ConfigureDatasets["ConfigureDatasets"]
   CROWNBuildCombined["CROWNBuildCombined"]
   CROWNBuild["CROWNBuild"]
   BuildCROWNLib["BuildCROWNLib"]
-
-  %% CROWN Friend Production Tasks
-  ProduceFriends["ProduceFriends"]
-  CROWNFriends["CROWNFriends"]
   CROWNBuildFriend["CROWNBuildFriend"]
   QuantitiesMap["QuantitiesMap"]
-
-  %% CROWN Multi-Friend Production Tasks
-  ProduceMultiFriends["ProduceMultiFriends"]
-  CROWNMultiFriends["CROWNMultiFriends"]
-  CROWNBuildMultiFriend["CROWNBuildMultiFriend"]
-  FriendQuantitiesMap["FriendQuantitiesMap"]
 
   %% === TASK DEPENDENCIES (requires/workflow_requires) ===
 
@@ -56,35 +47,24 @@ flowchart TD
   CROWNRun -.->|workflow_requires| CROWNBuild
   CROWNBuildCombined -->|requires| BuildCROWNLib
   CROWNBuild -->|requires| CROWNBuildCombined
-  ProduceSamples -------->|requires| CROWNRun
+  ProduceNtuples -->|requires| CROWNRun
+  ProduceNtuples -->|requires| CROWNFriend
 
   %% CROWN Friend Production dependencies
-  CROWNFriends -.->|workflow_requires| CROWNRun
-  CROWNFriends -.->|workflow_requires| CROWNBuildFriend
+  CROWNFriend -.->|workflow_requires| CROWNRun
+  CROWNFriend -.->|workflow_requires| CROWNBuildFriend
+  CROWNFriend -.->|workflow_requires| CROWNFriend
   CROWNBuildFriend -->|requires| QuantitiesMap
   CROWNBuildFriend -->|requires| BuildCROWNLib
-  ProduceFriends ----->|requires| CROWNFriends
-
-  %% CROWN Multi-Friend Production dependencies
-  CROWNMultiFriends -.->|workflow_requires| CROWNRun
-  CROWNMultiFriends -.->|workflow_requires| CROWNBuildMultiFriend
-  CROWNMultiFriends -.->|workflow_requires| CROWNFriends
-  CROWNBuildMultiFriend -->|requires| BuildCROWNLib
-  CROWNBuildMultiFriend -->|requires| FriendQuantitiesMap
-  FriendQuantitiesMap -.->|workflow_requires| CROWNRun
-  FriendQuantitiesMap -.->|workflow_requires| CROWNFriends
-  ProduceMultiFriends -->|requires| CROWNMultiFriends
-  QuantitiesMap -.->|workflow_requires| CROWNRun
+  QuantitiesMap -->|requires| CROWNRun
+  QuantitiesMap -->|requires| CROWNFriend
 
   %% Styling for top-level entry points
-  style ProduceSamples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
-  style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
-  style ProduceMultiFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+  style ProduceNtuples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
 
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
-  style CROWNFriends stroke:#4682B4,stroke-width:2px
-  style CROWNMultiFriends stroke:#4682B4,stroke-width:2px
+  style CROWNFriend stroke:#4682B4,stroke-width:2px
 
   %% Styling for local tasks with green border
   style ConfigureDatasets stroke:#228B22,stroke-width:2px
@@ -93,8 +73,6 @@ flowchart TD
   style BuildCROWNLib stroke:#228B22,stroke-width:2px
   style CROWNBuildFriend stroke:#228B22,stroke-width:2px
   style QuantitiesMap stroke:#228B22,stroke-width:2px
-  style CROWNBuildMultiFriend stroke:#228B22,stroke-width:2px
-  style FriendQuantitiesMap stroke:#228B22,stroke-width:2px
 ```
 
 ## Reduced Task Flows
@@ -107,7 +85,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   %% CROWN Ntuple Production Tasks
-  ProduceSamples["ProduceSamples"]
+  ProduceNtuples["ProduceNtuples"]
   CROWNRun["CROWNRun"]
   ConfigureDatasets["ConfigureDatasets"]
   CROWNBuildCombined["CROWNBuildCombined"]
@@ -119,10 +97,10 @@ flowchart TD
   CROWNRun -.->|workflow_requires| CROWNBuild
   CROWNBuildCombined -->|requires| BuildCROWNLib
   CROWNBuild -->|requires| CROWNBuildCombined
-  ProduceSamples -->|requires| CROWNRun
+  ProduceNtuples -->|requires| CROWNRun
 
   %% Styling for top-level entry points
-  style ProduceSamples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+  style ProduceNtuples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
 
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
@@ -153,13 +131,14 @@ flowchart TD
   BuildCROWNLib["BuildCROWNLib"]
 
   %% CROWN Friend Production Tasks
-  ProduceFriends["ProduceFriends"]
-  CROWNFriends["CROWNFriends"]
+  ProduceNtuples["ProduceNtuples"]
+  CROWNFriend["CROWNFriend"]
   CROWNBuildFriend["CROWNBuildFriend"]
   QuantitiesMap["QuantitiesMap"]
 
-  %% CROWN Multi-Friend Production dependencies
-  QuantitiesMap -.->|workflow_requires| CROWNRun
+  %% Quantities map dependencies
+  QuantitiesMap -->|requires| CROWNRun
+  QuantitiesMap -->|requires| CROWNFriend
 
   %% CROWN Ntuple Production dependencies
   CROWNRun -.->|workflow_requires| ConfigureDatasets
@@ -168,18 +147,18 @@ flowchart TD
   CROWNBuild -->|requires| CROWNBuildCombined
 
   %% CROWN Friend Production dependencies
-  CROWNFriends -.->|workflow_requires| CROWNRun
-  CROWNFriends -.->|workflow_requires| CROWNBuildFriend
+  CROWNFriend -.->|workflow_requires| CROWNRun
+  CROWNFriend -.->|workflow_requires| CROWNBuildFriend
   CROWNBuildFriend -->|requires| QuantitiesMap
   CROWNBuildFriend -->|requires| BuildCROWNLib
-  ProduceFriends -->|requires| CROWNFriends
+  ProduceNtuples -->|requires| CROWNFriend
 
   %% Styling for top-level entry points
-  style ProduceFriends fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
+  style ProduceNtuples fill:#90EE90,stroke:#228B22,stroke-width:3px,color:#000
 
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
-  style CROWNFriends stroke:#4682B4,stroke-width:2px
+  style CROWNFriend stroke:#4682B4,stroke-width:2px
 
   %% Styling for local tasks with green border
   style ConfigureDatasets stroke:#228B22,stroke-width:2px
@@ -194,22 +173,19 @@ flowchart TD
 
 ## Task Classification
 
-### Top-Level Tasks (Entry Points) — Green boxes
-Entry points that have no incoming dependencies. Users call these to start workflows:
-- **ProduceSamples**: Triggers ntuple production for a list of samples
-- **ProduceFriends**: Triggers friend production for a list of samples
-- **ProduceMultiFriends**: Triggers multi-friend production for a list of samples
+### Top-Level Task (Entry Point) — Green box
+Entry point that has no incoming dependencies. Users call this to start workflows:
+- **ProduceNtuples**: Unified task that triggers either ntuple production (via `CROWNRun`) or friend production (via `CROWNFriend`) based on the `friend_config` parameter. When `friend_config=""` (empty, default), it triggers ntuple production. When `friend_config` is set to a specific configuration, it triggers friend production. Can handle multi-friend scenarios through the `friend_mapping` parameter.
 
-All three are **Local** tasks (do not inherit from `HTCondorWorkflow`), meaning they execute on the submission machine and orchestrate remote workflow tasks.
+**Local** task (does not inherit from `HTCondorWorkflow`), meaning it executes on the submission machine and orchestrates remote workflow tasks.
 
 ### Workflow Tasks — Blue boxes
 Tasks that inherit from `HTCondorWorkflow`, meaning they submit jobs to run on HTCondor cluster:
 - **CROWNRun**: Executes CROWN ntuple production on remote cluster
-- **CROWNFriends**: Executes CROWN friend production on remote cluster
-- **CROWNMultiFriends**: Executes CROWN multi-friend production on remote cluster
+- **CROWNFriend**: Executes CROWN friend production on remote cluster, can handle friend dependencies through `friend_mapping`
 
 ### Local Tasks
 All other tasks are Local (do not inherit from `HTCondorWorkflow`), meaning they execute on the submission machine:
-- Build tasks (`CROWNBuild*`, `BuildCROWNLib`) which are responsible to build tar archives. Those are needed by the remote workflows to provide them with all the tools/files they need.
+- Build tasks (`CROWNBuild*`, `BuildCROWNLib`) which are responsible for building tar archives. Those are needed by the remote workflows to provide them with all the tools/files they need.
 - Configuration tasks (`ConfigureDatasets`)
-- Quantities map aggregation tasks (`QuantitiesMap`, `FriendQuantitiesMap`)
+- Quantities map extraction tasks (`QuantitiesMap`)
