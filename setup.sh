@@ -332,6 +332,13 @@ action() {
     export LUIGI_CONFIG_PATH="${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg"
     export ANALYSIS_PATH="${BASE_DIR}"
     export ANALYSIS_DATA_PATH="${ANALYSIS_PATH}/data"
+    mkdir -p "${LAW_HOME}"
+
+    clear_law_cache (){
+        echo "Clearing Law file target cache..."
+        rm "${LAW_HOME}/target_exists_cache.json"
+        rm "${LAW_HOME}/wlcg_dir_cache.json"
+    }
 
     # law
     _addpy "${BASE_DIR}/law"

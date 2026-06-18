@@ -10,6 +10,11 @@ from rich.console import Console
 from datetime import datetime
 from tempfile import mkdtemp
 from getpass import getuser
+from caching import (
+    CachedNestedSiblingFileCollection,
+    CachedSiblingFileCollection,
+    CachedWLCGFileTarget,
+)
 
 try:
     from luigi.parameter import UnconsumedParameterWarning
@@ -83,7 +88,7 @@ class Task(law.Task):
     prefer_params_cli = law.Task.prefer_params_cli | {"production_tag"}
 
     # Set default for all inheriting Tasks
-    output_collection_cls = law.NestedSiblingFileCollection
+    output_collection_cls = CachedNestedSiblingFileCollection
 
     # Path of local targets.
     #   Composed from the analysis path set during the setup.sh
@@ -116,6 +121,12 @@ class Task(law.Task):
 
         return law.LocalFileTarget(self.local_path(path))
 
+    def local_dir_target(self, path):
+        if isinstance(path, (list, tuple)):
+            return [law.LocalDirectoryTarget(self.local_path(p)) for p in path]
+
+        return law.LocalDirectoryTarget(self.local_path(path))
+
     def temporarylocal_target(self, *path):
         return law.LocalFileTarget(self.temporary_local_path(*path))
 
@@ -126,14 +137,17 @@ class Task(law.Task):
         parts = (self.production_tag,) + (self.__class__.__name__,) + path
         return os.path.join(*parts)
 
+    def get_remote_path(self, target):
+        return target.fs.uri(target.path)
+
     def remote_target(self, path):
         if self.is_local_output:
             return self.local_target(path)
 
         if isinstance(path, (list, tuple)):
-            return [law.wlcg.WLCGFileTarget(self.remote_path(p)) for p in path]
+            return [CachedWLCGFileTarget(self.remote_path(p)) for p in path]
 
-        return law.wlcg.WLCGFileTarget(self.remote_path(path))
+        return CachedWLCGFileTarget(self.remote_path(path))
 
     def convert_env_to_dict(self, env):
         my_env = {}
