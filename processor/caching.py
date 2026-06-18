@@ -5,6 +5,9 @@ import fcntl
 import law
 from threading import Lock
 from law.util import no_value
+from law.logger import get_logger
+
+logger = get_logger("custom.caching")
 
 law.contrib.load("wlcg")
 CACHE_PATH = f'{os.getenv("LAW_HOME")}/target_exists_cache.json'
@@ -114,7 +117,10 @@ def cache_get_exists(key, ttl):
     if not entry:
         return False
 
-    return ttl is None or (time.time() - entry["ts"] < ttl)
+    hit = ttl is None or (time.time() - entry["ts"] < ttl)
+    if hit:
+        logger.debug(f"Cache hit for key: {key}")
+    return hit
 
 
 class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
