@@ -94,7 +94,7 @@ class CROWNRun(CROWNExecuteBase):
         _inputfiles = branch_data["files"]
         _sample_type = branch_data["sample_type"]
         _era = branch_data["era"]
-        
+
         # This call aims to get a "better" XRootD server to access the file.
         # If the file is available on GridKA, take it from there.
         # Otherwise, use the official European or global redirector.
@@ -134,9 +134,7 @@ class CROWNRun(CROWNExecuteBase):
             tar.extractall(_workdir)
             os.remove(_tempfile)
         _crown_args = [_outputfile] + _inputfiles
-        _executable = "./{}_{}_{}".format(
-            self.config, _sample_type, _era
-        )
+        _executable = "./{}_{}_{}".format(self.config, _sample_type, _era)
         # actual payload:
         console.rule("Starting CROWNRun")
         console.log("Executable: {}".format(_executable))

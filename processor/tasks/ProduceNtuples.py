@@ -36,7 +36,7 @@ class ProduceNtuples(ProduceBase):
                 parsed_map = value  # fallback: raw string
         else:
             parsed_map = self.friend_mapping
-        
+
         if isinstance(parsed_map, str):
             with open(self.friend_mapping) as stream:
                 parsed_map_data = yaml.safe_load(stream)
@@ -44,7 +44,7 @@ class ProduceNtuples(ProduceBase):
             parsed_map_data = defaultdict(dict)
         else:
             parsed_map_data = parsed_map
-        
+
         if (
             self.friend_name == ""
             and parsed_map_data[self.friend_config].get("friend_name") is None
@@ -53,7 +53,7 @@ class ProduceNtuples(ProduceBase):
         else:
             if self.friend_name != "":
                 parsed_map_data[self.friend_config]["friend_name"] = self.friend_name
-        
+
         self.friend_mapping = self.normalize_configs(parsed_map_data)
 
     def normalize_configs(self, configs: dict) -> dict:
@@ -143,5 +143,5 @@ class ProduceNtuples(ProduceBase):
                     era=data["details"][samplenick]["era"],
                     sample_type=data["details"][samplenick]["sample_type"],
                 )
-        
+
         return requirements

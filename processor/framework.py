@@ -93,7 +93,7 @@ class Task(law.Task):
     def KingMaker_path(self, *path):
         parts = (os.getenv("ANALYSIS_PATH"),) + path
         return os.path.join(*parts)
-    
+
     # Path of local targets.
     #   Composed from the analysis path set during the setup.sh
     #   or the local_output_path if is_local_output is set,
