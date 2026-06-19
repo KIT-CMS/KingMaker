@@ -11,7 +11,6 @@ from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from CROWNBase import CROWNBuildBase
 from CROWNMain import BuildCROWNLib
-from helpers.GetQuantitiesMap import read_quantities_map
 from helpers.helpers import convert_to_comma_seperated, printi
 
 
@@ -229,6 +228,7 @@ class CROWNFriend(CROWNExecuteBase):
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
 
+            from helpers.GetQuantitiesMap import read_quantities_map
             read_quantities_map(
                 input_file=inputfile,
                 era=self.branch_data["era"],
@@ -400,6 +400,8 @@ class QuantitiesMap(CROWNBuildBase):
         if not single_input.path.endswith(".root"):
             raise Exception("Input should be a single rootfile")
         rootfile_path = self.get_remote_path(single_input)
+        
+        from helpers.GetQuantitiesMap import read_quantities_map
         for outputfile, scope in zip(self.output(), self.scopes):
             read_quantities_map(
                 input_file=rootfile_path,
