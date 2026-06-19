@@ -2,7 +2,6 @@ import law
 import luigi
 import os
 import json
-import shutil
 from framework import (
     console,
     HTCondorWorkflow,
@@ -275,8 +274,8 @@ class CROWNBuildBase(KingmakerSandbox, Task):
 
         # localize crownlib to build directory
         console.log(f"Localizing crownlib {crownlib.path} to {build_dir}")
-        # copy crownlib to build directory
-        crownlib.copy_to_local(os.path.join(build_dir, crownlib.basename))
+        # always copy as libCROWNLIB.so so the build system finds it by its canonical name
+        crownlib.copy_to_local(os.path.join(build_dir, "libCROWNLIB.so"))
 
         return build_dir, install_dir
 

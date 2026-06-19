@@ -6,12 +6,11 @@ import time
 import law
 from framework import console
 from CROWNMain import CROWNRun
-from framework import console
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from CROWNBase import CROWNBuildBase
 from CROWNMain import BuildCROWNLib
-from helpers.helpers import convert_to_comma_seperated, printi
+from helpers.helpers import convert_to_comma_seperated
 
 
 class CROWNFriend(CROWNExecuteBase):
@@ -75,7 +74,7 @@ class CROWNFriend(CROWNExecuteBase):
                     "filecounter": int(counter / len(self.scopes)),
                 }
                 filename = inputfile.path.split("/")[-1]
-                for friend_index, requires_config in enumerate(required_friends):
+                for friend_index, _ in enumerate(required_friends):
                     if not friend_branches[friend_index][counter].path.endswith(
                         ".root"
                     ):
@@ -140,7 +139,7 @@ class CROWNFriend(CROWNExecuteBase):
         quantities_map_output = None
         create_quantities_map = False
         if self.branch_data["filecounter"] == 0:
-            console.log("Will create quantities map for scope {}".format(scope))
+            console.log(f"Will create quantities map for scope {scope}")
             create_quantities_map = True
             quantities_map_output = outputs[1]
         _base_workdir = os.path.abspath("workdir")
@@ -153,7 +152,7 @@ class CROWNFriend(CROWNExecuteBase):
             branch_data[input] for input in branch_data if "inputfile_friend_" in input
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
-        _outputfile = str(output.basename.replace("_{}.root".format(scope), ".root"))
+        _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.friend_config, sample_type, era
         )
@@ -224,7 +223,7 @@ class CROWNFriend(CROWNExecuteBase):
         if create_quantities_map and quantities_map_output is not None:
             inputfile = os.path.join(
                 _workdir,
-                _outputfile.replace(".root", "_{}.root".format(scope)),
+                _outputfile.replace(".root", f"_{scope}.root"),
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
 
@@ -239,7 +238,7 @@ class CROWNFriend(CROWNExecuteBase):
             )
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
-        console.rule("Finished CROWNMultiFriends")
+        console.rule("Finished CROWNFriend")
 
 
 class CROWNBuildFriend(CROWNBuildBase):
@@ -379,7 +378,7 @@ class QuantitiesMap(CROWNBuildBase):
         if self.friend_config != "":
             requirements[f"CROWNFriend_{self.friend_config}"] = CROWNFriend.req(self)
         else:
-            requirements[f"CROWNRun"] = CROWNRun.req(self)
+            requirements["CROWNRun"] = CROWNRun.req(self)
         return requirements
 
     def output(self):

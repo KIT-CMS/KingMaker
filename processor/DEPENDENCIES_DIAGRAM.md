@@ -180,12 +180,12 @@ Entry point that has no incoming dependencies. Users call this to start workflow
 **Local** task (does not inherit from `HTCondorWorkflow`), meaning it executes on the submission machine and orchestrates remote workflow tasks.
 
 ### Workflow Tasks — Blue boxes
-Tasks that inherit from `HTCondorWorkflow`, meaning they submit jobs to run on HTCondor cluster:
+Tasks that inherit from `HTCondorWorkflow` (and `law.LocalWorkflow`), meaning they submit jobs to run on HTCondor cluster:
 - **CROWNRun**: Executes CROWN ntuple production on remote cluster
-- **CROWNFriend**: Executes CROWN friend production on remote cluster, can handle friend dependencies through `friend_mapping`
+- **CROWNFriend**: Executes CROWN friend production on remote cluster, handles friend dependencies through `friend_mapping`
 
 ### Local Tasks
 All other tasks are Local (do not inherit from `HTCondorWorkflow`), meaning they execute on the submission machine:
-- Build tasks (`CROWNBuild*`, `BuildCROWNLib`) which are responsible for building tar archives. Those are needed by the remote workflows to provide them with all the tools/files they need.
-- Configuration tasks (`ConfigureDatasets`)
-- Quantities map extraction tasks (`QuantitiesMap`)
+- **Build tasks** (`CROWNBuild`, `CROWNBuildCombined`, `CROWNBuildFriend`, `BuildCROWNLib`) which are responsible for building tar archives. These are needed by the remote workflows to provide them with all the tools/files they need. Inherit from `CROWNBuildBase` and `KingmakerSandbox`.
+- **Configuration tasks** (`ConfigureDatasets`) - loads dataset information from database
+- **Quantities map extraction** (`QuantitiesMap`) - extracts quantities map from ROOT files after CROWN execution

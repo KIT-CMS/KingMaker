@@ -5,15 +5,13 @@ import fcntl
 import law
 import hashlib
 from threading import Lock
-from law.util import no_value
+from law.util import no_value, flatten
 from law.logger import get_logger
 
 logger = get_logger("custom.caching")
 
 law.contrib.load("wlcg")
 
-# We now only need the target existence cache.
-# The directory cache is removed to prevent "partial state" blindness.
 CACHE_PATH = f'{os.getenv("LAW_HOME", "/tmp")}/target_exists_cache.json'
 
 CACHE_LOCK = Lock()

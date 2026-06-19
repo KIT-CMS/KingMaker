@@ -96,23 +96,3 @@ flowchart TD
   click CROWNBuildFriend https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py"
   click QuantitiesMap https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNFriend.py"
 ```
-
-## Task Classification
-
-### Top-Level Task (Entry Point) — Green box
-Entry point that has no incoming dependencies. Users call this to start workflows:
-- **ProduceNtuples**: Unified task that can trigger either ntuple production or friend production based on the `friend_config` parameter. Inherits from `ProduceBase` (WrapperTask).
-
-This is a **Local** task (does not inherit from `HTCondorWorkflow`), meaning it executes on the submission machine and orchestrates remote workflow tasks.
-
-### Workflow Tasks — Blue boxes
-Tasks that inherit from `HTCondorWorkflow` (and `law.LocalWorkflow`), meaning they submit jobs to run on HTCondor cluster:
-- **CROWNRun**: Executes CROWN ntuple production on remote cluster
-- **CROWNFriend**: Executes CROWN friend production on remote cluster, handles friend dependencies through `friend_mapping`
-
-### Local Tasks
-All other tasks are Local (do not inherit from `HTCondorWorkflow`), meaning they execute on the submission machine:
-- **Build tasks** (`CROWNBuild`, `CROWNBuildCombined`, `CROWNBuildFriend`, `BuildCROWNLib`) which are responsible for building tar archives. These are needed by the remote workflows to provide them with all the tools/files they need. Inherit from `CROWNBuildBase` and `KingmakerSandbox`.
-- **Configuration tasks** (`ConfigureDatasets`) - loads dataset information from database
-- **Quantities map extraction** (`QuantitiesMap`) - extracts quantities map from ROOT files after CROWN execution
-```

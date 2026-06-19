@@ -4,6 +4,7 @@ import tarfile
 import subprocess
 import time
 import json
+import hashlib
 from CROWNBase import CROWNBuildBase
 from framework import console, Task
 from helpers.helpers import create_abspath
@@ -37,7 +38,8 @@ class CROWNRun(CROWNExecuteBase):
         branchcounter = 0
         dataset = ConfigureDatasets.req(self)
         # since we use the filelist from the dataset, we need to run it first
-        dataset.run()
+        if not dataset.complete():
+            dataset.run()
         datsetinfo = dataset.output()
         with datsetinfo.localize("r") as _file:
             inputdata = _file.load()
@@ -45,6 +47,9 @@ class CROWNRun(CROWNExecuteBase):
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
         files_per_task = self.files_per_task
+        custom_fpt = self.custom_files_per_task.get(self.sample_type)
+        if custom_fpt is not None:
+            files_per_task = int(custom_fpt)
         if self.sample_type == "data" and any(
             era in self.nick for era in self.problematic_eras
         ):
@@ -89,12 +94,27 @@ class CROWNRun(CROWNExecuteBase):
         _inputfiles = branch_data["files"]
         _sample_type = branch_data["sample_type"]
         _era = branch_data["era"]
+        
+        # This call aims to get a "better" XRootD server to access the file.
+        # If the file is available on GridKA, take it from there.
+        # Otherwise, use the official European or global redirector.
+        _inputfiles = [
+            get_alternate_file_uri(
+                filename,
+                [
+                    "root://cmsdcache-kit-disk.gridka.de",
+                    "root://xrootd-cms.infn.it",
+                    "root://cms-xrd-global.cern.ch",
+                ],
+            )
+            for filename in _inputfiles
+        ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(
             outputs[0].basename.replace("_{}.root".format(self.scopes[0]), ".root")
         )
         _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.config, branch_data["sample_type"], branch_data["era"]
+            _workdir, self.config, _sample_type, _era
         )
         _tarball = inputs["tarball_{}_{}".format(_sample_type, _era)]
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
@@ -103,9 +123,7 @@ class CROWNRun(CROWNExecuteBase):
         # first unpack the tarball if the exec is not there yet
         _tempfile = os.path.join(
             _workdir,
-            "unpacking_{}_{}_{}".format(
-                self.config, branch_data["sample_type"], branch_data["era"]
-            ),
+            "unpacking_{}_{}_{}".format(self.config, _sample_type, _era),
         )
         while os.path.exists(_tempfile):
             time.sleep(1)
@@ -117,7 +135,7 @@ class CROWNRun(CROWNExecuteBase):
             os.remove(_tempfile)
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(
-            self.config, branch_data["sample_type"], branch_data["era"]
+            self.config, _sample_type, _era
         )
         # actual payload:
         console.rule("Starting CROWNRun")
@@ -366,26 +384,51 @@ class BuildCROWNLib(CROWNBuildBase):
     # friend_name = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
+    def get_source_hash(self):
+        """
+        Compute a hash of the CROWN source tree so that any code change produces
+        a new task output, triggering a fresh compilation.
+        """
+        crown_path = os.path.abspath("CROWN")
+        subdirs = ["src", "include", "analysis_configurations"]
+        h = hashlib.sha256()
+        for subdir in sorted(subdirs):
+            dirpath = os.path.join(crown_path, subdir)
+            if not os.path.exists(dirpath):
+                continue
+            for root, dirs, files in os.walk(dirpath):
+                dirs.sort()
+                for fname in sorted(files):
+                    fpath = os.path.join(root, fname)
+                    with open(fpath, "rb") as f:
+                        h.update(f.read())
+        cmake_path = os.path.join(crown_path, "CMakeLists.txt")
+        if os.path.exists(cmake_path):
+            with open(cmake_path, "rb") as f:
+                h.update(f.read())
+        return h.hexdigest()[:16]
+
     def output(self):
-        target = self.local_target(f"libCROWNLIB.so")
+        target = self.local_target(f"libCROWNLIB_{self.get_source_hash()}.so")
         return target
 
     def run(self):
         # get output file path
         output = self.output()
+        _source_hash = self.get_source_hash()
         # also use the tag for the local tarball creation
         _install_dir = os.path.abspath(
             os.path.join(
                 str(self.install_dir),
                 str(self.production_tag),
-                f"crownlib",
+                f"crownlib_{_source_hash}",
             )
         )
         _build_dir = os.path.abspath(
             os.path.join(
                 str(self.build_dir),
                 str(self.production_tag),
-                f"crownlib",
+                f"crownlib_{_source_hash}",
             )
         )
         _crown_path = os.path.abspath("CROWN")
@@ -395,9 +438,10 @@ class BuildCROWNLib(CROWNBuildBase):
             "scripts",
             "compile_crown_lib.sh",
         )
-        _local_libfile = os.path.join(_install_dir, "lib", output.basename)
+        # cmake always produces libCROWNLIB.so regardless of our output name
+        _local_libfile = os.path.join(_install_dir, "lib", "libCROWNLIB.so")
         _analysis = str(self.analysis)
-        if os.path.exists(os.path.join(_install_dir, output.basename)):
+        if os.path.exists(_local_libfile):
             console.log(f"lib already existing in tarball directory {_install_dir}")
             output.parent.touch()
             output.copy_from_local(_local_libfile)
