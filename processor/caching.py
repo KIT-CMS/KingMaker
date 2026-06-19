@@ -5,7 +5,10 @@ import fcntl
 import law
 import hashlib
 from threading import Lock
-from law.util import no_value, flatten
+from law.util import no_value
+from law.logger import get_logger
+
+logger = get_logger("custom.caching")
 
 law.contrib.load("wlcg")
 
@@ -70,7 +73,11 @@ def cache_get_exists(key, ttl):
     entry = _TARGET_CACHE.get(key)
     if not entry:
         return False
-    return ttl is None or (time.time() - entry["ts"] < ttl)
+
+    hit = ttl is None or (time.time() - entry["ts"] < ttl)
+    if hit:
+        logger.debug(f"Cache hit for key: {key}")
+    return hit
 
 
 def _get_collection_key(targets):

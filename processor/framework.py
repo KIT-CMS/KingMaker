@@ -91,10 +91,6 @@ class Task(law.Task):
     # Set default for all inheriting Tasks
     output_collection_cls = CachedNestedSiblingFileCollection
 
-    def KingMaker_path(self, *path):
-        parts = (os.getenv("ANALYSIS_PATH"),) + path
-        return os.path.join(*parts)
-
     # Path of local targets.
     #   Composed from the analysis path set during the setup.sh
     #   or the local_output_path if is_local_output is set,
@@ -534,6 +530,10 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.render_variables["LOCAL_PWD"] = startup_dir
         return config
 
+    def htcondor_use_local_scheduler(self):
+        # always use a local scheduler in remote jobs
+        return True
+
 
 # Helper function to generate sandbox_pre_setup_cmds functions
 # Adds a list of env variables before the setup_sandbox.sh call
@@ -554,11 +554,11 @@ class KingmakerSandbox(law.SandboxTask):
         default=law.NO_STR,
         description="path to a sandbox file to be used for the job. Default 'law.NO_STR' deactivates sandboxing.",
     )
-    # Mount certificate dir to enable voms proxy
+    # Mount certificate dir to enable voms proxy, and local storage when using local output
     singularity_args = lambda x: [
         "-B",
         "/etc/grid-security/certificates",
-    ]
+    ] + (["-B", "/" + x.local_output_path.split("/")[1]] if x.is_local_output else [])
 
     # Default sandbox init
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
