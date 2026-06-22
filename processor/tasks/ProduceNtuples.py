@@ -18,7 +18,13 @@ class ProduceNtuples(ProduceBase):
     friend_name = luigi.Parameter(default="")
     friend_mapping = luigi.Parameter(default="{}")
 
-    def derive_mapping(self):
+    def derive_mapping(self, read_only=False):
+        if read_only:
+            if isinstance(self.friend_mapping, str):
+                with open(self.friend_mapping) as stream:
+                    self.friend_mapping = yaml.safe_load(stream)
+            return
+
         if isinstance(self.friend_mapping, str):
             value = self.friend_mapping.strip()
             try:
@@ -94,11 +100,15 @@ class ProduceNtuples(ProduceBase):
                 )
 
     def requires(self):
-        if self.friend_config != "":
+        if self.friend_config != "" and self.friend_mapping != "{}":
             self.derive_mapping()
             self.recursive_check(
                 self.friend_mapping, self.friend_config, [self.friend_config]
             )
+        elif self.friend_mapping != "{}" and self.friend_config == "":
+            self.derive_mapping(read_only=True)
+            for key in self.friend_mapping.keys():
+                self.recursive_check(self.friend_mapping, key, [key])
 
         self.sanitize_scopes()
         self.sanitize_shifts()
@@ -110,17 +120,22 @@ class ProduceNtuples(ProduceBase):
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
             console.log(f"NanoAOD: {self.nanoAOD_version}")
-            if self.friend_config != "":
+            if self.friend_config != "" and self.friend_mapping != "{}":
                 console.log(f"Friend Config: {self.friend_config}")
                 console.log(f"Friend Name: {self.friend_name}")
                 console.log(f"Friend Mapping: {self.friend_mapping}")
+            elif self.friend_mapping != "{}" and self.friend_config == "":
+                for key, cfg in self.friend_mapping.items():
+                    console.log(f"Friend Config: {key}")
+                    console.log(f"Friend Name: {cfg['friend_name']}")
+                    console.log(f"Friend Mapping: {cfg.get('requires', [])}")
             console.rule("")
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
         self.silent = True
 
         requirements = {}
-        if self.friend_config != "":
+        if self.friend_config != "" and self.friend_mapping != "{}":
             for samplenick in data["details"]:
                 requirements[f"CROWNFriend_{samplenick}_{self.friend_config}"] = (
                     CROWNFriend.req(
@@ -133,6 +148,21 @@ class ProduceNtuples(ProduceBase):
                         friend_mapping=self.friend_mapping,
                     )
                 )
+        elif self.friend_mapping != "{}" and self.friend_config == "":
+            for samplenick in data["details"]:
+                for friend_config in self.friend_mapping.keys():
+                    requirements[f"CROWNFriend_{samplenick}_{friend_config}"] = (
+                        CROWNFriend.req(
+                            self,
+                            nick=samplenick,
+                            all_eras=data["eras"],
+                            all_sample_types=data["sample_types"],
+                            era=data["details"][samplenick]["era"],
+                            sample_type=data["details"][samplenick]["sample_type"],
+                            friend_config=friend_config,
+                            friend_mapping=self.friend_mapping,
+                        )
+                    )
         else:
             for samplenick in data["details"]:
                 requirements[f"CROWNRun_{samplenick}"] = CROWNRun.req(

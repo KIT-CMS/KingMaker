@@ -4,3 +4,5 @@ template_multifriend_config:
   - template_friend_config
 # template_friend_config: ### required configs are automatically added
 #   friend_name: friend_1 ### with name as default config name
+
+### for this example at least the --friend-config option must be used
