@@ -1,3 +1,4 @@
+import os
 import luigi
 import ast
 import yaml
@@ -21,8 +22,18 @@ class ProduceNtuples(ProduceBase):
     def derive_mapping(self, read_only=False):
         if read_only:
             if isinstance(self.friend_mapping, str):
-                with open(self.friend_mapping) as stream:
-                    self.friend_mapping = yaml.safe_load(stream)
+                if os.path.isfile(self.friend_mapping):
+                    with open(self.friend_mapping) as stream:
+                        self.friend_mapping = yaml.safe_load(stream)
+                else:
+                    value = self.friend_mapping.strip()
+                    parsed = ast.literal_eval(value)
+                    if isinstance(parsed, dict):
+                        self.friend_mapping = parsed
+                    else:
+                        raise ValueError(
+                            f"friend_mapping '{self.friend_mapping}' is not a valid dictionary literal."
+                        )
             return
 
         if isinstance(self.friend_mapping, str):
