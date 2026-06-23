@@ -16,7 +16,7 @@ def parse_args():
     return args
 
 
-def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir):
+def extract_quantities_map(input_file, libdir):
     print(f"Reading quantities Map from {input_file}")
 
     # Load dict parsing lib
@@ -38,12 +38,21 @@ def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir)
     data = {}
     for shift, quantities in m:
         data[str(shift)] = sorted([str(quantity) for quantity in quantities])
+    metadata = json.loads(f.Get("metadata").GetString().Data())["metadata"]
     f.Close()
     print(f"Successfully read quantities map from {input_file}")
-    output = {}
-    output[era] = {}
-    output[era][sample_type] = {}
-    output[era][sample_type][scope] = data
+    return data, metadata
+
+
+def read_quantities_map(input_file, era, sample_type, scope, outputfile, libdir):
+    data, metadata = extract_quantities_map(input_file, libdir)
+    if not (era == metadata["era"] and sample_type == metadata["sample_type"]):
+        raise ValueError(
+            f"Input file {input_file} does not match requested era {era}/{metadata['era']} or sample_type {sample_type}/{metadata['sample_type']}."
+        )
+    output = {"quantities": {era: {sample_type: {scope: data}}}, "metadata": metadata}
+    if not os.path.exists(os.path.dirname(outputfile)):
+        os.makedirs(os.path.dirname(outputfile), exist_ok=True)
     with open(outputfile, "w") as f:
         json.dump(output, f, indent=4)
 

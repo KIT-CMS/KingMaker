@@ -1,0 +1,10 @@
+template_multifriend_config:
+  friend_name: multifriend_1
+  requires:
+    - template_friend_config
+template_friend_config:
+  friend_name: friend_1
+
+### this example would also work without the --friend-config and 
+### --friend-name options as config and name are both defined
+### for everything in this file

@@ -90,6 +90,10 @@ class Task(law.Task):
     # Set default for all inheriting Tasks
     output_collection_cls = CachedNestedSiblingFileCollection
 
+    def KingMaker_path(self, *path):
+        parts = (os.getenv("ANALYSIS_PATH"),) + path
+        return os.path.join(*parts)
+
     # Path of local targets.
     #   Composed from the analysis path set during the setup.sh
     #   or the local_output_path if is_local_output is set,
@@ -450,7 +454,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 ),
             )
         else:
-            tarball = law.wlcg.WLCGFileTarget(
+            tarball = CachedWLCGFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,
