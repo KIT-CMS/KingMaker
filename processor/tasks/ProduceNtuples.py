@@ -111,7 +111,7 @@ class ProduceNtuples(ProduceBase):
                 )
 
     def requires(self):
-        if self.friend_config != "" and self.friend_mapping != "{}":
+        if self.friend_config != "":
             self.derive_mapping()
             self.recursive_check(
                 self.friend_mapping, self.friend_config, [self.friend_config]
@@ -131,7 +131,7 @@ class ProduceNtuples(ProduceBase):
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
             console.log(f"NanoAOD: {self.nanoAOD_version}")
-            if self.friend_config != "" and self.friend_mapping != "{}":
+            if self.friend_config != "":
                 console.log(f"Friend Config: {self.friend_config}")
                 console.log(f"Friend Name: {self.friend_name}")
                 console.log(f"Friend Mapping: {self.friend_mapping}")
@@ -146,7 +146,7 @@ class ProduceNtuples(ProduceBase):
         self.silent = True
 
         requirements = {}
-        if self.friend_config != "" and self.friend_mapping != "{}":
+        if self.friend_config != "":
             for samplenick in data["details"]:
                 requirements[f"CROWNFriend_{samplenick}_{self.friend_config}"] = (
                     CROWNFriend.req(
