@@ -1,6 +1,5 @@
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - boost>=1.84.0
   - boost-cpp>=1.84.0
