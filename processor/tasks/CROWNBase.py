@@ -163,15 +163,15 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     def htcondor_output_directory(self):
         if hasattr(self, "friend_config") and self.friend_config != "":
-            friend_name = self.friend_mapping[self.friend_config]["friend_name"]
-            path = f"htcondor_files/{friend_name}/{self.nick}"
+            friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
+            path = f"htcondor_files/{friend_tag}/{self.nick}"
         else:
             path = f"htcondor_files/ntuples/{self.nick}"
         return self.local_dir_target(path)
 
     def htcondor_job_config(self, config, job_num, branches):
         effective_name = (
-            self.friend_mapping[self.friend_config]["friend_name"]
+            self.friend_mapping[self.friend_config]["friend_tag"]
             if hasattr(self, "friend_config") and self.friend_config != ""
             else "Ntuple"
         )

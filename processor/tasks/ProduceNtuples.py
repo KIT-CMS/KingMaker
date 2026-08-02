@@ -16,7 +16,7 @@ class ProduceNtuples(ProduceBase):
     """
 
     friend_config = luigi.Parameter(default="")
-    friend_name = luigi.Parameter(default="")
+    friend_tag = luigi.Parameter(default="")
     friend_mapping = luigi.Parameter(default="{}")
 
     def derive_mapping(self, read_only=False):
@@ -63,13 +63,13 @@ class ProduceNtuples(ProduceBase):
             parsed_map_data = parsed_map
 
         if (
-            self.friend_name == ""
-            and parsed_map_data[self.friend_config].get("friend_name") is None
+            self.friend_tag == ""
+            and parsed_map_data[self.friend_config].get("friend_tag") is None
         ):
-            self.friend_name = self.friend_config
+            self.friend_tag = self.friend_config
         else:
-            if self.friend_name != "":
-                parsed_map_data[self.friend_config]["friend_name"] = self.friend_name
+            if self.friend_tag != "":
+                parsed_map_data[self.friend_config]["friend_tag"] = self.friend_tag
 
         self.friend_mapping = self.normalize_configs(parsed_map_data)
 
@@ -78,7 +78,7 @@ class ProduceNtuples(ProduceBase):
         Normalize config dictionary:
         - If a config value is None -> replace with {}
         - If a required config is missing -> add it as {}
-        - Add friend_name=<key> if not present
+        - Add friend_tag=<key> if not present
         """
 
         # First pass: normalize existing entries
@@ -94,9 +94,9 @@ class ProduceNtuples(ProduceBase):
                 if dep not in configs or configs[dep] is None:
                     configs[dep] = {}
 
-        # Third pass: ensure friend_name exists
+        # Third pass: ensure friend_tag exists
         for key, cfg in configs.items():
-            cfg.setdefault("friend_name", key)
+            cfg.setdefault("friend_tag", key)
 
         return configs
 
@@ -133,12 +133,12 @@ class ProduceNtuples(ProduceBase):
             console.log(f"NanoAOD: {self.nanoAOD_version}")
             if self.friend_config != "":
                 console.log(f"Friend Config: {self.friend_config}")
-                console.log(f"Friend Name: {self.friend_name}")
+                console.log(f"Friend Tag: {self.friend_tag}")
                 console.log(f"Friend Mapping: {self.friend_mapping}")
             elif self.friend_mapping != "{}" and self.friend_config == "":
                 for key, cfg in self.friend_mapping.items():
                     console.log(f"Friend Config: {key}")
-                    console.log(f"Friend Name: {cfg['friend_name']}")
+                    console.log(f"Friend Tag: {cfg['friend_tag']}")
                     console.log(f"Friend Mapping: {cfg.get('requires', [])}")
             console.rule("")
 

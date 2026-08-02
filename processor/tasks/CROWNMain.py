@@ -379,7 +379,7 @@ class BuildCROWNLib(CROWNBuildBase):
     # configuration variables
     build_dir = luigi.Parameter()
     install_dir = luigi.Parameter()
-    # friend_name = luigi.Parameter(default="ntuples")
+    # friend_tag = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
     def get_source_hash(self):
