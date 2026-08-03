@@ -189,8 +189,10 @@ class CROWNFriend(CROWNExecuteBase):
         console.log("inputfile(s) {} {}".format(_inputfile, _friend_inputs))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
+        command = self.wrap_executable_command([_executable] + _crown_args)
+        console.log(f"Running command: {command}")
         with subprocess.Popen(
-            [_executable] + _crown_args,
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=1,

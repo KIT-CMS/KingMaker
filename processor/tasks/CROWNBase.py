@@ -182,6 +182,27 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
         return config
 
+    def wrap_executable_command(self, command):
+        """
+        CROWN executables are linked with an RPATH pointing at the container's
+        /opt/conda/envs/env, so they only resolve their ROOT/libstdc++ versions
+        inside the kingmaker_standalone image. HTCondor branches already run
+        inside that image via the container universe, but branches of the
+        local workflow execute directly on the submission host, so they need
+        to be wrapped in the same singularity container explicitly.
+        """
+        if self.effective_workflow != "local":
+            return command
+        singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
+        if self.is_local_output:
+            singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        return (
+            ["singularity", "exec"]
+            + singularity_args
+            + [str(self.htcondor_container_image)]
+            + command
+        )
+
     def modify_polling_status_line(self, status_line):
         """
         The function `modify_polling_status_line` modifies the status line that is printed during polling by
