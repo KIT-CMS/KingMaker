@@ -141,7 +141,7 @@ class CROWNRun(CROWNExecuteBase):
         console.log("inputfile {}".format(_inputfiles))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
-        command = [_executable] + _crown_args
+        command = self.wrap_executable_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
         with subprocess.Popen(
             command,
@@ -379,7 +379,7 @@ class BuildCROWNLib(CROWNBuildBase):
     # configuration variables
     build_dir = luigi.Parameter()
     install_dir = luigi.Parameter()
-    # friend_name = luigi.Parameter(default="ntuples")
+    # friend_tag = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
     def get_source_hash(self):
@@ -395,9 +395,13 @@ class BuildCROWNLib(CROWNBuildBase):
             if not os.path.exists(dirpath):
                 continue
             for root, dirs, files in os.walk(dirpath):
-                dirs.sort()
+                # skip generated artifacts, they change while the workflow runs
+                dirs[:] = sorted(d for d in dirs if d not in ("__pycache__", ".git"))
                 for fname in sorted(files):
+                    if fname.endswith((".pyc", ".pyo", ".so")):
+                        continue
                     fpath = os.path.join(root, fname)
+                    h.update(os.path.relpath(fpath, crown_path).encode())
                     with open(fpath, "rb") as f:
                         h.update(f.read())
         cmake_path = os.path.join(crown_path, "CMakeLists.txt")

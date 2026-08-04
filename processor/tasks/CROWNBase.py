@@ -163,15 +163,15 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
 
     def htcondor_output_directory(self):
         if hasattr(self, "friend_config") and self.friend_config != "":
-            friend_name = self.friend_mapping[self.friend_config]["friend_name"]
-            path = f"htcondor_files/{friend_name}/{self.nick}"
+            friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
+            path = f"htcondor_files/{friend_tag}/{self.nick}"
         else:
             path = f"htcondor_files/ntuples/{self.nick}"
         return self.local_dir_target(path)
 
     def htcondor_job_config(self, config, job_num, branches):
         effective_name = (
-            self.friend_mapping[self.friend_config]["friend_name"]
+            self.friend_mapping[self.friend_config]["friend_tag"]
             if hasattr(self, "friend_config") and self.friend_config != ""
             else "Ntuple"
         )
@@ -181,6 +181,27 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         config = super().htcondor_job_config(config, job_num, branches)
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
         return config
+
+    def wrap_executable_command(self, command):
+        """
+        CROWN executables are linked with an RPATH pointing at the container's
+        /opt/conda/envs/env, so they only resolve their ROOT/libstdc++ versions
+        inside the kingmaker_standalone image. HTCondor branches already run
+        inside that image via the container universe, but branches of the
+        local workflow execute directly on the submission host, so they need
+        to be wrapped in the same singularity container explicitly.
+        """
+        if self.effective_workflow != "local":
+            return command
+        singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
+        if self.is_local_output:
+            singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        return (
+            ["singularity", "exec"]
+            + singularity_args
+            + [str(self.htcondor_container_image)]
+            + command
+        )
 
     def modify_polling_status_line(self, status_line):
         """
