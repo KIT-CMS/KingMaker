@@ -412,7 +412,9 @@ class QuantitiesMap(CROWNBuildBase):
             # the quantities of a scope have to be read from a rootfile of that scope,
             # the scope is the last folder in the path of the rootfile
             scope_inputs = [
-                target for target in rootfiles if target.path.split("/")[-2] == scope
+                target
+                for target in rootfiles
+                if target.path.split("/")[-2] == scope
             ]
             if len(scope_inputs) == 0:
                 raise Exception(f"No input rootfile found for scope {scope}")

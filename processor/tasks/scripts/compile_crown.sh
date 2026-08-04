@@ -36,6 +36,9 @@ mkdir -p "${BUILDDIR}"
 
 # --- CMake Configuration ---
 # We use the compilers and libraries provided by the container's Conda 'env'
+# Pin CMAKE_PREFIX_PATH to the ROOT install found via root-config: on hosts
+# that also have a system ROOT RPM installed, find_package(ROOT) can otherwise
+# silently resolve to that instead of the intended CVMFS/conda install.
 if cmake "${CROWNFOLDER}" \
     -DANALYSIS="${ANALYSIS}" \
     -DCONFIG="${CONFIG}" \
@@ -46,6 +49,7 @@ if cmake "${CROWNFOLDER}" \
     -DTHREADS="${EXECUTABLE_THREADS}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \
+    -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else
