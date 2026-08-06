@@ -1,12 +1,12 @@
 # KingMaker Containers
 [← Back to KingMaker Main Project](../README.md)
 
-This directory contains the Dockerfile and Conda environment YAML files used to build container images for running KingMaker and CROWN workflows.
+This directory contains the Dockerfile and Conda environment YAML file used to build container images for running KingMaker and CROWN workflows.
 
 Contents
 
 - `Dockerfile`:  primary Dockerfile for the default image, based on Redhat9.
-- `*_env.yml`:  Conda environment specs.
+- `KingMaker_env.yml`:  Conda environment specs.
 
 Docker Build
 
