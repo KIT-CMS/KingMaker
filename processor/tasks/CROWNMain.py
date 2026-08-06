@@ -177,11 +177,13 @@ class CROWNRun(CROWNExecuteBase):
             # we have to open the files once again, setting the
             # kEntriesReshuffled bit to false, otherwise,
             # we cannot add any friends to the trees
-            command = self.wrap_executable_command([
-                "python3",
-                "processor/tasks/helpers/ResetROOTStatusBit.py",
-                "--input {}".format(local_filename),
-            ])
+            command = self.wrap_executable_command(
+                [
+                    "python3",
+                    "processor/tasks/helpers/ResetROOTStatusBit.py",
+                    "--input {}".format(local_filename),
+                ]
+            )
             self.run_command(
                 command=command,
                 silent=True,
