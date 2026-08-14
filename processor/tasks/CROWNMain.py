@@ -2,6 +2,7 @@ import luigi
 import os
 import tarfile
 import subprocess
+import threading
 import time
 import json
 import hashlib
@@ -11,6 +12,31 @@ from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
 from helpers.helpers import convert_to_comma_seperated
+
+_dataset_filelist_cache = {}
+_dataset_filelist_lock = threading.Lock()
+
+_source_hash_cache = {}
+_source_hash_lock = threading.Lock()
+
+
+def load_dataset_filelist(dataset_task):
+    # dataset_task.output().localize() is a real network copy; cache it so the
+    # per-sample cost is paid once even though create_branch_map runs it again later
+    key = dataset_task.output().uri()
+    with _dataset_filelist_lock:
+        inputdata = _dataset_filelist_cache.get(key)
+    if inputdata is not None:
+        return inputdata
+
+    if not dataset_task.complete():
+        dataset_task.run()
+    with dataset_task.output().localize("r") as _file:
+        inputdata = _file.load()
+
+    with _dataset_filelist_lock:
+        _dataset_filelist_cache[key] = inputdata
+    return inputdata
 
 
 class CROWNRun(CROWNExecuteBase):
@@ -37,12 +63,7 @@ class CROWNRun(CROWNExecuteBase):
         branch_map = {}
         branchcounter = 0
         dataset = ConfigureDatasets.req(self)
-        # since we use the filelist from the dataset, we need to run it first
-        if not dataset.complete():
-            dataset.run()
-        datsetinfo = dataset.output()
-        with datsetinfo.localize("r") as _file:
-            inputdata = _file.load()
+        inputdata = load_dataset_filelist(dataset)
         branches = {}
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
@@ -391,8 +412,16 @@ class BuildCROWNLib(CROWNBuildBase):
         """
         Compute a hash of the CROWN source tree so that any code change produces
         a new task output, triggering a fresh compilation.
+
+        output()/complete() get called repeatedly by luigi/law while building and
+        checking the task graph, so cache the result per source tree instead of
+        re-walking and re-hashing hundreds of files on every call.
         """
         crown_path = os.path.abspath("CROWN")
+        with _source_hash_lock:
+            cached = _source_hash_cache.get(crown_path)
+        if cached is not None:
+            return cached
         subdirs = ["src", "include", "analysis_configurations"]
         h = hashlib.sha256()
         for subdir in sorted(subdirs):
@@ -413,7 +442,10 @@ class BuildCROWNLib(CROWNBuildBase):
         if os.path.exists(cmake_path):
             with open(cmake_path, "rb") as f:
                 h.update(f.read())
-        return h.hexdigest()[:16]
+        digest = h.hexdigest()[:16]
+        with _source_hash_lock:
+            _source_hash_cache[crown_path] = digest
+        return digest
 
     def output(self):
         target = self.local_target(f"libCROWNLIB_{self.get_source_hash()}.so")
