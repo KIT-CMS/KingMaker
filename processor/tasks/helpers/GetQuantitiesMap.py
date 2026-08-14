@@ -30,7 +30,10 @@ def extract_quantities_map(input_file, libdir):
         err_type = (
             "Version mismatch" if result == -2 else "Linker error/Missing dependency"
         )
-        raise ImportError(f"Load failed ({result}): {err_type} for {lib_path}")
+        raise ImportError(
+            f"Load failed ({result}): {err_type} for {lib_path}\n"
+            f"Hint: Try removing the .cache directory in CROWN."
+        )
 
     f = ROOT.TFile.Open(input_file)
     name = "shift_quantities_map"
