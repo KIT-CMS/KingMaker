@@ -105,7 +105,10 @@ def _queue_cache_update(key, value_dict):
     with _PENDING_LOCK:
         _PENDING_UPDATES[key] = value_dict
         _TARGET_CACHE[key] = value_dict
-        should_flush = len(_PENDING_UPDATES) >= FLUSH_BATCH_SIZE or (time.time() - _LAST_FLUSH_TIME) >= FLUSH_INTERVAL
+        should_flush = (
+            len(_PENDING_UPDATES) >= FLUSH_BATCH_SIZE
+            or (time.time() - _LAST_FLUSH_TIME) >= FLUSH_INTERVAL
+        )
 
     if should_flush:
         with CACHE_LOCK:
