@@ -35,6 +35,7 @@ if cmake "${CROWNFOLDER}" \
     -DBUILD_CROWNLIB_ONLY=ON \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DANALYSIS="${ANALYSIS}" \
+    -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successful."
 else

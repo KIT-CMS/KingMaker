@@ -46,6 +46,7 @@ if cmake "${CROWNFOLDER}" \
     -DTHREADS="${EXECUTABLE_THREADS}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \
+    -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else
