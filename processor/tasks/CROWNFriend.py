@@ -253,7 +253,8 @@ class CROWNBuildFriend(CROWNBuildBase):
     friend_config = luigi.Parameter()
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
-    nick = luigi.Parameter()
+    # insignificant: tarball is shared per (sample_type, era); avoids concurrent nicks racing to build the same _build_dir
+    nick = luigi.Parameter(significant=False)
     friend_mapping = luigi.DictParameter(default={})
 
     def requires(self):
@@ -372,7 +373,8 @@ class QuantitiesMap(CROWNBuildBase):
     sample_type = luigi.Parameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    nick = luigi.Parameter()
+    # insignificant: quantities depend on the executable, built per (sample_type, era), not per sample
+    nick = luigi.Parameter(significant=False)
     friend_config = luigi.Parameter(default="")
     friend_mapping = luigi.DictParameter(default={})
 
@@ -390,7 +392,10 @@ class QuantitiesMap(CROWNBuildBase):
         else:
             name = "ntuple"
         return self.local_target(
-            [f"{self.nick}_{name}_{scope}_quantities_map.json" for scope in self.scopes]
+            [
+                f"{self.sample_type}_{self.era}_{name}_{scope}_quantities_map.json"
+                for scope in self.scopes
+            ]
         )
 
     def run(self):
@@ -412,9 +417,7 @@ class QuantitiesMap(CROWNBuildBase):
             # the quantities of a scope have to be read from a rootfile of that scope,
             # the scope is the last folder in the path of the rootfile
             scope_inputs = [
-                target
-                for target in rootfiles
-                if target.path.split("/")[-2] == scope
+                target for target in rootfiles if target.path.split("/")[-2] == scope
             ]
             if len(scope_inputs) == 0:
                 raise Exception(f"No input rootfile found for scope {scope}")
