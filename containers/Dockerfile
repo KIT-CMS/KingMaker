@@ -1,6 +1,6 @@
 FROM cern/alma9-base:latest
 
-LABEL author="Tim Voigtländer <tim.voigtlaender@kit.edu>"
+LABEL author="Nikita Shadskiy <nikita.shadskiy@kit.edu>"
 
 # ------------------------------------------------------------------------------
 # Environment
@@ -25,6 +25,7 @@ RUN dnf -y update && \
         which \
         zlib-devel \
         gcc \
+        gcc-c++ \
         glibc-devel \
         kernel-headers \
         pcre2-utf16 \
@@ -33,6 +34,7 @@ RUN dnf -y update && \
         perf \
         openssh \
         git \
+        boost-devel \
         crypto-policies-scripts && \
     dnf clean all
 
@@ -57,7 +59,7 @@ RUN wget -q https://github.com/conda-forge/miniforge/releases/download/${MINIFOR
 
 # ------------------------------------------------------------------------------
 # Conda environment specification
-# Fails for default value
+# Fails for default value of ENV_FILE_NAME
 # ------------------------------------------------------------------------------
 ARG ENV_NAME=env
 ARG ENV_FILE_NAME=None
@@ -88,6 +90,8 @@ RUN printf "#!/bin/bash\nsource /opt/conda/bin/activate ${ENV_NAME}\nexec \"\$@\
 # Make the Conda environment binaries globally accessible for github
 ENV CONDA_PREFIX=${CONDA_DIR}/envs/${ENV_NAME}
 ENV PATH="${CONDA_DIR}/envs/${ENV_NAME}/bin:$PATH"
+# Ensure conda's libstdc++ is used instead of system's
+ENV LD_LIBRARY_PATH="${CONDA_DIR}/envs/${ENV_NAME}/lib"
 
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["/bin/bash"]
