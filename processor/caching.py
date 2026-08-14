@@ -2,6 +2,7 @@ import os
 import json
 import time
 import fcntl
+import atexit
 import law
 import hashlib
 from threading import Lock
@@ -18,6 +19,14 @@ CACHE_LOCK = Lock()
 
 _TARGET_CACHE = {}
 _TARGET_CACHE_MTIME = 0
+
+MAX_CACHE_ENTRY_AGE = 7 * 86400
+FLUSH_BATCH_SIZE = 25
+FLUSH_INTERVAL = 5.0
+
+_PENDING_UPDATES = {}
+_PENDING_LOCK = Lock()
+_LAST_FLUSH_TIME = 0
 
 
 def _load_json(path):
@@ -53,6 +62,62 @@ def _update_json_cache_locked(cache_path, key, value_dict):
             return cache
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _prune_expired_entries(cache, cutoff_time):
+    expired_keys = [k for k, v in cache.items() if v.get("ts", 0) < cutoff_time]
+    for k in expired_keys:
+        del cache[k]
+    return cache
+
+
+def _flush_pending_locked():
+    global _LAST_FLUSH_TIME, _TARGET_CACHE
+
+    with _PENDING_LOCK:
+        if not _PENDING_UPDATES:
+            return
+        pending_copy = dict(_PENDING_UPDATES)
+        _PENDING_UPDATES.clear()
+
+    cache_dir = os.path.dirname(CACHE_PATH)
+    if cache_dir and not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+
+    lock_path = CACHE_PATH + ".lock"
+    with open(lock_path, "a") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            cache = _load_json(CACHE_PATH)
+            cache.update(pending_copy)
+            cutoff = time.time() - MAX_CACHE_ENTRY_AGE
+            cache = _prune_expired_entries(cache, cutoff)
+            _save_json_atomic(CACHE_PATH, cache)
+            _TARGET_CACHE = cache
+            _LAST_FLUSH_TIME = time.time()
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _queue_cache_update(key, value_dict):
+    global _TARGET_CACHE, _LAST_FLUSH_TIME
+
+    with _PENDING_LOCK:
+        _PENDING_UPDATES[key] = value_dict
+        _TARGET_CACHE[key] = value_dict
+        should_flush = len(_PENDING_UPDATES) >= FLUSH_BATCH_SIZE or (time.time() - _LAST_FLUSH_TIME) >= FLUSH_INTERVAL
+
+    if should_flush:
+        with CACHE_LOCK:
+            _flush_pending_locked()
+
+
+def _atexit_flush():
+    with CACHE_LOCK:
+        _flush_pending_locked()
+
+
+atexit.register(_atexit_flush)
 
 
 def _ensure_target_cache_loaded():
@@ -111,10 +176,7 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
 
         exists = super().exists()
         if exists:
-            global _TARGET_CACHE
-            _TARGET_CACHE = _update_json_cache_locked(
-                CACHE_PATH, key, {"ts": time.time()}
-            )
+            _queue_cache_update(key, {"ts": time.time()})
         return exists
 
 
@@ -133,10 +195,7 @@ class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
 
         exists = super().exists()
         if exists:
-            global _TARGET_CACHE
-            _TARGET_CACHE = _update_json_cache_locked(
-                CACHE_PATH, key, {"ts": time.time()}
-            )
+            _queue_cache_update(key, {"ts": time.time()})
         return exists
 
 
@@ -181,11 +240,7 @@ class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
 
         # 4. Only cache if 100% complete
         if all_present and all_targets:
-            with CACHE_LOCK:
-                global _TARGET_CACHE
-                _TARGET_CACHE = _update_json_cache_locked(
-                    CACHE_PATH, collection_key, {"ts": time.time()}
-                )
+            _queue_cache_update(collection_key, {"ts": time.time()})
 
         return super()._iter_state(
             existing, optional_existing, basenames, keys, unpack, exists_func
@@ -249,11 +304,7 @@ class CachedNestedSiblingFileCollection(
 
         # 4. Only cache if 100% complete
         if all_present and all_targets:
-            with CACHE_LOCK:
-                global _TARGET_CACHE
-                _TARGET_CACHE = _update_json_cache_locked(
-                    CACHE_PATH, collection_key, {"ts": time.time()}
-                )
+            _queue_cache_update(collection_key, {"ts": time.time()})
 
         return super()._iter_state(
             existing, optional_existing, basenames, keys, unpack, exists_func
