@@ -14,7 +14,7 @@
 
 
 # List of available workflows
-WF_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example")
+WF_LIST=("KingMaker" "GPU_example")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -117,7 +117,40 @@ action() {
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
 
-    BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
+    # Keep the sourced path alias (e.g. /eos/user/...) instead of canonicalizing to /eos/home-...
+    BASE_DIR="$(dirname "${THIS_FILE}")"
+    if [[ "${BASE_DIR}" != /* ]]; then
+        BASE_DIR="${PWD}/${BASE_DIR}"
+    fi
+    BASE_DIR="${BASE_DIR%/}"
+
+    # Detect whether we're running on a CERN host (e.g. lxplus), to automatically enable
+    # EOS/EosSubmit-specific behavior (path alias preservation, proxy handling, container
+    # binds) without requiring a dedicated workflow name. Mirrors the domain check used in
+    # processor/framework.py.
+    IS_CERN_HOST=false
+    if [[ "$(hostname -f 2>/dev/null)" == *.cern.ch ]]; then
+        IS_CERN_HOST=true
+    fi
+
+    # HTCondor/EosSubmit worker nodes fetch/write job I/O through the eosuser.cern.ch xrootd
+    # door, which only properly authenticates paths under /eos/user/<letter>/<username>/ -
+    # the equivalent /eos/home-<letter>/<username>/ path (same underlying location, works
+    # fine for local/FUSE access) gets treated as unauthenticated public access there and
+    # rejected. If this checkout lives under /eos/home-*, translate to the /eos/user/ alias
+    # so paths handed to HTCondor (executable, transfer_input_files, output remaps) work.
+    if [[ "${IS_CERN_HOST}" == "true" ]] && \
+            [[ "${BASE_DIR}" =~ ^/eos/home-([a-z0-9])/([^/]+)(/.*)?$ ]]; then
+        _eos_letter="${BASH_REMATCH[1]}"
+        _eos_user="${BASH_REMATCH[2]}"
+        _eos_rest="${BASH_REMATCH[3]}"
+        if [[ -d "/eos/user/${_eos_letter}/${_eos_user}" ]]; then
+            BASE_DIR="/eos/user/${_eos_letter}/${_eos_user}${_eos_rest}"
+        fi
+        unset _eos_letter _eos_user _eos_rest
+    fi
+
+    export LOCAL_PWD="${BASE_DIR}"
 
     # Handle analysis selection
     if [[ -z "${PARSED_WORKFLOW}" ]]; then
@@ -182,12 +215,17 @@ action() {
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
     INITIAL_VOMS_USERCONF=${VOMS_USERCONF:-"/etc/vomses"}
 
+    INITIAL_PROXY_PATH=""
+    if voms-proxy-info -exists &>/dev/null 2>&1; then
+        INITIAL_PROXY_PATH="$(voms-proxy-info -path 2>/dev/null)"
+    fi
+
     # Try to install env via miniforge
     # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
     # Install miniforge if necessary
     if [ ! -f "${ENV_PATH}/miniforge/bin/activate" ]; then
         # Miniforge version used for all environments
-        MAMBAFORGE_VERSION="24.3.0-0"
+        MAMBAFORGE_VERSION="26.5.0-0"
         MAMBAFORGE_INSTALLER="Mambaforge-${MAMBAFORGE_VERSION}-$(uname)-$(uname -m).sh"
         echo "Miniforge could not be found, installing miniforge version ${MAMBAFORGE_INSTALLER}"
         echo "More information can be found in"
@@ -214,11 +252,12 @@ action() {
     fi
     echo "Activating starting-env ${STARTING_ENV} from miniforge."
     conda activate ${STARTING_ENV}
+    export VOMS_USERCONF="${INITIAL_VOMS_USERCONF}"
 
     # Set up other dependencies based on workflow
     ############################################
     case ${WF_NAME} in
-        KingMaker|KingMaker_lxplus)
+        KingMaker)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
@@ -257,6 +296,14 @@ action() {
             # Set up ccache
             export CCACHE_DIR="${BASE_DIR}/CROWN/.cache/ccache";
 
+            if [[ "${IS_CERN_HOST}" == "true" ]]; then
+                export APPTAINER_BIND="/eos,/afs,/tmp,/run/user"
+                export SINGULARITY_BIND="/eos,/afs,/tmp,/run/user"
+                [[ ! -z "${KRB5CCNAME}" ]] && export APPTAINERENV_KRB5CCNAME="${KRB5CCNAME}"
+                [[ ! -z "${KRB5CCNAME}" ]] && export SINGULARITYENV_KRB5CCNAME="${KRB5CCNAME}"
+                module load lxbatch/eossubmit #for submission from eos
+            fi
+
             ;;
         *)
             ;;
@@ -268,15 +315,40 @@ action() {
         git -C "${BASE_DIR}" submodule update --init --recursive -- law
     fi
 
-    # Check for voms proxy
-    voms-proxy-info -exists &>/dev/null
-    if [[ "$?" -eq "1" ]]; then
-        echo "No valid voms proxy found, remote storage might be inaccessible."
-        echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
-    else
-        # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+    # Check for voms proxy - prefer path saved before conda changed the voms tools
+    if [[ -n "${INITIAL_PROXY_PATH}" ]] && [[ -f "${INITIAL_PROXY_PATH}" ]]; then
+        export X509_USER_PROXY="${INITIAL_PROXY_PATH}"
+        echo "Voms proxy found at ${X509_USER_PROXY}"
+    elif voms-proxy-info -exists &>/dev/null; then
         export X509_USER_PROXY=$(voms-proxy-info -path)
         echo "Voms proxy found at ${X509_USER_PROXY}"
+    fi
+
+    # For lxplus/EosSubmit: copy proxy to EOS so the remote schedd can access it
+    # (EosSubmit schedds cannot read /tmp/ on the login node), and so it survives
+    # across container restarts and is reusable from any CERN machine, since EOS
+    # home is a persistent, shared filesystem unlike the per-session /tmp.
+    if [[ "${IS_CERN_HOST}" == "true" ]]; then
+        EOS_PROXY_DIR="${BASE_DIR}/.proxy"
+        EOS_PROXY="${EOS_PROXY_DIR}/x509up"
+        if [[ -n "${X509_USER_PROXY}" ]] && [[ -f "${X509_USER_PROXY}" ]]; then
+            # a fresh source proxy is available: refresh the persisted EOS copy
+            mkdir -p "${EOS_PROXY_DIR}"
+            cp "${X509_USER_PROXY}" "${EOS_PROXY}"
+            chmod 600 "${EOS_PROXY}"
+            export X509_USER_PROXY="${EOS_PROXY}"
+            echo "Proxy copied to EOS for EosSubmit: ${X509_USER_PROXY}"
+        elif [[ -f "${EOS_PROXY}" ]] && voms-proxy-info -file "${EOS_PROXY}" -exists &>/dev/null; then
+            # no fresh source proxy (e.g. /tmp was wiped by a container restart),
+            # but the previously persisted EOS copy is still valid: reuse it
+            export X509_USER_PROXY="${EOS_PROXY}"
+            echo "No fresh voms proxy found; reusing still-valid persisted proxy at ${X509_USER_PROXY}"
+        fi
+    fi
+
+    if [[ -z "${X509_USER_PROXY}" ]] || [[ ! -f "${X509_USER_PROXY}" ]]; then
+        echo "No valid voms proxy found, remote storage might be inaccessible."
+        echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
 
     # Parse the necessary environments from the luigi config files.
@@ -290,14 +362,14 @@ action() {
         echo "Parsing of required scheduler setting failed with the above error."
         return 1
     fi
+    # CERN hosts (e.g. lxplus) don't support the central scheduler by default; force the
+    # local scheduler there regardless of what the config says, rather than just warning.
+    if [[ "${IS_CERN_HOST}" == "true" ]]; then
+        LOCAL_SCHEDULER="True"
+    fi
     export LOCAL_SCHEDULER
     if [[ "${LOCAL_SCHEDULER}" == "False" ]]; then
         echo "Using central scheduler."
-        if  [[ ! -z $(hostname --long | grep -E '^lxplus.*\.cern\.ch$') ]]; then
-            printf "\nWARNING: LXPLUS DOES NOT SUPPORT THE CENTRAL SCHEDULER BY DEFAULT!\n"
-            printf "It is reccomended to change this setting in the configs and rerun the setup.\n"
-            printf "'local_scheduler' should be set to false and the 'scheduler_port' schould be removed.\n\n"
-	fi
         # Defined as function to allow for re-assignment in shells that persist longer than the port assignment
         set_luigiport () {
             # First check if the user already has a luigid scheduler running

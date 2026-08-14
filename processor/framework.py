@@ -4,6 +4,7 @@ import law
 import select
 import subprocess
 import socket
+import time
 from enum import Enum
 from law.util import interruptable_popen
 from rich.console import Console
@@ -293,6 +294,98 @@ class Task(law.Task):
             raise Exception("No command provided.")
 
 
+def htcondor_domain():
+    domain_name = str(socket.getfqdn())
+    if domain_name.endswith("cern.ch"):
+        return "CERN"
+    elif domain_name.endswith(
+        ("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")
+    ):
+        return "ETP"
+    print("Unknown domain, default to CERN lxplus settings.")
+    return "CERN"
+
+
+class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
+    """
+    CERN's EosSubmit schedds reject submit files whose "executable", "input", "output" and
+    "error" commands are not literal absolute /eos paths: relative paths resolved through
+    "initialdir" are rejected, and leaving "input"/"output"/"error" unset makes HTCondor itself
+    default them to "/dev/null", which is likewise rejected.
+
+    Rather than duplicating law's internal file-copy/increment naming logic to predict the
+    final executable path ahead of time (fragile, since it depends on what's already on disk
+    at copy time), this lets law build the job file normally, then rewrites the affected
+    lines using the executable path law itself already computed and placed on the returned
+    config object.
+
+    Also rewrites "log" (if requested) with an individual per-branch log path. EosSubmit
+    rejects a log path containing both "$(Cluster)" and "$(Process)"/"$(ProcId)" together
+    (its check for a "per-job" log), and law unconditionally appends a per-branch postfix to
+    grouped submissions' log path regardless of what's set, reintroducing that same problem
+    even with a "$(Cluster)"-only path. Sidestepping this entirely by disabling the log is an
+    option (see htcondor_job_config), but a real per-branch log can still be had by baking in
+    a concrete, submission-time value (a timestamp) instead of the literal "$(Cluster)" macro,
+    combined with the native "$(Process)" macro for per-branch differentiation - this passes
+    EosSubmit's check while still giving an individual log per branch, and fresh files on
+    every retry since each retry computes a new timestamp.
+    """
+
+    def create(self, **kwargs):
+        job_file, c = super().create(**kwargs)
+
+        if not c.executable:
+            return job_file, c
+
+        abs_executable = os.path.join(c.dir, c.executable)
+        # EosSubmit requires "output"/"error" to be set to real /eos paths (leaving them
+        # unset makes HTCondor default to "/dev/null", which is rejected). The wrapper
+        # script already tees its stdout/stderr into the "All_..." custom log, so point
+        # HTCondor's native capture at that same destination instead of a separate file.
+        # HTCondor writes it twice (once via native capture, then overwritten by the
+        # complete file via transfer_output_remaps) - verified this ordering is reliable
+        # and the final content is always the full, correct one.
+        all_log_path = os.path.join(c.dir, "logs", "All_$(JobId)$(law_job_postfix).txt")
+        replacements = {
+            "executable": abs_executable,
+            "input": abs_executable,
+            "output": all_log_path,
+            "error": all_log_path,
+        }
+        if c.log:
+            replacements["log"] = os.path.join(
+                c.dir, "logs", f"Log_{int(time.time())}_$(Process).txt"
+            )
+
+        with open(job_file, "r") as f:
+            lines = f.readlines()
+
+        seen = set()
+        new_lines = []
+        for line in lines:
+            key = line.split("=", 1)[0].strip()
+            if key in replacements:
+                new_lines.append(f"{key} = {replacements[key]}\n")
+                seen.add(key)
+            else:
+                new_lines.append(line)
+
+        # "input"/"output"/"error" are not emitted by default; insert any missing ones
+        # right after the "executable" line
+        missing = [key for key in ("input", "output", "error") if key not in seen]
+        if missing:
+            for i, line in enumerate(new_lines):
+                if line.split("=", 1)[0].strip() == "executable":
+                    for key in reversed(missing):
+                        new_lines.insert(i + 1, f"{key} = {replacements[key]}\n")
+                    break
+
+        with open(job_file, "w") as f:
+            f.writelines(new_lines)
+
+        return job_file, c
+
+
 class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     ENV_NAME = luigi.Parameter(description="Environment to be used in HTCondor job.")
     htcondor_accounting_group = luigi.Parameter(
@@ -381,9 +474,22 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         log_path = os.path.join(self.htcondor_output_directory().abspath, "logs")
         return law.LocalDirectoryTarget(log_path)
 
+    def htcondor_job_file_factory_cls(self):
+        if htcondor_domain() == "CERN":
+            return EosSubmitJobFileFactory
+        return super().htcondor_job_file_factory_cls()
+
     def htcondor_create_job_file_factory(self):
         path = self.htcondor_output_directory().abspath
-        factory = super().htcondor_create_job_file_factory(dir=path, mkdtemp=False)
+        # EosSubmit requires the vanilla universe; this is a hard technical requirement of
+        # the CERN submission site, not a user preference, so it's forced here rather than
+        # left as a config toggle.
+        universe = "vanilla" if htcondor_domain() == "CERN" else self.htcondor_universe
+        factory = super().htcondor_create_job_file_factory(
+            dir=path,
+            mkdtemp=False,
+            universe=universe,
+        )
         console.log(f"HTCondor job directory is: {path}")
         return factory
 
@@ -392,24 +498,13 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         return law.util.rel_path(__file__, hostfile)
 
     def htcondor_job_config(self, config, job_num, branches):
-        domain_name = str(socket.getfqdn())
-
-        if domain_name.endswith("cern.ch"):
-            domain = "CERN"
-        elif domain_name.endswith(
-            ("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")
-        ):
-            domain = "ETP"
-        else:
-            print("Unknown domain, default to CERN lxplus settings.")
-            domain = "CERN"
+        domain = htcondor_domain()
 
         workflow_name = os.getenv("WF_NAME")
         task_name = self.__class__.__name__
 
         # Write job config file
         log_base_path = self.htcondor_log_directory().abspath
-        config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
         config.custom_log_file = os.path.join("All_$(JobId).txt")
         # config.stdout = "Out_$(JobId).txt"
         # config.stderr = "Err_$(JobId).txt"
@@ -417,8 +512,22 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
-        config.custom_content.append(("universe", self.htcondor_universe))
-        config.custom_content.append(("container_image", self.htcondor_container_image))
+        if domain == "CERN":
+            # EosSubmit limitation 1: container_image with /cvmfs path is treated as exec,
+            # which must be in /eos. Use MY.SingularityImage with vanilla universe instead.
+            config.custom_content.append(
+                ("MY.SingularityImage", f'"{self.htcondor_container_image}"')
+            )
+            # EosSubmit limitation 2: log file must not combine "$(Cluster)" and
+            # "$(Process)"/"$(ProcId)". Set a placeholder here (any truthy value; law will
+            # mangle it further for grouped submissions) - EosSubmitJobFileFactory.create()
+            # rewrites it with a schedd-safe, still-per-branch path afterwards.
+            config.log = os.path.join(log_base_path, "Log.txt")
+        else:
+            config.custom_content.append(
+                ("container_image", self.htcondor_container_image)
+            )
+            config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
         if domain == "ETP":
             config.custom_content.append(
                 ("accounting_group", self.htcondor_accounting_group)

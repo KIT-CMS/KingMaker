@@ -19,7 +19,30 @@ action() {
     fi
     export USER_FIRST_LETTER=${USER:0:1}
 
-    BASE_DIR="$(dirname $( cd "$( dirname "${THIS_FILE}" )" && pwd ))"
+    # Keep the sourced path alias (e.g. /eos/user/...) instead of canonicalizing to /eos/home-...
+    BASE_DIR="$(dirname "${THIS_FILE}")"
+    BASE_DIR="$(dirname "${BASE_DIR}")"
+    if [[ "${BASE_DIR}" != /* ]]; then
+        BASE_DIR="${PWD}/${BASE_DIR}"
+    fi
+    BASE_DIR="${BASE_DIR%/}"
+
+    # Local (non-HTCondor) sandboxed tasks (e.g. BuildCROWNLib) run in a fresh container
+    # context where this script is sourced independently of setup.sh, so BASE_DIR must be
+    # re-derived here too. On CERN hosts, /eos/home-<letter>/<user>/... and the equivalent
+    # /eos/user/<letter>/<user>/... alias are the same location, but only the /eos/user/
+    # form has reliably worked for read/write access from inside containers/workers in this
+    # setup - translate to it here as well, mirroring the same fix in setup.sh.
+    if [[ "$(hostname -f 2>/dev/null)" == *.cern.ch ]] && \
+            [[ "${BASE_DIR}" =~ ^/eos/home-([a-z0-9])/([^/]+)(/.*)?$ ]]; then
+        _eos_letter="${BASH_REMATCH[1]}"
+        _eos_user="${BASH_REMATCH[2]}"
+        _eos_rest="${BASH_REMATCH[3]}"
+        if [[ -d "/eos/user/${_eos_letter}/${_eos_user}" ]]; then
+            BASE_DIR="/eos/user/${_eos_letter}/${_eos_user}${_eos_rest}"
+        fi
+        unset _eos_letter _eos_user _eos_rest
+    fi
 
     # Check for voms proxy
     voms-proxy-info -exists &>/dev/null
