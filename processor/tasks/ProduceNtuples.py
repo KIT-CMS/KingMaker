@@ -148,7 +148,9 @@ class ProduceNtuples(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
-            console.log(f"NanoAOD: {self.nanoAOD_version}")
+            console.log(
+                f"NanoAOD: {self.nanoAOD_version or '(resolved per sample)'}"
+            )
             if self.friend_config != "":
                 console.log(f"Friend Config: {self.friend_config}")
                 console.log(f"Friend Tag: {self.friend_tag}")
@@ -176,6 +178,7 @@ class ProduceNtuples(ProduceBase):
                         all_sample_types=data["sample_types"],
                         era=data["details"][samplenick]["era"],
                         sample_type=data["details"][samplenick]["sample_type"],
+                        nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
                         friend_mapping=self.friend_mapping,
                     )
                 )
@@ -190,6 +193,7 @@ class ProduceNtuples(ProduceBase):
                             all_sample_types=data["sample_types"],
                             era=data["details"][samplenick]["era"],
                             sample_type=data["details"][samplenick]["sample_type"],
+                            nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
                             friend_config=friend_config,
                             friend_mapping=self.friend_mapping,
                         )
@@ -203,6 +207,7 @@ class ProduceNtuples(ProduceBase):
                     all_sample_types=data["sample_types"],
                     era=data["details"][samplenick]["era"],
                     sample_type=data["details"][samplenick]["sample_type"],
+                    nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
                 )
 
         return requirements
