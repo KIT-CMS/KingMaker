@@ -6,7 +6,7 @@ import time
 import json
 import hashlib
 from CROWNBase import CROWNBuildBase
-from framework import console, Task
+from framework import console, Task, resolve_nanoAOD_version
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
@@ -487,6 +487,13 @@ class ConfigureDatasets(Task):
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
     silent = luigi.BoolParameter(default=False, significant=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.nanoAOD_version = resolve_nanoAOD_version(
+            os.path.join(self.era, self.sample_type, f"{self.nick}.json"),
+            self.nanoAOD_version,
+        )
 
     def output(self):
         target = self.remote_target(

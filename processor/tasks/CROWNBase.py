@@ -8,6 +8,7 @@ from framework import (
     Task,
     KingmakerSandbox,
     sandbox_pre_setup_cmds_factory,
+    resolve_nanoAOD_version_for_samples,
 )
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -32,6 +33,11 @@ class ProduceBase(WrapperTask, Task):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Auto-detect nanoAOD_version from the requested samples if not set explicitly
+        if self.nanoAOD_version == "":
+            self.nanoAOD_version = resolve_nanoAOD_version_for_samples(
+                self.parse_samplelist(self.sample_list)
+            )
         # Dynamically set the default value of dataset_database based on nanoAOD_version
         if self.dataset_database == "":
             self.dataset_database = (
