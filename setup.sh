@@ -296,12 +296,16 @@ action() {
             # Set up ccache
             export CCACHE_DIR="${BASE_DIR}/CROWN/.cache/ccache";
 
+            # KingMaker_law.cfg's [core] extend picks this up; only CERN hosts have
+            # /eos, /afs to bind into the singularity sandbox (see KingMaker_law_eos.cfg).
+            export LAW_EXTEND_CONFIG=""
             if [[ "${IS_CERN_HOST}" == "true" ]]; then
                 export APPTAINER_BIND="/eos,/afs,/tmp,/run/user"
                 export SINGULARITY_BIND="/eos,/afs,/tmp,/run/user"
                 [[ ! -z "${KRB5CCNAME}" ]] && export APPTAINERENV_KRB5CCNAME="${KRB5CCNAME}"
                 [[ ! -z "${KRB5CCNAME}" ]] && export SINGULARITYENV_KRB5CCNAME="${KRB5CCNAME}"
                 module load lxbatch/eossubmit #for submission from eos
+                export LAW_EXTEND_CONFIG="${BASE_DIR}/lawluigi_configs/KingMaker_law_eos.cfg"
             fi
 
             ;;
