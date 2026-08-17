@@ -1,4 +1,6 @@
 import os
+import glob
+import json
 import luigi
 import law
 import select
@@ -54,6 +56,64 @@ class NanoAODVersions(Enum):
     v15 = "nanoAOD_v15"
 
 
+def resolve_nanoAOD_version(relative_path, requested_version):
+    """
+    Resolve which sample_database/nanoAOD_v* directory holds the sample config at
+    `relative_path` (e.g. "<era>/<sample_type>/<nick>.json"). If `requested_version`
+    is already set, it is returned unchanged. Otherwise, all nanoAOD_v* directories
+    are searched: if exactly one contains the file, that version is returned; if none
+    or more than one do, an exception is raised.
+    """
+    if requested_version:
+        return requested_version
+    matches = sorted(
+        os.path.basename(version_dir)
+        for version_dir in glob.glob(os.path.join("sample_database", "nanoAOD_v*"))
+        if os.path.exists(os.path.join(version_dir, relative_path))
+    )
+    if len(matches) == 0:
+        raise Exception(
+            f"No nanoAOD version found for 'sample_database/nanoAOD_v*/{relative_path}'. "
+            "Check the sample name, era and sample_type, or set --nanoAOD-version explicitly."
+        )
+    if len(matches) > 1:
+        raise Exception(
+            f"'{relative_path}' exists in multiple nanoAOD versions: {matches}. "
+            "Fix the sample_database entries so the sample name is unique across versions, "
+            "or set --nanoAOD-version explicitly to disambiguate."
+        )
+    return matches[0]
+
+
+def resolve_nanoAOD_version_for_samples(nicks):
+    """
+    Resolve which sample_database/nanoAOD_v*/datasets.json contains every nick in
+    `nicks`. If exactly one version covers all of them, that version is returned;
+    if none or more than one do, an exception is raised.
+    """
+    matches = []
+    for version_dir in sorted(glob.glob(os.path.join("sample_database", "nanoAOD_v*"))):
+        db_path = os.path.join(version_dir, "datasets.json")
+        if not os.path.exists(db_path):
+            continue
+        with open(db_path) as stream:
+            dataset_db = json.load(stream)
+        if all(nick in dataset_db for nick in nicks):
+            matches.append(os.path.basename(version_dir))
+    if len(matches) == 0:
+        raise Exception(
+            f"No single nanoAOD version contains all requested samples {nicks}. "
+            "Check the sample names, or set --nanoAOD-version explicitly."
+        )
+    if len(matches) > 1:
+        raise Exception(
+            f"Requested samples {nicks} exist in multiple nanoAOD versions: {matches}. "
+            "Fix the sample_database entries so sample names are unique across versions, "
+            "or set --nanoAOD-version explicitly to disambiguate."
+        )
+    return matches[0]
+
+
 class Task(law.Task):
     local_user = getuser()
     wlcg_path = luigi.Parameter(
@@ -77,8 +137,13 @@ class Task(law.Task):
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
     nanoAOD_version = luigi.Parameter(
-        default=NanoAODVersions.v15.value,
-        description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v15' is the default.",
+        default="",
+        description=(
+            "Version of the NanoAOD files that are used in the analysis. "
+            "Auto-detected from the sample name/era/sample_type in sample_database "
+            "if left unset; set explicitly to disambiguate if a sample exists under "
+            "more than one nanoAOD version."
+        ),
     )
 
     # Ensure that branch parameter is processed normally
