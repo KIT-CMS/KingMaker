@@ -85,31 +85,46 @@ def resolve_nanoAOD_version(relative_path, requested_version):
     return matches[0]
 
 
-def resolve_nanoAOD_version_for_samples(nicks):
+def resolve_sample_data(nick, requested_version):
     """
-    Resolve which sample_database/nanoAOD_v*/datasets.json contains every nick in
-    `nicks`. If exactly one version covers all of them, that version is returned;
-    if none or more than one do, an exception is raised.
+    Resolve which sample_database/nanoAOD_v*/datasets.json contains `nick`, and
+    return (version, sample_data). If `requested_version` is set, only that
+    version's datasets.json is checked (matching the historical single-version
+    behavior exactly). Otherwise, all nanoAOD_v* directories are searched: if
+    exactly one contains the sample, that version and its data are returned; if
+    none or more than one do, an exception is raised. This is per-sample on
+    purpose, so a single sample_list can span multiple nanoAOD versions as long
+    as each individual sample is unambiguous.
     """
+    versions_to_check = (
+        [requested_version]
+        if requested_version
+        else sorted(
+            os.path.basename(version_dir)
+            for version_dir in glob.glob(os.path.join("sample_database", "nanoAOD_v*"))
+        )
+    )
     matches = []
-    for version_dir in sorted(glob.glob(os.path.join("sample_database", "nanoAOD_v*"))):
-        db_path = os.path.join(version_dir, "datasets.json")
+    for version in versions_to_check:
+        db_path = os.path.join("sample_database", version, "datasets.json")
         if not os.path.exists(db_path):
             continue
         with open(db_path) as stream:
             dataset_db = json.load(stream)
-        if all(nick in dataset_db for nick in nicks):
-            matches.append(os.path.basename(version_dir))
+        if nick in dataset_db:
+            matches.append((version, dataset_db[nick]))
     if len(matches) == 0:
-        raise Exception(
-            f"No single nanoAOD version contains all requested samples {nicks}. "
-            "Check the sample names, or set --nanoAOD-version explicitly."
+        location = (
+            f"sample_database/{requested_version}/datasets.json"
+            if requested_version
+            else "any sample_database/nanoAOD_v*/datasets.json"
         )
+        raise Exception(f"Sample '{nick}' not found in {location}.")
     if len(matches) > 1:
         raise Exception(
-            f"Requested samples {nicks} exist in multiple nanoAOD versions: {matches}. "
-            "Fix the sample_database entries so sample names are unique across versions, "
-            "or set --nanoAOD-version explicitly to disambiguate."
+            f"Sample '{nick}' exists in multiple nanoAOD versions: "
+            f"{[version for version, _ in matches]}. "
+            "Set --nanoAOD-version explicitly to disambiguate."
         )
     return matches[0]
 
