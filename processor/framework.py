@@ -628,6 +628,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.render_variables["NTHREADS"] = self.htcondor_request_cpus
         config.render_variables["LUIGIPORT"] = os.getenv("LUIGIPORT")
         config.render_variables["SOURCE_SCRIPT"] = self.remote_source_script
+        config.render_variables["LAW_ACCOUNTING_GROUP"] = self.htcondor_accounting_group
 
         config.render_variables["IS_LOCAL_OUTPUT"] = str(self.is_local_output)
         if not self.is_local_output:
