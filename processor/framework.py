@@ -557,10 +557,13 @@ class KingmakerSandbox(law.SandboxTask):
         default=law.NO_STR,
         description="path to a sandbox file to be used for the job. Default 'law.NO_STR' deactivates sandboxing.",
     )
-    # Mount certificate dir to enable voms proxy, and local storage when using local output
+    # Mount certificates for the VOMS proxy, CVMFS payloads used during code
+    # generation, and local storage when using local output.
     singularity_args = lambda x: [
         "-B",
         "/etc/grid-security/certificates",
+        "-B",
+        "/cvmfs",
     ] + (["-B", "/" + x.local_output_path.split("/")[1]] if x.is_local_output else [])
 
     # Default sandbox init
