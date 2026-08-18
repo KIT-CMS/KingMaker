@@ -117,27 +117,23 @@ action() {
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
 
-    # Keep the sourced path alias (e.g. /eos/user/...) instead of canonicalizing to /eos/home-...
+    # Keep the sourced path alias 
     BASE_DIR="$(dirname "${THIS_FILE}")"
     if [[ "${BASE_DIR}" != /* ]]; then
         BASE_DIR="${PWD}/${BASE_DIR}"
     fi
     BASE_DIR="${BASE_DIR%/}"
 
-    # Detect whether we're running on a CERN host (e.g. lxplus), to automatically enable
+    # Detect whether we're running on lxplus, to automatically enable
     # EOS/EosSubmit-specific behavior (path alias preservation, proxy handling, container
-    # binds) without requiring a dedicated workflow name. Mirrors the domain check used in
-    # processor/framework.py.
+    # binds) without requiring a dedicated workflow name
     IS_CERN_HOST=false
     if [[ "$(hostname -f 2>/dev/null)" == *.cern.ch ]]; then
         IS_CERN_HOST=true
     fi
 
     # HTCondor/EosSubmit worker nodes fetch/write job I/O through the eosuser.cern.ch xrootd
-    # door, which only properly authenticates paths under /eos/user/<letter>/<username>/ -
-    # the equivalent /eos/home-<letter>/<username>/ path (same underlying location, works
-    # fine for local/FUSE access) gets treated as unauthenticated public access there and
-    # rejected. If this checkout lives under /eos/home-*, translate to the /eos/user/ alias
+    # door. If this checkout lives under /eos/home-*, translate to the /eos/user/ alias
     # so paths handed to HTCondor (executable, transfer_input_files, output remaps) work.
     if [[ "${IS_CERN_HOST}" == "true" ]] && \
             [[ "${BASE_DIR}" =~ ^/eos/home-([a-z0-9])/([^/]+)(/.*)?$ ]]; then
@@ -329,8 +325,7 @@ action() {
 
     # For lxplus/EosSubmit: copy proxy to EOS so the remote schedd can access it
     # (EosSubmit schedds cannot read /tmp/ on the login node), and so it survives
-    # across container restarts and is reusable from any CERN machine, since EOS
-    # home is a persistent, shared filesystem unlike the per-session /tmp.
+    # across container restarts and is reusable from any CERN machine
     if [[ "${IS_CERN_HOST}" == "true" ]]; then
         EOS_PROXY_DIR="${BASE_DIR}/.proxy"
         EOS_PROXY="${EOS_PROXY_DIR}/x509up"
@@ -365,7 +360,7 @@ action() {
         echo "Parsing of required scheduler setting failed with the above error."
         return 1
     fi
-    # CERN hosts (e.g. lxplus) don't support the central scheduler by default; force the
+    # lxplus doesn't support the central scheduler by default; force the
     # local scheduler there regardless of what the config says, rather than just warning.
     if [[ "${IS_CERN_HOST}" == "true" ]]; then
         LOCAL_SCHEDULER="True"
