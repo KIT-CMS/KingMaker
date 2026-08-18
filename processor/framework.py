@@ -309,9 +309,7 @@ def htcondor_domain():
 class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
     """
     CERN's EosSubmit schedds reject submit files whose "executable", "input", "output" and
-    "error" commands are not literal absolute /eos paths: relative paths resolved through
-    "initialdir" are rejected, and leaving "input"/"output"/"error" unset makes HTCondor itself
-    default them to "/dev/null", which is likewise rejected.
+    "error" commands are not literal absolute /eos paths.
 
     Rather than duplicating law's internal file-copy/increment naming logic to predict the
     final executable path ahead of time (fragile, since it depends on what's already on disk
@@ -321,14 +319,9 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
 
     Also rewrites "log" (if requested) with an individual per-branch log path. EosSubmit
     rejects a log path containing both "$(Cluster)" and "$(Process)"/"$(ProcId)" together
-    (its check for a "per-job" log), and law unconditionally appends a per-branch postfix to
-    grouped submissions' log path regardless of what's set, reintroducing that same problem
-    even with a "$(Cluster)"-only path. Sidestepping this entirely by disabling the log is an
-    option (see htcondor_job_config), but a real per-branch log can still be had by baking in
-    a concrete, submission-time value (a timestamp) instead of the literal "$(Cluster)" macro,
-    combined with the native "$(Process)" macro for per-branch differentiation - this passes
-    EosSubmit's check while still giving an individual log per branch, and fresh files on
-    every retry since each retry computes a new timestamp.
+    (its check for a "per-job" log). This passes EosSubmit's check while still giving an 
+    individual log per branch, and fresh files on every retry since each retry computes 
+    a new timestamp.
     """
 
     def create(self, **kwargs):
@@ -338,13 +331,6 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
             return job_file, c
 
         abs_executable = os.path.join(c.dir, c.executable)
-        # EosSubmit requires "output"/"error" to be set to real /eos paths (leaving them
-        # unset makes HTCondor default to "/dev/null", which is rejected). The wrapper
-        # script already tees its stdout/stderr into the "All_..." custom log, so point
-        # HTCondor's native capture at that same destination instead of a separate file.
-        # HTCondor writes it twice (once via native capture, then overwritten by the
-        # complete file via transfer_output_remaps) - verified this ordering is reliable
-        # and the final content is always the full, correct one.
         all_log_path = os.path.join(c.dir, "logs", "All_$(JobId)$(law_job_postfix).txt")
         replacements = {
             "executable": abs_executable,
@@ -370,8 +356,6 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
             else:
                 new_lines.append(line)
 
-        # "input"/"output"/"error" are not emitted by default; insert any missing ones
-        # right after the "executable" line
         missing = [key for key in ("input", "output", "error") if key not in seen]
         if missing:
             for i, line in enumerate(new_lines):
@@ -481,9 +465,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
 
     def htcondor_create_job_file_factory(self):
         path = self.htcondor_output_directory().abspath
-        # EosSubmit requires the vanilla universe; this is a hard technical requirement of
-        # the CERN submission site, not a user preference, so it's forced here rather than
-        # left as a config toggle.
+        # EosSubmit requires the vanilla universe
         universe = "vanilla" if htcondor_domain() == "CERN" else self.htcondor_universe
         factory = super().htcondor_create_job_file_factory(
             dir=path,

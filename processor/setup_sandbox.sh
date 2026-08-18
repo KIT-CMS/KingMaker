@@ -19,7 +19,7 @@ action() {
     fi
     export USER_FIRST_LETTER=${USER:0:1}
 
-    # Keep the sourced path alias (e.g. /eos/user/...) instead of canonicalizing to /eos/home-...
+    # Keep the sourced path alias 
     BASE_DIR="$(dirname "${THIS_FILE}")"
     BASE_DIR="$(dirname "${BASE_DIR}")"
     if [[ "${BASE_DIR}" != /* ]]; then
@@ -29,10 +29,7 @@ action() {
 
     # Local (non-HTCondor) sandboxed tasks (e.g. BuildCROWNLib) run in a fresh container
     # context where this script is sourced independently of setup.sh, so BASE_DIR must be
-    # re-derived here too. On CERN hosts, /eos/home-<letter>/<user>/... and the equivalent
-    # /eos/user/<letter>/<user>/... alias are the same location, but only the /eos/user/
-    # form has reliably worked for read/write access from inside containers/workers in this
-    # setup - translate to it here as well, mirroring the same fix in setup.sh.
+    # re-derived here too.
     if [[ "$(hostname -f 2>/dev/null)" == *.cern.ch ]] && \
             [[ "${BASE_DIR}" =~ ^/eos/home-([a-z0-9])/([^/]+)(/.*)?$ ]]; then
         _eos_letter="${BASH_REMATCH[1]}"
