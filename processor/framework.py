@@ -319,8 +319,8 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
 
     Also rewrites "log" (if requested) with an individual per-branch log path. EosSubmit
     rejects a log path containing both "$(Cluster)" and "$(Process)"/"$(ProcId)" together
-    (its check for a "per-job" log). This passes EosSubmit's check while still giving an 
-    individual log per branch, and fresh files on every retry since each retry computes 
+    (its check for a "per-job" log). This passes EosSubmit's check while still giving an
+    individual log per branch, and fresh files on every retry since each retry computes
     a new timestamp.
     """
 
