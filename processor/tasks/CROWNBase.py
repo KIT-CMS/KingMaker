@@ -186,7 +186,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         """
         CROWN executables are linked with an RPATH pointing at the container's
         /opt/conda/envs/env, so they only resolve their ROOT/libstdc++ versions
-        inside the kingmaker_standalone image. HTCondor branches already run
+        inside the crown image. HTCondor branches already run
         inside that image via the container universe, but branches of the
         local workflow execute directly on the submission host, so they need
         to be wrapped in the same singularity container explicitly.
