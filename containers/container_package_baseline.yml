@@ -1,7 +1,6 @@
 channels:
   - conda-forge
 dependencies:
-  # - boost-cpp
   - ccache
   - cmake
   - make

@@ -6,8 +6,9 @@ This directory contains the Dockerfile and Conda environment YAML files used to 
 Contents
 
 - `Dockerfile`:  primary Dockerfile for the default image, based on Redhat9.
-- `container_env.yml`: Conda environment for the container where CROWN is run in. 
-- `KingMaker_env.yml`:  Conda environment for KingMaker itself with the law setup.
+- `container_package_baseline.yml`: file that includes all relevant packages necessary for the container environment.
+- `container_env.yml`: full Conda environment for the container where CROWN is run in. 
+- `KingMaker_env.yml`: Conda environment for KingMaker itself with the law setup.
 
 Docker Build
 
