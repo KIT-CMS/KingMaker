@@ -168,6 +168,8 @@ class CROWNRun(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
+        # Small delay to ensure file handles are released
+        time.sleep(1)
         for i, outputfile in enumerate(outputs):
             local_filename = os.path.join(
                 _workdir,
