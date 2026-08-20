@@ -560,6 +560,8 @@ class KingmakerSandbox(law.SandboxTask):
     # Mount certificate dir to enable voms proxy, and local storage when using local output
     singularity_args = lambda x: [
         "-B",
+        "/cvmfs",
+        "-B",
         "/etc/grid-security/certificates",
     ] + (["-B", "/" + x.local_output_path.split("/")[1]] if x.is_local_output else [])
 

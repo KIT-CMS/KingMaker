@@ -11,6 +11,8 @@ action() {
     SPAWNPOINT=$(pwd)
     export HOME=${SPAWNPOINT}
 
+    # need to run htop when connecting to jobs via ssh
+    export TERM=xterm-256color
     # Set USER as local USER
     export USER={{USER}}
     export LUIGIPORT={{LUIGIPORT}}

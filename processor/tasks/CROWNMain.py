@@ -168,6 +168,8 @@ class CROWNRun(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
+        # Small delay to ensure file handles are released
+        time.sleep(1)
         for i, outputfile in enumerate(outputs):
             local_filename = os.path.join(
                 _workdir,
@@ -177,12 +179,15 @@ class CROWNRun(CROWNExecuteBase):
             # we have to open the files once again, setting the
             # kEntriesReshuffled bit to false, otherwise,
             # we cannot add any friends to the trees
-            self.run_command(
-                command=[
+            command = self.wrap_executable_command(
+                [
                     "python3",
                     "processor/tasks/helpers/ResetROOTStatusBit.py",
                     "--input {}".format(local_filename),
-                ],
+                ]
+            )
+            self.run_command(
+                command=command,
                 silent=True,
             )
             # for each outputfile, add the scope suffix
