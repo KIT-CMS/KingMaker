@@ -8,6 +8,7 @@ from framework import (
     Task,
     KingmakerSandbox,
     sandbox_pre_setup_cmds_factory,
+    resolve_sample_data,
 )
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -32,8 +33,12 @@ class ProduceBase(WrapperTask, Task):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Dynamically set the default value of dataset_database based on nanoAOD_version
-        if self.dataset_database == "":
+        # Only pin dataset_database to a single version's datasets.json when a
+        # nanoAOD_version was requested explicitly, matching the historical
+        # single-version behavior. If nanoAOD_version is left unset, dataset_database
+        # stays empty and each sample's version/details are resolved individually
+        # in set_sample_data(), so a sample_list can span multiple nanoAOD versions.
+        if self.dataset_database == "" and self.nanoAOD_version != "":
             self.dataset_database = (
                 f"sample_database/{self.nanoAOD_version}/datasets.json"
             )
@@ -110,20 +115,33 @@ class ProduceBase(WrapperTask, Task):
         table.add_column("Samplenick", justify="left")
         table.add_column("Era", justify="left")
         table.add_column("Sampletype", justify="left")
-        with open(str(self.dataset_database), "r") as stream:
-            sample_db = json.load(stream)
+        table.add_column("NanoAOD", justify="left")
+
+        # dataset_database is only set when nanoAOD_version was requested explicitly
+        # (pins every sample to that single version, as before); otherwise each
+        # sample's version is resolved individually, so the list can span versions.
+        sample_db = None
+        if self.dataset_database:
+            with open(str(self.dataset_database), "r") as stream:
+                sample_db = json.load(stream)
 
         for nick in samples:
             data["details"][nick] = {}
-            # check if sample exists in datasets.json
-            if nick not in sample_db:
-                console.log(
-                    "Sample {} not found in {}".format(nick, self.dataset_database)
+            if sample_db is not None:
+                if nick not in sample_db:
+                    console.log(
+                        "Sample {} not found in {}".format(nick, self.dataset_database)
+                    )
+                    raise Exception(f"Sample not found in DB: {nick}")
+                sample_data = sample_db[nick]
+                nanoAOD_version = self.nanoAOD_version
+            else:
+                nanoAOD_version, sample_data = resolve_sample_data(
+                    nick, self.nanoAOD_version
                 )
-                raise Exception(f"Sample not found in DB: {nick}")
-            sample_data = sample_db[nick]
             data["details"][nick]["era"] = str(sample_data["era"])
             data["details"][nick]["sample_type"] = sample_data["sample_type"]
+            data["details"][nick]["nanoAOD_version"] = nanoAOD_version
             # all samplestypes and eras are added to a list,
             # used to built the CROWN executable
             data["eras"].add(data["details"][nick]["era"])
@@ -133,6 +151,7 @@ class ProduceBase(WrapperTask, Task):
                     nick,
                     data["details"][nick]["era"],
                     data["details"][nick]["sample_type"],
+                    nanoAOD_version,
                 )
         if not self.silent:
             console.log(table)

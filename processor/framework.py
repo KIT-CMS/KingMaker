@@ -1,4 +1,6 @@
 import os
+import glob
+import json
 import luigi
 import law
 import select
@@ -54,6 +56,79 @@ class NanoAODVersions(Enum):
     v15 = "nanoAOD_v15"
 
 
+def resolve_nanoAOD_version(relative_path, requested_version):
+    """
+    Resolve which sample_database/nanoAOD_v* directory holds the sample config at
+    `relative_path` (e.g. "<era>/<sample_type>/<nick>.json"). If `requested_version`
+    is already set, it is returned unchanged. Otherwise, all nanoAOD_v* directories
+    are searched: if exactly one contains the file, that version is returned; if none
+    or more than one do, an exception is raised.
+    """
+    if requested_version:
+        return requested_version
+    matches = sorted(
+        os.path.basename(version_dir)
+        for version_dir in glob.glob(os.path.join("sample_database", "nanoAOD_v*"))
+        if os.path.exists(os.path.join(version_dir, relative_path))
+    )
+    if len(matches) == 0:
+        raise Exception(
+            f"No nanoAOD version found for 'sample_database/nanoAOD_v*/{relative_path}'. "
+            "Check the sample name, era and sample_type, or set --nanoAOD-version explicitly."
+        )
+    if len(matches) > 1:
+        raise Exception(
+            f"'{relative_path}' exists in multiple nanoAOD versions: {matches}. "
+            "Fix the sample_database entries so the sample name is unique across versions, "
+            "or set --nanoAOD-version explicitly to disambiguate."
+        )
+    return matches[0]
+
+
+def resolve_sample_data(nick, requested_version):
+    """
+    Resolve which sample_database/nanoAOD_v*/datasets.json contains `nick`, and
+    return (version, sample_data). If `requested_version` is set, only that
+    version's datasets.json is checked (matching the historical single-version
+    behavior exactly). Otherwise, all nanoAOD_v* directories are searched: if
+    exactly one contains the sample, that version and its data are returned; if
+    none or more than one do, an exception is raised. This is per-sample on
+    purpose, so a single sample_list can span multiple nanoAOD versions as long
+    as each individual sample is unambiguous.
+    """
+    versions_to_check = (
+        [requested_version]
+        if requested_version
+        else sorted(
+            os.path.basename(version_dir)
+            for version_dir in glob.glob(os.path.join("sample_database", "nanoAOD_v*"))
+        )
+    )
+    matches = []
+    for version in versions_to_check:
+        db_path = os.path.join("sample_database", version, "datasets.json")
+        if not os.path.exists(db_path):
+            continue
+        with open(db_path) as stream:
+            dataset_db = json.load(stream)
+        if nick in dataset_db:
+            matches.append((version, dataset_db[nick]))
+    if len(matches) == 0:
+        location = (
+            f"sample_database/{requested_version}/datasets.json"
+            if requested_version
+            else "any sample_database/nanoAOD_v*/datasets.json"
+        )
+        raise Exception(f"Sample '{nick}' not found in {location}.")
+    if len(matches) > 1:
+        raise Exception(
+            f"Sample '{nick}' exists in multiple nanoAOD versions: "
+            f"{[version for version, _ in matches]}. "
+            "Set --nanoAOD-version explicitly to disambiguate."
+        )
+    return matches[0]
+
+
 class Task(law.Task):
     local_user = getuser()
     wlcg_path = luigi.Parameter(
@@ -77,8 +152,13 @@ class Task(law.Task):
         description="Tag to differentiate workflow runs. Set to a timestamp as default.",
     )
     nanoAOD_version = luigi.Parameter(
-        default=NanoAODVersions.v15.value,
-        description="Version of the NanoAOD files that are used in the analysis. 'NanoAOD_v15' is the default.",
+        default="",
+        description=(
+            "Version of the NanoAOD files that are used in the analysis. "
+            "Auto-detected from the sample name/era/sample_type in sample_database "
+            "if left unset; set explicitly to disambiguate if a sample exists under "
+            "more than one nanoAOD version."
+        ),
     )
 
     # Ensure that branch parameter is processed normally
