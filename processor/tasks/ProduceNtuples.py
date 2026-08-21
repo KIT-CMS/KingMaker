@@ -101,7 +101,7 @@ class ProduceNtuples(ProduceBase):
 
         return configs
 
-    def prewarm_dataset_configs(self, data):
+    def preload_dataset_configs(self, data):
         # CROWNRun.create_branch_map() resolves+localizes ConfigureDatasets for each
         # sample serially later on; do it here in parallel first so that pass hits a warm cache
         def _ensure(nick):
@@ -163,7 +163,7 @@ class ProduceNtuples(ProduceBase):
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
         self.silent = True
 
-        self.prewarm_dataset_configs(data)
+        self.preload_dataset_configs(data)
 
         requirements = {}
         if self.friend_config != "":
