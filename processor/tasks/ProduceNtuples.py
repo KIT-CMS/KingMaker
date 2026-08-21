@@ -2,11 +2,12 @@ import os
 import luigi
 import ast
 import yaml
+from concurrent.futures import ThreadPoolExecutor
 from CROWNBase import ProduceBase
 from collections import defaultdict
 from framework import console
 from CROWNFriend import CROWNFriend
-from CROWNMain import CROWNRun
+from CROWNMain import CROWNRun, ConfigureDatasets, load_dataset_filelist
 
 
 class ProduceNtuples(ProduceBase):
@@ -100,6 +101,23 @@ class ProduceNtuples(ProduceBase):
 
         return configs
 
+    def preload_dataset_configs(self, data):
+        # CROWNRun.create_branch_map() resolves+localizes ConfigureDatasets for each
+        # sample serially later on; do it here in parallel first so that pass hits a warm cache
+        def _ensure(nick):
+            info = data["details"][nick]
+            dataset = ConfigureDatasets.req(
+                self,
+                nick=nick,
+                era=info["era"],
+                sample_type=info["sample_type"],
+                silent=True,
+            )
+            load_dataset_filelist(dataset)
+
+        with ThreadPoolExecutor(max_workers=32) as executor:
+            list(executor.map(_ensure, data["details"]))
+
     def recursive_check(self, map, key, visited):
         for k in map[key].get("requires", []):
             if k not in visited:
@@ -144,6 +162,8 @@ class ProduceNtuples(ProduceBase):
 
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
         self.silent = True
+
+        self.preload_dataset_configs(data)
 
         requirements = {}
         if self.friend_config != "":
