@@ -220,6 +220,7 @@ class CROWNBuildCombined(CROWNBuildBase):
     """
     Gather and compile CROWN with the given configuration
     """
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
 
     def requires(self):
         result = {"crownlib": BuildCROWNLib.req(self)}
@@ -408,6 +409,8 @@ class BuildCROWNLib(CROWNBuildBase):
     # friend_tag = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
+
     def get_source_hash(self):
         """
         Compute a hash of the CROWN source tree so that any code change produces
@@ -487,11 +490,9 @@ class BuildCROWNLib(CROWNBuildBase):
         else:
             console.rule("Building new CROWNlib")
             # create build directory
-            if not os.path.exists(_build_dir):
-                os.makedirs(_build_dir)
+            os.makedirs(_build_dir, exist_ok=True)
             # same for the install directory
-            if not os.path.exists(_install_dir):
-                os.makedirs(_install_dir)
+            os.makedirs(_install_dir, exist_ok=True)
 
             # actual payload:
             console.rule("Starting cmake step for CROWNlib")

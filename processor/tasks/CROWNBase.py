@@ -304,12 +304,10 @@ class CROWNBuildBase(KingmakerSandbox, Task):
         installed
         :param crownlib: The `crownlib` parameter is the crownlib file that will be copied to the build directory
         """
-        if not os.path.exists(build_dir):
-            os.makedirs(build_dir)
+        os.makedirs(build_dir, exist_ok=True)
         build_dir = os.path.abspath(build_dir)
         # same for the install directory
-        if not os.path.exists(install_dir):
-            os.makedirs(install_dir)
+        os.makedirs(install_dir, exist_ok=True)
         install_dir = os.path.abspath(install_dir)
 
         # localize crownlib to build directory
