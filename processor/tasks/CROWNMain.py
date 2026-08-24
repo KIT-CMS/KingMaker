@@ -218,6 +218,7 @@ class CROWNBuildCombined(CROWNBuildBase):
     """
     Gather and compile CROWN with the given configuration
     """
+
     nanoAOD_version = luigi.Parameter(default="", significant=False)
 
     def requires(self):
