@@ -49,14 +49,12 @@ class CROWNRun(CROWNExecuteBase):
     def workflow_requires(self):
         requirements = {}
         requirements["dataset"] = {}
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self,
-                    era=era,
-                    sample_type=sample_type,
-                    htcondor_request_cpus=self.htcondor_request_cpus,
-                )
+        requirements[f"tarball_{self.sample_type}_{self.era}"] = CROWNBuild.req(
+            self,
+            era=self.era,
+            sample_type=self.sample_type,
+            htcondor_request_cpus=self.htcondor_request_cpus,
+        )
         return requirements
 
     def create_branch_map(self):
