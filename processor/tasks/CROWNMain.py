@@ -7,7 +7,7 @@ import time
 import json
 import hashlib
 from CROWNBase import CROWNBuildBase
-from framework import console, Task
+from framework import console, Task, resolve_nanoAOD_version
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
@@ -49,14 +49,12 @@ class CROWNRun(CROWNExecuteBase):
     def workflow_requires(self):
         requirements = {}
         requirements["dataset"] = {}
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self,
-                    era=era,
-                    sample_type=sample_type,
-                    htcondor_request_cpus=self.htcondor_request_cpus,
-                )
+        requirements[f"tarball_{self.sample_type}_{self.era}"] = CROWNBuild.req(
+            self,
+            era=self.era,
+            sample_type=self.sample_type,
+            htcondor_request_cpus=self.htcondor_request_cpus,
+        )
         return requirements
 
     def create_branch_map(self):
@@ -220,6 +218,8 @@ class CROWNBuildCombined(CROWNBuildBase):
     """
     Gather and compile CROWN with the given configuration
     """
+
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
 
     def requires(self):
         result = {"crownlib": BuildCROWNLib.req(self)}
@@ -408,6 +408,8 @@ class BuildCROWNLib(CROWNBuildBase):
     # friend_tag = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
+
     def get_source_hash(self):
         """
         Compute a hash of the CROWN source tree so that any code change produces
@@ -487,11 +489,9 @@ class BuildCROWNLib(CROWNBuildBase):
         else:
             console.rule("Building new CROWNlib")
             # create build directory
-            if not os.path.exists(_build_dir):
-                os.makedirs(_build_dir)
+            os.makedirs(_build_dir, exist_ok=True)
             # same for the install directory
-            if not os.path.exists(_install_dir):
-                os.makedirs(_install_dir)
+            os.makedirs(_install_dir, exist_ok=True)
 
             # actual payload:
             console.rule("Starting cmake step for CROWNlib")
@@ -524,6 +524,13 @@ class ConfigureDatasets(Task):
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
     silent = luigi.BoolParameter(default=False, significant=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.nanoAOD_version = resolve_nanoAOD_version(
+            os.path.join(self.era, self.sample_type, f"{self.nick}.json"),
+            self.nanoAOD_version,
+        )
 
     def output(self):
         target = self.remote_target(
