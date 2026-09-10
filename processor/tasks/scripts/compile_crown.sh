@@ -36,6 +36,15 @@ mkdir -p "${BUILDDIR}"
 
 # --- CMake Configuration ---
 # We use the compilers and libraries provided by the container's Conda 'env'
+CONDA_CC="$(find "${CONDA_PREFIX}/bin" -maxdepth 1 -name '*-cc' | head -n1)"
+CONDA_CXX="$(find "${CONDA_PREFIX}/bin" -maxdepth 1 -name '*-c++' | head -n1)"
+if [[ -z "${CONDA_CC}" || -z "${CONDA_CXX}" ]]; then
+    echo "ERROR: Could not locate conda env compilers in ${CONDA_PREFIX}/bin"
+    exit 1
+fi
+echo "Using CC:  ${CONDA_CC}"
+echo "Using CXX: ${CONDA_CXX}"
+
 if cmake "${CROWNFOLDER}" \
     -DANALYSIS="${ANALYSIS}" \
     -DCONFIG="${CONFIG}" \
@@ -47,6 +56,8 @@ if cmake "${CROWNFOLDER}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
+    -DCMAKE_C_COMPILER="${CONDA_CC}" \
+    -DCMAKE_CXX_COMPILER="${CONDA_CXX}" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else
