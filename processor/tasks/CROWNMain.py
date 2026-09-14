@@ -2,15 +2,41 @@ import luigi
 import os
 import tarfile
 import subprocess
+import threading
 import time
 import json
 import hashlib
 from CROWNBase import CROWNBuildBase
-from framework import console, Task
+from framework import console, Task, resolve_nanoAOD_version
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
 from helpers.helpers import convert_to_comma_seperated
+
+_dataset_filelist_cache = {}
+_dataset_filelist_lock = threading.Lock()
+
+_source_hash_cache = {}
+_source_hash_lock = threading.Lock()
+
+
+def load_dataset_filelist(dataset_task):
+    # dataset_task.output().localize() is a real network copy; cache it so the
+    # per-sample cost is paid once even though create_branch_map runs it again later
+    key = dataset_task.output().uri()
+    with _dataset_filelist_lock:
+        inputdata = _dataset_filelist_cache.get(key)
+    if inputdata is not None:
+        return inputdata
+
+    if not dataset_task.complete():
+        dataset_task.run()
+    with dataset_task.output().localize("r") as _file:
+        inputdata = _file.load()
+
+    with _dataset_filelist_lock:
+        _dataset_filelist_cache[key] = inputdata
+    return inputdata
 
 
 class CROWNRun(CROWNExecuteBase):
@@ -23,26 +49,19 @@ class CROWNRun(CROWNExecuteBase):
     def workflow_requires(self):
         requirements = {}
         requirements["dataset"] = {}
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                requirements[f"tarball_{sample_type}_{era}"] = CROWNBuild.req(
-                    self,
-                    era=era,
-                    sample_type=sample_type,
-                    htcondor_request_cpus=self.htcondor_request_cpus,
-                )
+        requirements[f"tarball_{self.sample_type}_{self.era}"] = CROWNBuild.req(
+            self,
+            era=self.era,
+            sample_type=self.sample_type,
+            htcondor_request_cpus=self.htcondor_request_cpus,
+        )
         return requirements
 
     def create_branch_map(self):
         branch_map = {}
         branchcounter = 0
         dataset = ConfigureDatasets.req(self)
-        # since we use the filelist from the dataset, we need to run it first
-        if not dataset.complete():
-            dataset.run()
-        datsetinfo = dataset.output()
-        with datsetinfo.localize("r") as _file:
-            inputdata = _file.load()
+        inputdata = load_dataset_filelist(dataset)
         branches = {}
         if len(inputdata["filelist"]) == 0:
             raise Exception("No files found for dataset {}".format(self.nick))
@@ -168,6 +187,8 @@ class CROWNRun(CROWNExecuteBase):
         else:
             console.log("Successful")
         console.log("Output files afterwards: {}".format(os.listdir(_workdir)))
+        # Small delay to ensure file handles are released
+        time.sleep(1)
         for i, outputfile in enumerate(outputs):
             local_filename = os.path.join(
                 _workdir,
@@ -177,12 +198,15 @@ class CROWNRun(CROWNExecuteBase):
             # we have to open the files once again, setting the
             # kEntriesReshuffled bit to false, otherwise,
             # we cannot add any friends to the trees
-            self.run_command(
-                command=[
+            command = self.wrap_executable_command(
+                [
                     "python3",
                     "processor/tasks/helpers/ResetROOTStatusBit.py",
                     "--input {}".format(local_filename),
-                ],
+                ]
+            )
+            self.run_command(
+                command=command,
                 silent=True,
             )
             # for each outputfile, add the scope suffix
@@ -194,6 +218,8 @@ class CROWNBuildCombined(CROWNBuildBase):
     """
     Gather and compile CROWN with the given configuration
     """
+
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
 
     def requires(self):
         result = {"crownlib": BuildCROWNLib.req(self)}
@@ -382,12 +408,22 @@ class BuildCROWNLib(CROWNBuildBase):
     # friend_tag = luigi.Parameter(default="ntuples")
     analysis = luigi.Parameter()
 
+    nanoAOD_version = luigi.Parameter(default="", significant=False)
+
     def get_source_hash(self):
         """
         Compute a hash of the CROWN source tree so that any code change produces
         a new task output, triggering a fresh compilation.
+
+        output()/complete() get called repeatedly by luigi/law while building and
+        checking the task graph, so cache the result per source tree instead of
+        re-walking and re-hashing hundreds of files on every call.
         """
-        crown_path = self.KingMaker_path("CROWN")
+        crown_path = os.path.abspath("CROWN")
+        with _source_hash_lock:
+            cached = _source_hash_cache.get(crown_path)
+        if cached is not None:
+            return cached
         subdirs = ["src", "include", "analysis_configurations"]
         h = hashlib.sha256()
         for subdir in sorted(subdirs):
@@ -408,7 +444,10 @@ class BuildCROWNLib(CROWNBuildBase):
         if os.path.exists(cmake_path):
             with open(cmake_path, "rb") as f:
                 h.update(f.read())
-        return h.hexdigest()[:16]
+        digest = h.hexdigest()[:16]
+        with _source_hash_lock:
+            _source_hash_cache[crown_path] = digest
+        return digest
 
     def output(self):
         target = self.local_target(f"libCROWNLIB_{self.get_source_hash()}.so")
@@ -446,11 +485,9 @@ class BuildCROWNLib(CROWNBuildBase):
         else:
             console.rule("Building new CROWNlib")
             # create build directory
-            if not os.path.exists(_build_dir):
-                os.makedirs(_build_dir)
+            os.makedirs(_build_dir, exist_ok=True)
             # same for the install directory
-            if not os.path.exists(_install_dir):
-                os.makedirs(_install_dir)
+            os.makedirs(_install_dir, exist_ok=True)
 
             # actual payload:
             console.rule("Starting cmake step for CROWNlib")
@@ -483,6 +520,13 @@ class ConfigureDatasets(Task):
     era = luigi.Parameter()
     sample_type = luigi.Parameter()
     silent = luigi.BoolParameter(default=False, significant=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.nanoAOD_version = resolve_nanoAOD_version(
+            os.path.join(self.era, self.sample_type, f"{self.nick}.json"),
+            self.nanoAOD_version,
+        )
 
     def output(self):
         target = self.remote_target(

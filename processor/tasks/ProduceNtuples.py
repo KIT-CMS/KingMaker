@@ -2,11 +2,12 @@ import os
 import luigi
 import ast
 import yaml
+from concurrent.futures import ThreadPoolExecutor
 from CROWNBase import ProduceBase
 from collections import defaultdict
 from framework import console
 from CROWNFriend import CROWNFriend
-from CROWNMain import CROWNRun
+from CROWNMain import CROWNRun, ConfigureDatasets, load_dataset_filelist
 
 
 class ProduceNtuples(ProduceBase):
@@ -100,6 +101,23 @@ class ProduceNtuples(ProduceBase):
 
         return configs
 
+    def preload_dataset_configs(self, data):
+        # CROWNRun.create_branch_map() resolves+localizes ConfigureDatasets for each
+        # sample serially later on; do it here in parallel first so that pass hits a warm cache
+        def _ensure(nick):
+            info = data["details"][nick]
+            dataset = ConfigureDatasets.req(
+                self,
+                nick=nick,
+                era=info["era"],
+                sample_type=info["sample_type"],
+                silent=True,
+            )
+            load_dataset_filelist(dataset)
+
+        with ThreadPoolExecutor(max_workers=32) as executor:
+            list(executor.map(_ensure, data["details"]))
+
     def recursive_check(self, map, key, visited):
         for k in map[key].get("requires", []):
             if k not in visited:
@@ -130,7 +148,7 @@ class ProduceNtuples(ProduceBase):
             console.log(f"Config: {self.config}")
             console.log(f"Shifts: {self.shifts}")
             console.log(f"Scopes: {self.scopes}")
-            console.log(f"NanoAOD: {self.nanoAOD_version}")
+            console.log(f"NanoAOD: {self.nanoAOD_version or '(resolved per sample)'}")
             if self.friend_config != "":
                 console.log(f"Friend Config: {self.friend_config}")
                 console.log(f"Friend Tag: {self.friend_tag}")
@@ -145,6 +163,8 @@ class ProduceNtuples(ProduceBase):
         data = self.set_sample_data(self.parse_samplelist(self.sample_list))
         self.silent = True
 
+        self.preload_dataset_configs(data)
+
         requirements = {}
         if self.friend_config != "":
             for samplenick in data["details"]:
@@ -156,6 +176,7 @@ class ProduceNtuples(ProduceBase):
                         all_sample_types=data["sample_types"],
                         era=data["details"][samplenick]["era"],
                         sample_type=data["details"][samplenick]["sample_type"],
+                        nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
                         friend_mapping=self.friend_mapping,
                     )
                 )
@@ -170,6 +191,9 @@ class ProduceNtuples(ProduceBase):
                             all_sample_types=data["sample_types"],
                             era=data["details"][samplenick]["era"],
                             sample_type=data["details"][samplenick]["sample_type"],
+                            nanoAOD_version=data["details"][samplenick][
+                                "nanoAOD_version"
+                            ],
                             friend_config=friend_config,
                             friend_mapping=self.friend_mapping,
                         )
@@ -183,6 +207,7 @@ class ProduceNtuples(ProduceBase):
                     all_sample_types=data["sample_types"],
                     era=data["details"][samplenick]["era"],
                     sample_type=data["details"][samplenick]["sample_type"],
+                    nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
                 )
 
         return requirements
