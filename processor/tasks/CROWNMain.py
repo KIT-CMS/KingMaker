@@ -215,11 +215,11 @@ class CROWNBuildCombined(CROWNBuildBase):
         _threads = str(self.htcondor_request_cpus)
         # also use the tag for the local tarball creation
         _tag = f"{self.production_tag}/CROWN_{_analysis}_{_config}"
-        _install_dir = os.path.join(str(self.install_dir), _tag)
-        _build_dir = os.path.join(str(self.build_dir), _tag)
-        _crown_path = os.path.abspath("CROWN")
-        _compile_script = os.path.join(
-            str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown.sh"
+        _install_dir = self.KingMaker_path(str(self.install_dir), _tag)
+        _build_dir = self.KingMaker_path(str(self.build_dir), _tag)
+        _crown_path = self.KingMaker_path("CROWN")
+        _compile_script = self.KingMaker_path(
+            "processor", "tasks", "scripts", "compile_crown.sh"
         )
         if os.path.exists(os.path.join(_install_dir, output.basename)):
             console.log(f"tarball already existing in tarball directory {_install_dir}")
@@ -332,8 +332,8 @@ class CROWNBuild(CROWNBuildBase):
         _tag = (
             f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
         )
-        _install_dir = os.path.join(str(self.install_dir), _tag)
-        _unpacked_dir = os.path.join(
+        _install_dir = self.KingMaker_path(str(self.install_dir), _tag)
+        _unpacked_dir = self.KingMaker_path(
             str(self.install_dir), f"{self.production_tag}/CROWN_{_analysis}_{_config}"
         )
         _tarball = os.path.join(_install_dir, output.basename)
@@ -387,7 +387,7 @@ class BuildCROWNLib(CROWNBuildBase):
         Compute a hash of the CROWN source tree so that any code change produces
         a new task output, triggering a fresh compilation.
         """
-        crown_path = os.path.abspath("CROWN")
+        crown_path = self.KingMaker_path("CROWN")
         subdirs = ["src", "include", "analysis_configurations"]
         h = hashlib.sha256()
         for subdir in sorted(subdirs):
@@ -419,23 +419,19 @@ class BuildCROWNLib(CROWNBuildBase):
         output = self.output()
         _source_hash = self.get_source_hash()
         # also use the tag for the local tarball creation
-        _install_dir = os.path.abspath(
-            os.path.join(
-                str(self.install_dir),
-                str(self.production_tag),
-                f"crownlib_{_source_hash}",
-            )
+        _install_dir = self.KingMaker_path(
+            str(self.install_dir),
+            str(self.production_tag),
+            f"crownlib_{_source_hash}",
         )
-        _build_dir = os.path.abspath(
-            os.path.join(
-                str(self.build_dir),
-                str(self.production_tag),
-                f"crownlib_{_source_hash}",
-            )
+        _build_dir = self.KingMaker_path(
+            str(self.build_dir),
+            str(self.production_tag),
+            f"crownlib_{_source_hash}",
         )
-        _crown_path = os.path.abspath("CROWN")
-        _compile_script = os.path.join(
-            str(os.path.abspath("processor")),
+        _crown_path = self.KingMaker_path("CROWN")
+        _compile_script = self.KingMaker_path(
+            "processor",
             "tasks",
             "scripts",
             "compile_crown_lib.sh",
