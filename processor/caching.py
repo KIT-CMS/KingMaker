@@ -46,20 +46,37 @@ def _save_json_atomic(path, data):
     os.replace(tmp, path)
 
 
-def _update_json_cache_locked(cache_path, key, value_dict):
-    cache_dir = os.path.dirname(cache_path)
+def _prune_expired_entries(cache, cutoff_time):
+    expired_keys = [k for k, v in cache.items() if v.get("ts", 0) < cutoff_time]
+    for k in expired_keys:
+        del cache[k]
+    return cache
+
+
+def _flush_pending_locked():
+    global _LAST_FLUSH_TIME, _TARGET_CACHE
+
+    with _PENDING_LOCK:
+        if not _PENDING_UPDATES:
+            return
+        pending_copy = dict(_PENDING_UPDATES)
+        _PENDING_UPDATES.clear()
+
+    cache_dir = os.path.dirname(CACHE_PATH)
     if cache_dir and not os.path.exists(cache_dir):
         os.makedirs(cache_dir, exist_ok=True)
 
-    lock_path = cache_path + ".lock"
-
+    lock_path = CACHE_PATH + ".lock"
     with open(lock_path, "a") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            cache = _load_json(cache_path)
-            cache[key] = value_dict
-            _save_json_atomic(cache_path, cache)
-            return cache
+            cache = _load_json(CACHE_PATH)
+            cache.update(pending_copy)
+            cutoff = time.time() - MAX_CACHE_ENTRY_AGE
+            cache = _prune_expired_entries(cache, cutoff)
+            _save_json_atomic(CACHE_PATH, cache)
+            _TARGET_CACHE = cache
+            _LAST_FLUSH_TIME = time.time()
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 

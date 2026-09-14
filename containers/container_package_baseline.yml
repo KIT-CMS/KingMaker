@@ -1,22 +1,23 @@
 channels:
   - conda-forge
 dependencies:
-  - boost-cpp
   - ccache
   - cmake
   - make
   - correctionlib
-  - gcc
+  - gcc=16
   - gfal2-util
   - git
   - kernel-headers_linux-64
   - onnxruntime-cpp
   - openmpi-mpicxx
-  - python=3.12
+  - python=3.13
+  - python-gfal2=1.13.0
   - rich
-  - root=6.36
+  - root=6.40
   - setuptools<81
   - vim
+  - nano
   - xrootd
   - pip
   - openssh
@@ -26,6 +27,7 @@ dependencies:
   - clang-format
   - black
   - gdb
+  - htop
   - pip:
       - luigi
       - questionary

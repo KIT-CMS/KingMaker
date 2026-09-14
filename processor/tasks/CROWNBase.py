@@ -205,7 +205,7 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         """
         CROWN executables are linked with an RPATH pointing at the container's
         /opt/conda/envs/env, so they only resolve their ROOT/libstdc++ versions
-        inside the kingmaker_standalone image. HTCondor branches already run
+        inside the crown image. HTCondor branches already run
         inside that image via the container universe, but branches of the
         local workflow execute directly on the submission host, so they need
         to be wrapped in the same singularity container explicitly.
@@ -304,12 +304,10 @@ class CROWNBuildBase(KingmakerSandbox, Task):
         installed
         :param crownlib: The `crownlib` parameter is the crownlib file that will be copied to the build directory
         """
-        if not os.path.exists(build_dir):
-            os.makedirs(build_dir)
+        os.makedirs(build_dir, exist_ok=True)
         build_dir = os.path.abspath(build_dir)
         # same for the install directory
-        if not os.path.exists(install_dir):
-            os.makedirs(install_dir)
+        os.makedirs(install_dir, exist_ok=True)
         install_dir = os.path.abspath(install_dir)
 
         # localize crownlib to build directory
