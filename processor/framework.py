@@ -735,5 +735,9 @@ class KingmakerSandbox(law.SandboxTask):
 
     # Default sandbox init
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY", "LUIGIPORT", "WF_NAME"
+        "X509_USER_PROXY",
+        "LUIGIPORT",
+        "WF_NAME",
+        "LOCAL_SCHEDULER",
+        "LUIGI_CFG_SCHEDULER_PORT",
     )

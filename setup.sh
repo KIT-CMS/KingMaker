@@ -352,8 +352,7 @@ action() {
         echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
     fi
 
-    # Parse the necessary environments from the luigi config files.
-    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "local_scheduler")
+    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "local_scheduler_default")
     LOCAL_SCHEDULER_STATUS=$?
     if [[ "${LOCAL_SCHEDULER_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${LOCAL_SCHEDULER}"
@@ -398,6 +397,9 @@ action() {
         echo "Using local scheduler."
         export LUIGIPORT=""
     fi
+    # luigi parses 'scheduler_port' regardless of whether the local or central scheduler is used,
+    # so it can never be empty (unlike LUIGIPORT). Fall back to a dummy valid port in that case.
+    export LUIGI_CFG_SCHEDULER_PORT="${LUIGIPORT:-0}"
 
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${WF_NAME}"
