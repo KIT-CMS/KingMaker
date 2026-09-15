@@ -374,18 +374,6 @@ class Task(law.Task):
             raise Exception("No command provided.")
 
 
-def htcondor_domain():
-    domain_name = str(socket.getfqdn())
-    if domain_name.endswith("cern.ch"):
-        return "CERN"
-    elif domain_name.endswith(
-        ("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")
-    ):
-        return "ETP"
-    print("Unknown domain, default to CERN lxplus settings.")
-    return "CERN"
-
-
 class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
     """
     CERN's EosSubmit schedds reject submit files whose "executable", "input", "output" and
@@ -538,15 +526,26 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         log_path = os.path.join(self.htcondor_output_directory().abspath, "logs")
         return law.LocalDirectoryTarget(log_path)
 
+    def htcondor_domain(self):
+        domain_name = str(socket.getfqdn())
+        if domain_name.endswith("cern.ch"):
+            return "CERN"
+        elif domain_name.endswith(
+            ("etp.kit.edu", "darwin.kit.edu", "gridka.de", "bwforcluster")
+        ):
+            return "ETP"
+        print("Unknown domain, default to ETP settings.")
+        return "ETP"
+
     def htcondor_job_file_factory_cls(self):
-        if htcondor_domain() == "CERN":
+        if self.htcondor_domain() == "CERN":
             return EosSubmitJobFileFactory
         return super().htcondor_job_file_factory_cls()
 
     def htcondor_create_job_file_factory(self):
         path = self.htcondor_output_directory().abspath
         # EosSubmit requires the vanilla universe
-        universe = "vanilla" if htcondor_domain() == "CERN" else self.htcondor_universe
+        universe = "vanilla" if self.htcondor_domain() == "CERN" else self.htcondor_universe
         factory = super().htcondor_create_job_file_factory(
             dir=path,
             mkdtemp=False,
@@ -560,7 +559,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         return law.util.rel_path(__file__, hostfile)
 
     def htcondor_job_config(self, config, job_num, branches):
-        domain = htcondor_domain()
+        domain = self.htcondor_domain()
 
         workflow_name = os.getenv("WF_NAME")
         task_name = self.__class__.__name__
@@ -574,22 +573,17 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
+        config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
         if domain == "CERN":
             # EosSubmit limitation 1: container_image with /cvmfs path is treated as exec,
             # which must be in /eos. Use MY.SingularityImage with vanilla universe instead.
             config.custom_content.append(
                 ("MY.SingularityImage", f'"{self.htcondor_container_image}"')
             )
-            # EosSubmit limitation 2: log file must not combine "$(Cluster)" and
-            # "$(Process)"/"$(ProcId)". Set a placeholder here (any truthy value; law will
-            # mangle it further for grouped submissions) - EosSubmitJobFileFactory.create()
-            # rewrites it with a schedd-safe, still-per-branch path afterwards.
-            config.log = os.path.join(log_base_path, "Log.txt")
         else:
             config.custom_content.append(
                 ("container_image", self.htcondor_container_image)
             )
-            config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
         if domain == "ETP":
             config.custom_content.append(
                 ("accounting_group", self.htcondor_accounting_group)
