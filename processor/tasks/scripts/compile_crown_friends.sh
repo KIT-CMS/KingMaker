@@ -9,8 +9,7 @@ SCOPE=${6}
 SHIFTS=${7}
 INSTALLDIR=${8}
 BUILDDIR=${9}
-TARBALLNAME=${10}
-QUANTITIESMAP=${11}
+QUANTITIESMAP=${10}
 
 echo "--- CROWN Friends Compilation ---"
 echo "Crown folder: ${CROWNFOLDER}"
@@ -76,10 +75,3 @@ else
     echo "ERROR: Build failed. See ${BUILDDIR}/build.log"
     exit 1
 fi
-
-# --- Post-Processing (Tarball) ---
-echo "Finished the compilation and starting to make the *.tar.gz archive"
-cd "${INSTALLDIR}"
-# Ensure the tarball isn't trying to archive itself if it already exists
-touch "${TARBALLNAME}"
-tar -czvf "${TARBALLNAME}" --exclude="${TARBALLNAME}" .
