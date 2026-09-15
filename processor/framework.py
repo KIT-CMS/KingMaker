@@ -545,7 +545,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     def htcondor_create_job_file_factory(self):
         path = self.htcondor_output_directory().abspath
         # EosSubmit requires the vanilla universe
-        universe = "vanilla" if self.htcondor_domain() == "CERN" else self.htcondor_universe
+        universe = (
+            "vanilla" if self.htcondor_domain() == "CERN" else self.htcondor_universe
+        )
         factory = super().htcondor_create_job_file_factory(
             dir=path,
             mkdtemp=False,
