@@ -49,6 +49,7 @@ if cmake "${CROWNFOLDER}" \
     -DFRIENDS=true \
     -DQUANTITIESMAP="${QUANTITIESMAP}" \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$(root-config --libdir)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else

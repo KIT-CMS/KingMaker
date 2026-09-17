@@ -17,10 +17,12 @@ set -o pipefail
 set -e
 
 # --- Resource Calculation ---
-# Use 1/4 of available cores for compilation to avoid overloading the node (min=1)
+# Use 1/4 of available cores for compilation, capped so several builds can
+# run concurrently on the same node without blowing past its memory limit
 THREADS_AVAILABLE=$(grep -c ^processor /proc/cpuinfo)
 THREADS=$((THREADS_AVAILABLE / 4))
 [ "$THREADS" -lt 1 ] && THREADS=1
+[ "$THREADS" -gt 4 ] && THREADS=4
 
 echo "Using ${THREADS} threads for compilation."
 echo "Active Python: $(which python)"
@@ -39,6 +41,7 @@ if cmake "${CROWNFOLDER}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DANALYSIS="${ANALYSIS}" \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$(root-config --libdir)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successful."
 else
