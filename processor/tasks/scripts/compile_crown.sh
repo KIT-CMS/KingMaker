@@ -22,10 +22,12 @@ echo "Analysis:     ${ANALYSIS}"
 set -o pipefail
 set -e
 
-# Use a fourth of the machine for compiling
+# Use a fourth of the machine for compiling, capped so several builds can
+# run concurrently on the same node without blowing past its memory limit
 THREADS_AVAILABLE=$(grep -c ^processor /proc/cpuinfo)
 THREADS=$((THREADS_AVAILABLE / 4))
 [ "$THREADS" -lt 1 ] && THREADS=1
+[ "$THREADS" -gt 6 ] && THREADS=6
 
 echo "Using ${THREADS} threads for compilation"
 echo "Active Python: $(which python)"
@@ -50,6 +52,7 @@ if cmake "${CROWNFOLDER}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
+    -DCMAKE_EXE_LINKER_FLAGS="-L$(root-config --libdir)" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else

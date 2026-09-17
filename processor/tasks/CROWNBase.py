@@ -259,6 +259,11 @@ class CROWNBuildBase(KingmakerSandbox, Task):
     # Needed to propagate thread count to build tasks
     htcondor_request_cpus = luigi.IntParameter(default=1)
 
+    # Throttle concurrent local compilation regardless of --workers, since each
+    # build is a memory-heavy ROOT/C++ link step run directly on the submission
+    # machine (see [resources] in the luigi config for the shared budget)
+    resources = {"crown_build": 1}
+
     # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
     sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
         "X509_USER_PROXY", "LUIGIPORT", "CCACHE_DIR", "WF_NAME"

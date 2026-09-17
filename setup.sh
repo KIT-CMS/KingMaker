@@ -302,7 +302,7 @@ action() {
         set_luigiport () {
             # First check if the user already has a luigid scheduler running
             # Start a luidigd scheduler if there is one already running
-            if [ -z "$(pgrep -u ${USER} -f luigid)" ]; then
+            if [ -z "$(pgrep -u ${USER} -f "[l]uigid --background")" ]; then
                 echo "Starting Luigi scheduler... using a random port"
                 while
                     export LUIGIPORT=$(shuf -n 1 -i 49152-65535)
@@ -314,9 +314,9 @@ action() {
                 echo "Luigi scheduler started on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
             else
                 # first get the (first) PID
-                export LUIGIPID=$(pgrep -u ${USER} -f luigid | head -n 1)
+                export LUIGIPID=$(pgrep -u ${USER} -f "[l]uigid --background" | head -n 1)
                 # now get the luigid port that the scheduler is using and set the LUIGIPORT variable
-                export LUIGIPORT=$(cat /proc/${LUIGIPID}/cmdline | sed -e "s/\x00/ /g" | cut -d "=" -f2)
+                export LUIGIPORT=$(tr "\0" " " < /proc/${LUIGIPID}/cmdline | grep -oE -- "--port=[0-9]+" | cut -d= -f2)
                 echo "Luigi scheduler already running on port ${LUIGIPORT}, setting LUIGIPORT to ${LUIGIPORT}"
             fi
         }
@@ -348,6 +348,67 @@ action() {
         echo "Law completion failed."
         return 1
     fi
+
+    # Default cache id for direct `law` calls; `law run` below overrides it per invocation.
+    export LAW_RUN_CACHE_ID="${LAW_RUN_CACHE_ID:-shared}"
+
+    # Kill every process of ours tagged with a run id (workers, sandboxed law
+    # inside apptainer, its cmake/make/compilers) plus the apptainer sessions
+    # they live in -- those get their own session, so a process-group kill
+    # never reaches them.
+    _law_reap_run() {
+        local run_id="$1" p sid sids=""
+        for p in $(pgrep -u "${USER}"); do
+            [[ "$p" == "$$" || "$p" == "${BASHPID}" ]] && continue
+            if tr '\0' '\n' 2>/dev/null < "/proc/${p}/environ" | grep -qx "LAW_RUN_CACHE_ID=${run_id}"; then
+                sid="$(ps -o sess= -p "$p" 2>/dev/null | tr -d ' ')"
+                [[ -n "$sid" && "$sid" != "$(ps -o sess= -p $$ | tr -d ' ')" ]] && sids="${sids} ${sid}"
+                kill -KILL "$p" 2>/dev/null
+            fi
+        done
+        for sid in $(echo "${sids}" | tr ' ' '\n' | sort -u); do
+            kill -KILL -- "-${sid}" 2>/dev/null
+        done
+    }
+
+    # `law run` wrapper: private download cache per run, and reap everything
+    # the run spawned when it ends -- luigi only cleans up its forked workers
+    # on a normal exit, so a killed shell/screen leaks them (PPID=1, futex
+    # wait, ignore SIGTERM), and sandboxed builds are never cleaned up at all.
+    law() {
+        if [[ "${1:-}" != "run" ]]; then
+            command law "$@"
+            return $?
+        fi
+        local cache_id="$(date +%Y%m%d_%H%M%S)_$$_${RANDOM}"
+        local cache_dir="/tmp/${USER}/law_cache_${cache_id}"
+        # sweep caches of runs that are long gone (a live run reaps its own on exit)
+        find "/tmp/${USER}" -maxdepth 1 -type d -name "law_cache_*" -mtime +3 -exec rm -rf {} + 2>/dev/null
+        local pid pg rc
+        if [[ -o monitor ]]; then
+            LAW_RUN_CACHE_ID="${cache_id}" command law "$@" &
+        else
+            LAW_RUN_CACHE_ID="${cache_id}" setsid command law "$@" &
+        fi
+        pid=$!
+        pg="$(ps -o pgid= -p "${pid}" 2>/dev/null | tr -d ' ')"
+        local old_traps="$(trap -p HUP INT TERM)"
+        trap "_law_reap_run '${cache_id}'; rm -rf '${cache_dir}'" HUP TERM
+        trap "kill -INT -- -${pid} 2>/dev/null" INT
+        if [[ -o monitor && "${pg}" == "${pid}" ]]; then
+            fg %+ >/dev/null; rc=$?
+        else
+            wait "${pid}"; rc=$?
+        fi
+        trap - HUP INT TERM; eval "${old_traps}"
+        if kill -0 "${pid}" 2>/dev/null && [[ "$(ps -o stat= -p "${pid}")" == T* ]]; then
+            echo "[law] run ${pid} is STOPPED (Ctrl-Z): 'fg' to resume, or 'kill -CONT -- -${pid}; kill -KILL -- -${pid}' to drop it -- its workers leak otherwise."
+            return $rc
+        fi
+        _law_reap_run "${cache_id}"
+        rm -rf "${cache_dir}"
+        return $rc
+    }
 
     # tasks
     _addpy "${BASE_DIR}/processor"
