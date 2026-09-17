@@ -16,6 +16,9 @@ action() {
     # Set USER as local USER
     export USER={{USER}}
     export LUIGIPORT={{LUIGIPORT}}
+    # Remote jobs always use the local scheduler independent of the submission host
+    export LOCAL_SCHEDULER="True"
+    export LUIGI_CFG_SCHEDULER_PORT="${LUIGIPORT:-0}"
     export LAW_ACCOUNTING_GROUP={{LAW_ACCOUNTING_GROUP}}
     export USER_FIRST_LETTER=${USER:0:1}
     export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates

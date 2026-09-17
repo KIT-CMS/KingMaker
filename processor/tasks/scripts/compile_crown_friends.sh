@@ -9,8 +9,7 @@ SCOPE=${6}
 SHIFTS=${7}
 INSTALLDIR=${8}
 BUILDDIR=${9}
-TARBALLNAME=${10}
-QUANTITIESMAP=${11}
+QUANTITIESMAP=${10}
 
 echo "--- CROWN Friends Compilation ---"
 echo "Crown folder: ${CROWNFOLDER}"
@@ -34,9 +33,15 @@ mkdir -p "${BUILDDIR}"
 
 # --- CMake Configuration ---
 # We use the compilers and libraries provided by the container's Conda 'env'
-# Pin CMAKE_PREFIX_PATH to the ROOT install found via root-config: on hosts
-# that also have a system ROOT RPM installed, find_package(ROOT) can otherwise
-# silently resolve to that instead of the intended CVMFS/conda install.
+CONDA_CC="$(find "${CONDA_PREFIX}/bin" -maxdepth 1 -name '*-cc' | head -n1)"
+CONDA_CXX="$(find "${CONDA_PREFIX}/bin" -maxdepth 1 -name '*-c++' | head -n1)"
+if [[ -z "${CONDA_CC}" || -z "${CONDA_CXX}" ]]; then
+    echo "ERROR: Could not locate conda env compilers in ${CONDA_PREFIX}/bin"
+    exit 1
+fi
+echo "Using CC:  ${CONDA_CC}"
+echo "Using CXX: ${CONDA_CXX}"
+
 if cmake "${CROWNFOLDER}" \
     -DANALYSIS="${ANALYSIS}" \
     -DCONFIG="${CONFIG}" \
@@ -49,7 +54,8 @@ if cmake "${CROWNFOLDER}" \
     -DFRIENDS=true \
     -DQUANTITIESMAP="${QUANTITIESMAP}" \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
-    -DCMAKE_EXE_LINKER_FLAGS="-L$(root-config --libdir)" \
+    -DCMAKE_C_COMPILER="${CONDA_CC}" \
+    -DCMAKE_CXX_COMPILER="${CONDA_CXX}" \
     -B"${BUILDDIR}" 2>&1 | tee "${BUILDDIR}/cmake.log"; then
     echo "CMake finished successfully"
 else
@@ -69,10 +75,3 @@ else
     echo "ERROR: Build failed. See ${BUILDDIR}/build.log"
     exit 1
 fi
-
-# --- Post-Processing (Tarball) ---
-echo "Finished the compilation and starting to make the *.tar.gz archive"
-cd "${INSTALLDIR}"
-# Ensure the tarball isn't trying to archive itself if it already exists
-touch "${TARBALLNAME}"
-tar -czvf "${TARBALLNAME}" --exclude="${TARBALLNAME}" .
