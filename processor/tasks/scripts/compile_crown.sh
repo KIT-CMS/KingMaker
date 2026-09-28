@@ -27,7 +27,7 @@ set -e
 THREADS_AVAILABLE=$(grep -c ^processor /proc/cpuinfo)
 THREADS=$((THREADS_AVAILABLE / 4))
 [ "$THREADS" -lt 1 ] && THREADS=1
-[ "$THREADS" -gt 6 ] && THREADS=6
+[ "$THREADS" -gt 4 ] && THREADS=4
 
 echo "Using ${THREADS} threads for compilation"
 echo "Active Python: $(which python)"
