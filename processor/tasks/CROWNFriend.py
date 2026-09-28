@@ -356,10 +356,23 @@ class CROWNBuildFriend(CROWNBuildBase):
                 _shifts,  # SHIFTS=$7
                 _install_dir,  # INSTALLDIR=$8
                 _build_dir,  # BUILDDIR=$9
-                output.basename,  # TARBALLNAME=$10
-                convert_to_comma_seperated(quantities_map_paths),  # QUANTITIESMAP=$11
+                convert_to_comma_seperated(quantities_map_paths),  # QUANTITIESMAP=$10
             ]
             self.run_command_readable(command)
+
+            console.log(f"Creating tarball for {friend_tag}")
+            _tarball = os.path.join(_install_dir, output.basename)
+            _tmp_tarball = os.path.join(
+                os.path.dirname(_install_dir), f"{output.basename}.tmp.{os.getpid()}"
+            )
+
+            def exclude_files(tarinfo):
+                return None if tarinfo.name.endswith(".tar.gz") else tarinfo
+
+            with tarfile.open(_tmp_tarball, "w:gz") as tar:
+                tar.add(_install_dir, arcname=".", filter=exclude_files)
+            os.replace(_tmp_tarball, _tarball)
+
             self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
         console.rule("Finished CROWNBuildFriend")
 

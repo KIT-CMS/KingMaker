@@ -10,11 +10,11 @@
 #   -l, --list                 List available workflows
 #   -h, --help                 Show detailed help message
 #
-# Supports CentOS 7, RHEL/Alma/Rocky 9, and Ubuntu 22.
+# Supports RHEL/Alma/Rocky 9
 
 
 # List of available workflows
-WF_LIST=("KingMaker" "KingMaker_lxplus" "GPU_example")
+WF_LIST=("KingMaker" "GPU_example")
 
 _addpy() {
     [ ! -z "${1}" ] && export PYTHONPATH="${1}:${PYTHONPATH}"
@@ -117,7 +117,35 @@ action() {
         local THIS_FILE="${BASH_SOURCE[0]}"
     fi
 
-    BASE_DIR="$( cd "$( dirname "${THIS_FILE}" )" && pwd )"
+    BASE_DIR="$(dirname "${THIS_FILE}")"
+    if [[ "${BASE_DIR}" != /* ]]; then
+        BASE_DIR="${PWD}/${BASE_DIR}"
+    fi
+    BASE_DIR="${BASE_DIR%/}"
+
+    # Detect whether we're running on lxplus, to automatically enable
+    # EOS/EosSubmit-specific behavior (path alias preservation, proxy handling, container
+    # binds) without requiring a dedicated workflow name
+    IS_CERN_HOST=false
+    if [[ "$(hostname -f 2>/dev/null)" == *.cern.ch ]]; then
+        IS_CERN_HOST=true
+    fi
+
+    # HTCondor/EosSubmit worker nodes fetch/write job I/O through the eosuser.cern.ch xrootd
+    # door. If this checkout lives under /eos/home-*, translate to the /eos/user/ alias
+    # so paths handed to HTCondor (executable, transfer_input_files, output remaps) work.
+    if [[ "${IS_CERN_HOST}" == "true" ]] && \
+            [[ "${BASE_DIR}" =~ ^/eos/home-([a-z0-9])/([^/]+)(/.*)?$ ]]; then
+        _eos_letter="${BASH_REMATCH[1]}"
+        _eos_user="${BASH_REMATCH[2]}"
+        _eos_rest="${BASH_REMATCH[3]}"
+        if [[ -d "/eos/user/${_eos_letter}/${_eos_user}" ]]; then
+            BASE_DIR="/eos/user/${_eos_letter}/${_eos_user}${_eos_rest}"
+        fi
+        unset _eos_letter _eos_user _eos_rest
+    fi
+
+    export LOCAL_PWD="${BASE_DIR}"
 
     # Handle analysis selection
     if [[ -z "${PARSED_WORKFLOW}" ]]; then
@@ -161,7 +189,11 @@ action() {
     # 3. Use local /cvmfs installation if available
     # 4. Use dir of setup script if neither provided
     if [[ ! -z ${PARSED_ENV_PATH} ]]; then
-        ENV_PATH="$(realpath ${PARSED_ENV_PATH})"
+        if [[ "${PARSED_ENV_PATH}" == /* ]]; then
+            ENV_PATH="${PARSED_ENV_PATH}"
+        else
+            ENV_PATH="$(realpath ${PARSED_ENV_PATH})"
+        fi
     elif [[ -f "${BASE_DIR}/environment.location" ]]; then
         ENV_PATH="$(tail -n 1 ${BASE_DIR}/environment.location)"
     elif [[ -d "/cvmfs/etp.kit.edu/LAW_envs/miniforge/envs/${STARTING_ENV}" ]]; then
@@ -182,19 +214,24 @@ action() {
     # Use primary default. Secondary default at ${HOME}/.voms/vomses has to be manually set.
     INITIAL_VOMS_USERCONF=${VOMS_USERCONF:-"/etc/vomses"}
 
+    INITIAL_PROXY_PATH=""
+    if voms-proxy-info -exists &>/dev/null 2>&1; then
+        INITIAL_PROXY_PATH="$(voms-proxy-info -path 2>/dev/null)"
+    fi
+
     # Try to install env via miniforge
     # NOTE: miniforge is based on conda and uses the same syntax. Switched due to licensing concerns.
     # Install miniforge if necessary
     if [ ! -f "${ENV_PATH}/miniforge/bin/activate" ]; then
         # Miniforge version used for all environments
-        MAMBAFORGE_VERSION="24.3.0-0"
-        MAMBAFORGE_INSTALLER="Mambaforge-${MAMBAFORGE_VERSION}-$(uname)-$(uname -m).sh"
-        echo "Miniforge could not be found, installing miniforge version ${MAMBAFORGE_INSTALLER}"
+        MINIFORGE_VERSION="26.5.3-0"
+        MINIFORGE_INSTALLER="Miniforge3-${MINIFORGE_VERSION}-$(uname)-$(uname -m).sh"
+        echo "Miniforge could not be found, installing miniforge version ${MINIFORGE_INSTALLER}"
         echo "More information can be found in"
         echo "https://github.com/conda-forge/miniforge"
-        curl -L -O https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/${MAMBAFORGE_INSTALLER}
-        bash ${MAMBAFORGE_INSTALLER} -b -s -p ${ENV_PATH}/miniforge
-        rm -f ${MAMBAFORGE_INSTALLER}
+        curl -L -O https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${MINIFORGE_INSTALLER}
+        bash ${MINIFORGE_INSTALLER} -b -s -p ${ENV_PATH}/miniforge
+        rm -f ${MINIFORGE_INSTALLER}
     fi
     # Source base env of miniforge
     source ${ENV_PATH}/miniforge/bin/activate ''
@@ -218,7 +255,7 @@ action() {
     # Set up other dependencies based on workflow
     ############################################
     case ${WF_NAME} in
-        KingMaker|KingMaker_lxplus)
+        KingMaker)
             echo "Setting up CROWN ..."
             # Due to frequent updates CROWN is not set up as a submodule
             if [ -z "$(ls -A ${BASE_DIR}/CROWN)" ]; then
@@ -257,6 +294,19 @@ action() {
             # Set up ccache
             export CCACHE_DIR="${BASE_DIR}/CROWN/.cache/ccache";
 
+            # KingMaker_luigi.cfg's htcondor_accounting_group picks this up.
+            export LAW_ACCOUNTING_GROUP="cms.higgs"
+            if [[ "${IS_CERN_HOST}" == "true" ]]; then
+                # Needed to have a proper access to EOS within the container, specifically the Kerberos ticket
+                # /afs is added automatically when the contianer is started
+                export APPTAINER_BIND="/eos,/tmp,/run/user"
+                export SINGULARITY_BIND="/eos,/tmp,/run/user"
+                [[ ! -z "${KRB5CCNAME}" ]] && export APPTAINERENV_KRB5CCNAME="${KRB5CCNAME}"
+                [[ ! -z "${KRB5CCNAME}" ]] && export SINGULARITYENV_KRB5CCNAME="${KRB5CCNAME}"
+                module load lxbatch/eossubmit #for submission from eos
+                export LAW_ACCOUNTING_GROUP="group_u_CMS.u_zh.users"
+            fi
+
             ;;
         *)
             ;;
@@ -268,19 +318,41 @@ action() {
         git -C "${BASE_DIR}" submodule update --init --recursive -- law
     fi
 
-    # Check for voms proxy
-    voms-proxy-info -exists &>/dev/null
-    if [[ "$?" -eq "1" ]]; then
-        echo "No valid voms proxy found, remote storage might be inaccessible."
-        echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
-    else
-        # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+    # Remember the previous value of VOMS_USERCONF to overwrite after conda source
+    export VOMS_USERCONF="${INITIAL_VOMS_USERCONF}"
+    # Check for voms proxy - preferred path saved before conda changed the voms tools
+    if [[ -n "${INITIAL_PROXY_PATH}" ]] && [[ -f "${INITIAL_PROXY_PATH}" ]]; then
+        export X509_USER_PROXY="${INITIAL_PROXY_PATH}"
+        echo "Voms proxy found at ${X509_USER_PROXY}"
+    elif voms-proxy-info -exists &>/dev/null; then
         export X509_USER_PROXY=$(voms-proxy-info -path)
         echo "Voms proxy found at ${X509_USER_PROXY}"
     fi
 
-    # Parse the necessary environments from the luigi config files.
-    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "local_scheduler")
+    # copy proxy to the local KingMaker directory so the schedd can access it
+    # even if the source proxy is in /tmp and gets cleaned up by the system
+    # or the user switch to a different machine
+    LOCAL_PROXY_DIR="${BASE_DIR}/.proxy"
+    LOCAL_PROXY="${LOCAL_PROXY_DIR}/x509up"
+    if [[ -n "${X509_USER_PROXY}" ]] && [[ -f "${X509_USER_PROXY}" ]]; then
+        # a fresh source proxy is available: refresh the persisted local copy
+        mkdir -p "${LOCAL_PROXY_DIR}"
+        cp "${X509_USER_PROXY}" "${LOCAL_PROXY}"
+        chmod 600 "${LOCAL_PROXY}"
+        export X509_USER_PROXY="${LOCAL_PROXY}"
+        echo "Proxy copied to local directory: ${X509_USER_PROXY}"
+    elif [[ -f "${LOCAL_PROXY}" ]] && voms-proxy-info -file "${LOCAL_PROXY}" -exists &>/dev/null; then
+        # no fresh source proxy
+        export X509_USER_PROXY="${LOCAL_PROXY}"
+        echo "No fresh voms proxy found; reusing still-valid persisted proxy at ${X509_USER_PROXY}"
+    fi
+
+    if [[ -z "${X509_USER_PROXY}" ]] || [[ ! -f "${X509_USER_PROXY}" ]]; then
+        echo "No valid voms proxy found, remote storage might be inaccessible."
+        echo "Please ensure that it exists and that 'X509_USER_PROXY' is properly set."
+    fi
+
+    LOCAL_SCHEDULER=$(python3 ${BASE_DIR}/scripts/ParseNeededVar.py ${BASE_DIR}/lawluigi_configs/${WF_NAME}_luigi.cfg "local_scheduler_default")
     LOCAL_SCHEDULER_STATUS=$?
     if [[ "${LOCAL_SCHEDULER_STATUS}" -eq "1" ]]; then
         IFS='@' read -ra ADDR <<< "${LOCAL_SCHEDULER}"
@@ -290,14 +362,14 @@ action() {
         echo "Parsing of required scheduler setting failed with the above error."
         return 1
     fi
+    # lxplus doesn't support the central scheduler by default; force the
+    # local scheduler there regardless of what the config says, rather than just warning.
+    if [[ "${IS_CERN_HOST}" == "true" ]]; then
+        LOCAL_SCHEDULER="True"
+    fi
     export LOCAL_SCHEDULER
     if [[ "${LOCAL_SCHEDULER}" == "False" ]]; then
         echo "Using central scheduler."
-        if  [[ ! -z $(hostname --long | grep -E '^lxplus.*\.cern\.ch$') ]]; then
-            printf "\nWARNING: LXPLUS DOES NOT SUPPORT THE CENTRAL SCHEDULER BY DEFAULT!\n"
-            printf "It is reccomended to change this setting in the configs and rerun the setup.\n"
-            printf "'local_scheduler' should be set to false and the 'scheduler_port' schould be removed.\n\n"
-	fi
         # Defined as function to allow for re-assignment in shells that persist longer than the port assignment
         set_luigiport () {
             # First check if the user already has a luigid scheduler running
@@ -325,6 +397,9 @@ action() {
         echo "Using local scheduler."
         export LUIGIPORT=""
     fi
+    # luigi parses 'scheduler_port' regardless of whether the local or central scheduler is used,
+    # so it can never be empty (unlike LUIGIPORT). Fall back to a dummy valid port in that case.
+    export LUIGI_CFG_SCHEDULER_PORT="${LUIGIPORT:-0}"
 
     echo "Setting up Luigi/Law ..."
     export LAW_HOME="${BASE_DIR}/.law/${WF_NAME}"
