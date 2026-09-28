@@ -165,6 +165,14 @@ class ProduceNtuples(ProduceBase):
 
         self.preload_dataset_configs(data)
 
+        # only build the (sample_type, era) pairs actually used by the requested samples
+        required_build_combinations = sorted(
+            {
+                (info["sample_type"], info["era"])
+                for info in data["details"].values()
+            }
+        )
+
         requirements = {}
         if self.friend_config != "":
             for samplenick in data["details"]:
@@ -174,6 +182,7 @@ class ProduceNtuples(ProduceBase):
                         nick=samplenick,
                         all_eras=data["eras"],
                         all_sample_types=data["sample_types"],
+                        required_build_combinations=required_build_combinations,
                         era=data["details"][samplenick]["era"],
                         sample_type=data["details"][samplenick]["sample_type"],
                         nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],
@@ -189,6 +198,7 @@ class ProduceNtuples(ProduceBase):
                             nick=samplenick,
                             all_eras=data["eras"],
                             all_sample_types=data["sample_types"],
+                            required_build_combinations=required_build_combinations,
                             era=data["details"][samplenick]["era"],
                             sample_type=data["details"][samplenick]["sample_type"],
                             nanoAOD_version=data["details"][samplenick][
@@ -205,6 +215,7 @@ class ProduceNtuples(ProduceBase):
                     nick=samplenick,
                     all_eras=data["eras"],
                     all_sample_types=data["sample_types"],
+                    required_build_combinations=required_build_combinations,
                     era=data["details"][samplenick]["era"],
                     sample_type=data["details"][samplenick]["sample_type"],
                     nanoAOD_version=data["details"][samplenick]["nanoAOD_version"],

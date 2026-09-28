@@ -1,14 +1,16 @@
 import luigi
 import os
+import shutil
 import tarfile
 import subprocess
 import time
 import law
-from framework import console
+from framework import console, HTCondorWorkflow
 from CROWNMain import CROWNRun
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from CROWNBase import CROWNBuildBase
+from CROWNBase import CROWNLocalBuildBase
 from CROWNMain import BuildCROWNLib
 from helpers.helpers import convert_to_comma_seperated
 
@@ -156,12 +158,11 @@ class CROWNFriend(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.friend_config, sample_type, era
         )
+        _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(
-            "Getting CROWN friend_tarball from {}".format(
-                inputs["friend_tarball"].uri()
-            )
+            "Getting CROWN friend_tarball from {}".format(_friend_tarball.uri())
         )
-        with inputs["friend_tarball"].localize("r") as _file:
+        with _friend_tarball.localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
         tempfile = os.path.join(
@@ -189,7 +190,7 @@ class CROWNFriend(CROWNExecuteBase):
         console.log("inputfile(s) {} {}".format(_inputfile, _friend_inputs))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
-        command = self.wrap_executable_command([_executable] + _crown_args)
+        command = self.wrap_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
         with subprocess.Popen(
             command,
@@ -244,9 +245,11 @@ class CROWNFriend(CROWNExecuteBase):
         console.rule("Finished CROWNFriend")
 
 
-class CROWNBuildFriend(CROWNBuildBase):
+class CROWNBuildFriend(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
     """
-    Gather and compile CROWN for friend tree production with the given configuration
+    Gather and compile CROWN for friend tree production with the given configuration.
+    Submits to HTCondor by default; pass e.g. --CROWNBuildFriend-workflow local to run
+    directly on the submission host instead, same as CROWNRun/CROWNBuild.
     """
 
     # additional configuration variables
@@ -257,7 +260,10 @@ class CROWNBuildFriend(CROWNBuildBase):
     nick = luigi.Parameter(significant=False)
     friend_mapping = luigi.DictParameter(default={})
 
-    def requires(self):
+    def create_branch_map(self):
+        return {0: None}
+
+    def workflow_requires(self):
         requirements = {}
         requirements["Ntuples"] = CROWNRun.req(self)
         requirements["Ntuples_quantities"] = QuantitiesMap.req(self, friend_config="")
@@ -274,6 +280,22 @@ class CROWNBuildFriend(CROWNBuildBase):
         requirements["crownlib"] = BuildCROWNLib.req(self)
         return requirements
 
+    def htcondor_output_directory(self):
+        friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
+        return self.local_dir_target(
+            f"htcondor_files/build_friend/{self.analysis}_{friend_tag}_{self.sample_type}_{self.era}"
+        )
+
+    def htcondor_job_config(self, config, job_num, branches):
+        friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
+        with self.staged_crown_source():
+            config = super().htcondor_job_config(config, job_num, branches)
+        config.custom_content.append((
+            "JobBatchName",
+            f"CROWNBuildFriend-{self.analysis}-{friend_tag}-{self.production_tag}",
+        ))
+        return config
+
     def output(self):
         friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
         target = self.remote_target(
@@ -283,7 +305,7 @@ class CROWNBuildFriend(CROWNBuildBase):
 
     def run(self):
         friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
-        inputs = self.input()
+        inputs = self.workflow_input()
         # get quantities map
         main_quantities_map = inputs["Ntuples_quantities"]
         required_friends = self.friend_mapping[self.friend_config].get("requires", [])
@@ -291,7 +313,6 @@ class CROWNBuildFriend(CROWNBuildBase):
         for requires_config in required_friends:
             friend_quantities_maps += inputs[f"Friend_{requires_config}_quantities"]
         quantities_maps = main_quantities_map + friend_quantities_maps
-        quantities_map_paths = [p.path for p in quantities_maps]
         crownlib = inputs["crownlib"]
         # get output file path
         output = self.output()
@@ -307,7 +328,7 @@ class CROWNBuildFriend(CROWNBuildBase):
         _tag = f"{self.production_tag}/CROWNFriend_{_analysis}_{_friend_config}_{_friend_tag}_{_sample_type}_{_era}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
-        _crown_path = os.path.abspath("CROWN")
+        _crown_path = self.crown_source_path()
         _compile_script = os.path.join(
             str(os.path.abspath("processor")),
             "tasks",
@@ -315,69 +336,76 @@ class CROWNBuildFriend(CROWNBuildBase):
             "compile_crown_friends.sh",
         )
 
-        if output.exists():
-            console.log(f"tarball already existing in {output.path}")
+        _quantities_map_dir = os.path.abspath(os.path.join("quantities_maps", _tag))
+        if os.path.exists(_quantities_map_dir):
+            shutil.rmtree(_quantities_map_dir)
+        os.makedirs(_quantities_map_dir, exist_ok=True)
+        quantities_map_paths = []
+        for target in quantities_maps:
+            local_path = os.path.join(_quantities_map_dir, target.basename)
+            target.copy_to_local(local_path)
+            quantities_map_paths.append(local_path)
 
-        elif law.LocalFileTarget(os.path.join(_install_dir, output.basename)).exists():
-            console.log(f"tarball already existing in tarball directory {_install_dir}")
-            console.log(f"Copying to remote: {output.path}")
-            output.copy_from_local(os.path.join(_install_dir, output.basename))
-        else:
-            console.rule(f"Building new CROWN Friend tarball for {friend_tag}")
-            _build_dir, _install_dir = self.setup_build_environment(
-                _build_dir, _install_dir, crownlib
-            )
-            # actual payload:
-            console.rule(f"Starting cmake step for CROWN Friends {friend_tag}")
-            console.log(f"Using CROWN {_crown_path}")
-            console.log(f"Using build_directory {_build_dir}")
-            console.log(f"Using install directory {_install_dir}")
-            console.log("Settings used: ")
-            console.log(f"Analysis: {_analysis}")
-            console.log(f"Friend Config: {_friend_config}")
-            console.log(f"Friend Tags: {_friend_tag}")
-            console.log(f"Sampletype: {_sample_type}")
-            console.log(f"Era: {_era}")
-            console.log(f"Scopes: {_scopes}")
-            console.log(f"Shifts: {_shifts}")
-            console.log(f"Quantities maps: {quantities_map_paths}")
-            console.rule("")
+        console.rule(f"Building new CROWN Friend tarball for {friend_tag}")
+        _build_dir, _install_dir = self.setup_build_environment(
+            _build_dir, _install_dir, crownlib
+        )
+        # actual payload:
+        console.rule(f"Starting cmake step for CROWN Friends {friend_tag}")
+        console.log(f"Using CROWN {_crown_path}")
+        console.log(f"Using build_directory {_build_dir}")
+        console.log(f"Using install directory {_install_dir}")
+        console.log("Settings used: ")
+        console.log(f"Analysis: {_analysis}")
+        console.log(f"Friend Config: {_friend_config}")
+        console.log(f"Friend Tags: {_friend_tag}")
+        console.log(f"Sampletype: {_sample_type}")
+        console.log(f"Era: {_era}")
+        console.log(f"Scopes: {_scopes}")
+        console.log(f"Shifts: {_shifts}")
+        console.log(f"Quantities maps: {quantities_map_paths}")
+        console.rule("")
 
-            # run crown compilation script
-            command = [
-                "bash",
-                _compile_script,
-                _crown_path,  # CROWNFOLDER=$1
-                _analysis,  # ANALYSIS=$2
-                _friend_config,  # CONFIG=$3
-                _sample_type,  # SAMPLES=$4
-                _era,  # ERAS=$5
-                _scopes,  # SCOPES=$6
-                _shifts,  # SHIFTS=$7
-                _install_dir,  # INSTALLDIR=$8
-                _build_dir,  # BUILDDIR=$9
-                convert_to_comma_seperated(quantities_map_paths),  # QUANTITIESMAP=$10
-            ]
-            self.run_command_readable(command)
+        _spdlog_lib = os.path.join(_build_dir, "spdlog", "lib", "libspdlog.a")
+        _spdlog_include = os.path.join(_build_dir, "spdlog", "include")
 
-            console.log(f"Creating tarball for {friend_tag}")
-            _tarball = os.path.join(_install_dir, output.basename)
-            _tmp_tarball = os.path.join(
-                os.path.dirname(_install_dir), f"{output.basename}.tmp.{os.getpid()}"
-            )
+        # run crown compilation script
+        command = [
+            "bash",
+            _compile_script,
+            _crown_path,  # CROWNFOLDER=$1
+            _analysis,  # ANALYSIS=$2
+            _friend_config,  # CONFIG=$3
+            _sample_type,  # SAMPLES=$4
+            _era,  # ERAS=$5
+            _scopes,  # SCOPES=$6
+            _shifts,  # SHIFTS=$7
+            _install_dir,  # INSTALLDIR=$8
+            _build_dir,  # BUILDDIR=$9
+            convert_to_comma_seperated(quantities_map_paths),  # QUANTITIESMAP=$10
+            _spdlog_lib,  # SPDLOG_PREBUILT_LIB=$11
+            _spdlog_include,  # SPDLOG_PREBUILT_INCLUDE=$12
+        ]
+        self.run_command_readable(self.wrap_command(command))
 
-            def exclude_files(tarinfo):
-                return None if tarinfo.name.endswith(".tar.gz") else tarinfo
+        console.log(f"Creating tarball for {friend_tag}")
+        _tarball = os.path.join(_install_dir, output.basename)
+        _tmp_tarball = os.path.join(
+            os.path.dirname(_install_dir), f"{output.basename}.tmp.{os.getpid()}"
+        )
 
-            with tarfile.open(_tmp_tarball, "w:gz") as tar:
-                tar.add(_install_dir, arcname=".", filter=exclude_files)
-            os.replace(_tmp_tarball, _tarball)
+        def exclude_files(tarinfo):
+            return None if tarinfo.name.endswith(".tar.gz") else tarinfo
 
-            self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
+        with tarfile.open(_tmp_tarball, "w:gz") as tar:
+            tar.add(_install_dir, arcname=".", filter=exclude_files)
+        os.replace(_tmp_tarball, _tarball)
+
+        self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
         console.rule("Finished CROWNBuildFriend")
 
 
-class QuantitiesMap(CROWNBuildBase):
+class QuantitiesMap(CROWNLocalBuildBase):
 
     scopes = luigi.ListParameter()
     all_sample_types = luigi.ListParameter(significant=False)
@@ -404,7 +432,7 @@ class QuantitiesMap(CROWNBuildBase):
             name = self.friend_mapping[self.friend_config]["friend_tag"]
         else:
             name = "ntuple"
-        return self.local_target(
+        return self.remote_target(
             [
                 f"{self.sample_type}_{self.era}_{name}_{scope}_quantities_map.json"
                 for scope in self.scopes
@@ -435,11 +463,16 @@ class QuantitiesMap(CROWNBuildBase):
             if len(scope_inputs) == 0:
                 raise Exception(f"No input rootfile found for scope {scope}")
             rootfile_path = self.get_remote_path(scope_inputs[0])
+            # read_quantities_map() writes to outputfile directly (plain open()), so
+            # it needs a real local path even though output() is now a remote target.
+            local_outputfile = self.local_path(outputfile.basename)
             read_quantities_map(
                 input_file=rootfile_path,
                 era=self.era,
                 sample_type=self.sample_type,
                 scope=scope,
-                outputfile=outputfile.path,
+                outputfile=local_outputfile,
                 libdir=self.KingMaker_path("CROWN/.cache"),
             )
+            outputfile.parent.touch()
+            outputfile.copy_from_local(local_outputfile)

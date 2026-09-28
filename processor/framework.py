@@ -351,21 +351,18 @@ class Task(law.Task):
                     cwd=run_location,
                     encoding="utf-8",
                 )
-                while True:
-                    reads = [p.stdout.fileno(), p.stderr.fileno()]
-                    ret = select.select(reads, [], [])
-
+                open_streams = {p.stdout.fileno(): p.stdout, p.stderr.fileno(): p.stderr}
+                while open_streams:
+                    ret = select.select(list(open_streams.keys()), [], [])
                     for fd in ret[0]:
-                        if fd == p.stdout.fileno():
-                            read = p.stdout.readline()
-                            if read != "\n":
-                                console.log(read.strip(), markup=False)
-                        if fd == p.stderr.fileno():
-                            read = p.stderr.readline()
-                            if read != "\n":
-                                console.log(read.strip(), markup=False)
-                    if p.poll() != None:
-                        break
+                        stream = open_streams[fd]
+                        read = stream.readline()
+                        if read == "":
+                            del open_streams[fd]
+                            continue
+                        if read != "\n":
+                            console.log(read.strip(), markup=False)
+                p.wait()
                 if p.returncode != 0:
                     raise Exception(f"Error when running {command}.")
             except Exception as e:
@@ -512,6 +509,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "additional_files",
         "force_repack_tarball",
         "workflow",
+        "poll_interval",
     }
     exclude_params_req = (
         Task.exclude_params_req
@@ -704,6 +702,28 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
     def htcondor_use_local_scheduler(self):
         # always use a local scheduler in remote jobs
         return True
+
+    def wrap_command(self, command):
+        """
+        HTCondor branches already run inside the container configured via
+        htcondor_container_image, since it's applied natively through the container
+        universe. Branches of the local workflow (law.LocalWorkflow) execute directly
+        on the submission host instead, so external commands that need that same
+        environment (CROWN's own executables, which are linked with an RPATH into the
+        container's /opt/conda/envs/env; cmake/make when compiling; ...) have to be
+        wrapped in the same singularity container explicitly.
+        """
+        if self.effective_workflow != "local":
+            return command
+        singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
+        if self.is_local_output:
+            singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        return (
+            ["singularity", "exec"]
+            + singularity_args
+            + [str(self.htcondor_container_image)]
+            + command
+        )
 
 
 # Helper function to generate sandbox_pre_setup_cmds functions

@@ -26,6 +26,7 @@ flowchart TD
   ProduceBase["ProduceBase"]
   CROWNExecuteBase["CROWNExecuteBase"]
   CROWNBuildBase["CROWNBuildBase"]
+  CROWNLocalBuildBase["CROWNLocalBuildBase"]
 
   %% Unified Production Task
   ProduceNtuples["ProduceNtuples"]
@@ -33,7 +34,6 @@ flowchart TD
   %% CROWN Ntuple Production Tasks
   CROWNRun["CROWNRun"]
   ConfigureDatasets["ConfigureDatasets"]
-  CROWNBuildCombined["CROWNBuildCombined"]
   CROWNBuild["CROWNBuild"]
   BuildCROWNLib["BuildCROWNLib"]
 
@@ -49,21 +49,27 @@ flowchart TD
   LawHTCondorWorkflow ---> HTCondorWorkflow
   Task --> HTCondorWorkflow
   HTCondorWorkflow --> CROWNExecuteBase
+  HTCondorWorkflow --> CROWNBuild
+  HTCondorWorkflow --> CROWNBuildFriend
 
   LawLocalWorkflow ----> CROWNExecuteBase
-  LawLocalWorkflow -----> QuantitiesMap
+  LawLocalWorkflow -----> CROWNBuild
+  LawLocalWorkflow -----> CROWNBuildFriend
 
-  Task ----> QuantitiesMap
-
-  Task ----> BuildCROWNLib
-  Task ----> ConfigureDatasets
-  Task ---> CROWNBuildBase
   Task ---> ProduceBase
-  KingmakerSandbox --> CROWNBuildBase
 
-  CROWNBuildBase --> CROWNBuildFriend
+  %% CROWNBuildBase is a plain mixin (params/helpers only, no Task/SandboxTask base
+  %% of its own) so it composes with either execution model below.
   CROWNBuildBase --> CROWNBuild
-  CROWNBuildBase --> CROWNBuildCombined
+  CROWNBuildBase --> CROWNBuildFriend
+  CROWNBuildBase --> CROWNLocalBuildBase
+
+  KingmakerSandbox --> CROWNLocalBuildBase
+  Task --> CROWNLocalBuildBase
+  CROWNLocalBuildBase --> BuildCROWNLib
+  CROWNLocalBuildBase --> QuantitiesMap
+
+  Task ----> ConfigureDatasets
 
   ProduceBase --> ProduceNtuples
 
@@ -84,11 +90,11 @@ flowchart TD
   click ProduceBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
   click CROWNExecuteBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
   click CROWNBuildBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
+  click CROWNLocalBuildBase https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNBase.py"
   
   click ProduceNtuples https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/ProduceNtuples.py"
   click CROWNRun https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
   click ConfigureDatasets https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
-  click CROWNBuildCombined https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
   click CROWNBuild https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
   click BuildCROWNLib https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py "https://github.com/KIT-CMS/KingMaker/blob/main/processor/tasks/CROWNMain.py"
   

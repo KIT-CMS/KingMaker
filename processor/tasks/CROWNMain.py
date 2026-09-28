@@ -1,13 +1,16 @@
+import law
 import luigi
 import os
+import glob
+import shutil
 import tarfile
 import subprocess
 import threading
 import time
 import json
 import hashlib
-from CROWNBase import CROWNBuildBase
-from framework import console, Task, resolve_nanoAOD_version
+from CROWNBase import CROWNBuildBase, CROWNLocalBuildBase
+from framework import console, Task, resolve_nanoAOD_version, HTCondorWorkflow
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
@@ -49,10 +52,8 @@ class CROWNRun(CROWNExecuteBase):
     def workflow_requires(self):
         requirements = {}
         requirements["dataset"] = {}
-        requirements[f"tarball_{self.sample_type}_{self.era}"] = CROWNBuild.req(
+        requirements["crown_build"] = CROWNBuild.req(
             self,
-            era=self.era,
-            sample_type=self.sample_type,
             htcondor_request_cpus=self.htcondor_request_cpus,
         )
         return requirements
@@ -135,7 +136,12 @@ class CROWNRun(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, _sample_type, _era
         )
-        _tarball = inputs["tarball_{}_{}".format(_sample_type, _era)]
+        _tarball_name = f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
+        _tarball = next(
+            t
+            for t in inputs["crown_build"]["collection"]._flat_target_list
+            if t.basename == _tarball_name
+        )
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
@@ -160,7 +166,7 @@ class CROWNRun(CROWNExecuteBase):
         console.log("inputfile {}".format(_inputfiles))
         console.log("outputfile {}".format(_outputfile))
         console.log("workdir {}".format(_workdir))  # run CROWN
-        command = self.wrap_executable_command([_executable] + _crown_args)
+        command = self.wrap_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
         with subprocess.Popen(
             command,
@@ -198,7 +204,7 @@ class CROWNRun(CROWNExecuteBase):
             # we have to open the files once again, setting the
             # kEntriesReshuffled bit to false, otherwise,
             # we cannot add any friends to the trees
-            command = self.wrap_executable_command(
+            command = self.wrap_command(
                 [
                     "python3",
                     "processor/tasks/helpers/ResetROOTStatusBit.py",
@@ -214,162 +220,118 @@ class CROWNRun(CROWNExecuteBase):
         console.rule("Finished CROWNRun")
 
 
-class CROWNBuildCombined(CROWNBuildBase):
+class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
     """
-    Gather and compile CROWN with the given configuration
+    Compile CROWN executables for every (sample_type, era) combination needed for the
+    run, then package and upload one tarball per combination. Submits to HTCondor by
+    default; pass e.g. --CROWNBuild-workflow local to run branches directly on the
+    submission host instead, same as CROWNRun/CROWNExecuteBase.
     """
 
     nanoAOD_version = luigi.Parameter(default="", significant=False)
 
-    def requires(self):
-        result = {"crownlib": BuildCROWNLib.req(self)}
-        return result
+    def create_branch_map(self):
+        # one branch per (sample_type, era) pair actually needed by the requested
+        # samples, not the full cross product of all_sample_types x all_eras - e.g.
+        # a list spanning data/2024 and mc/2023 shouldn't also build data/2023.
+        return {
+            i: {"sample_type": sample_type, "era": era}
+            for i, (sample_type, era) in enumerate(
+                tuple(pair) for pair in self.required_build_combinations
+            )
+        }
+
+    def workflow_requires(self):
+        return {"crownlib": BuildCROWNLib.req(self)}
+
+    def htcondor_output_directory(self):
+        return self.local_dir_target(f"htcondor_files/build/{self.analysis}_{self.config}")
+
+    def htcondor_job_config(self, config, job_num, branches):
+        with self.staged_crown_source():
+            config = super().htcondor_job_config(config, job_num, branches)
+        config.custom_content.append((
+            "JobBatchName",
+            f"CROWNBuild-{self.analysis}-{self.config}-{self.production_tag}",
+        ))
+        return config
 
     def output(self):
-        # sort the sample types and eras to have a unique string for the tarball
-        target = self.remote_target(
-            f"crown_{self.analysis}_{self.config}_{self.get_tarball_hash()}.hash"
+        sample_type = self.branch_data["sample_type"]
+        era = self.branch_data["era"]
+        return self.remote_target(
+            f"crown_{self.analysis}_{self.config}_{sample_type}_{era}.tar.gz"
         )
-        return target
 
     def run(self):
-        crownlib = self.input()["crownlib"]
-        # get output file path
+        crownlib = self.workflow_input()["crownlib"]
         output = self.output()
         _analysis = str(self.analysis)
         _config = str(self.config)
         _threads = str(self.htcondor_request_cpus)
-        # also use the tag for the local tarball creation
-        _tag = f"{self.production_tag}/CROWN_{_analysis}_{_config}"
+        _sample_type = self.branch_data["sample_type"]
+        _era = self.branch_data["era"]
+        _tag = f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
-        _crown_path = os.path.abspath("CROWN")
+        _crown_path = self.crown_source_path()
         _compile_script = os.path.join(
             str(os.path.abspath("processor")), "tasks", "scripts", "compile_crown.sh"
         )
-        if os.path.exists(os.path.join(_install_dir, output.basename)):
-            console.log(f"tarball already existing in tarball directory {_install_dir}")
-            self.upload_tarball(
-                output, os.path.join(os.path.abspath(_install_dir), output.basename), 10
-            )
-            return
-        # check if certain sample types and eras are already build, if so, skip
-        available_executables = []
-        _required_sample_types = set()
-        _required_eras = set()
-        if os.path.exists(os.path.join(_install_dir)):
-            available_files = os.listdir(_install_dir)
-            available_executables = [
-                name.replace("config_", "")
-                for name in available_files
-                if name.startswith("config_")
-            ]
-        console.log(f"Available executables: {available_executables}")
-        for sample_type in self.all_sample_types:
-            for era in self.all_eras:
-                if f"{sample_type}_{era}" not in available_executables:
-                    _required_sample_types.add(sample_type)
-                    _required_eras.add(era)
-                else:
-                    console.log(
-                        f"Skipping {_analysis} {_config} {sample_type} {era} as it is already built"
-                    )
-        _required_eras = convert_to_comma_seperated(_required_eras)
-        _required_sample_types = convert_to_comma_seperated(_required_sample_types)
         _shifts = convert_to_comma_seperated(self.shifts)
         _scopes = convert_to_comma_seperated(self.scopes)
-        if len(_required_sample_types) == 0 or len(_required_eras) == 0:
-            console.rule("All required CROWN build already exist")
-        else:
-            console.rule("Building new CROWN tarball")
-            _build_dir, _install_dir = self.setup_build_environment(
-                _build_dir, _install_dir, crownlib
-            )
 
-            # actual payload:
-            console.rule("Starting cmake step for CROWN")
-            console.log(f"Using CROWN {_crown_path}")
-            console.log(f"Using build_directory {_build_dir}")
-            console.log(f"Using install directory {_install_dir}")
-            console.log("Settings used: ")
-            console.log(f"Threads: {_threads}")
-            console.log(f"Analysis: {_analysis}")
-            console.log(f"Config: {_config}")
-            console.log(f"Sampletypes: {_required_sample_types}")
-            console.log(f"Eras: {_required_eras}")
-            console.log(f"Scopes: {_scopes}")
-            console.log(f"Shifts: {_shifts}")
-            console.rule("")
-
-            # run crown compilation script
-            command = [
-                "bash",
-                _compile_script,
-                _crown_path,  # CROWNFOLDER=$1
-                _analysis,  # ANALYSIS=$2
-                _config,  # CONFIG=$3
-                _required_sample_types,  # SAMPLES=$4
-                _required_eras,  # all_eras=$5
-                _scopes,  # SCOPES=$6
-                _shifts,  # SHIFTS=$7
-                _install_dir,  # INSTALLDIR=$8
-                _build_dir,  # BUILDDIR=$9
-                output.basename,  # TARBALLNAME=$10
-                _threads,  # THREADS=$11
-            ]
-            self.run_command_readable(command)
-            console.rule("Finished CROWNBuild")
-            # upload an small file to signal that the build is done
-        with open(os.path.join(_install_dir, output.basename), "w") as f:
-            f.write("CROWN build done")
-        output.copy_from_local(os.path.join(_install_dir, output.basename))
-
-
-class CROWNBuild(CROWNBuildBase):
-    """
-    Gather and compile CROWN with the given configuration
-    """
-
-    era = luigi.Parameter()
-    sample_type = luigi.Parameter()
-
-    def requires(self):
-        result = {
-            "combined_build": CROWNBuildCombined.req(
-                self,
-                htcondor_request_cpus=self.htcondor_request_cpus,
-            )
-        }
-        return result
-
-    def output(self):
-        return self.remote_target(
-            f"crown_{self.analysis}_{self.config}_{self.sample_type}_{self.era}.tar.gz"
+        console.rule("Building new CROWN tarball")
+        _build_dir, _install_dir = self.setup_build_environment(
+            _build_dir, _install_dir, crownlib
         )
 
-    def run(self):
-        # get output file path
-        output = self.output()
-        _analysis = str(self.analysis)
-        _config = str(self.config)
-        _era = str(self.era)
-        _sample_type = str(self.sample_type)
-        # also use the tag for the local tarball creation
-        _tag = (
-            f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
-        )
-        _install_dir = os.path.join(str(self.install_dir), _tag)
-        _unpacked_dir = os.path.join(
-            str(self.install_dir), f"{self.production_tag}/CROWN_{_analysis}_{_config}"
-        )
-        _tarball = os.path.join(_install_dir, output.basename)
-        os.makedirs(os.path.dirname(_tarball), exist_ok=True)
-        if not os.path.exists(_unpacked_dir):
-            raise FileNotFoundError(
-                f"No builds for {self.production_tag}/CROWN_{_analysis}_{_config} found"
-            )
+        # actual payload:
+        console.rule("Starting cmake step for CROWN")
+        console.log(f"Using CROWN {_crown_path}")
+        console.log(f"Using build_directory {_build_dir}")
+        console.log(f"Using install directory {_install_dir}")
+        console.log("Settings used: ")
+        console.log(f"Threads: {_threads}")
+        console.log(f"Analysis: {_analysis}")
+        console.log(f"Config: {_config}")
+        console.log(f"Sampletype: {_sample_type}")
+        console.log(f"Era: {_era}")
+        console.log(f"Scopes: {_scopes}")
+        console.log(f"Shifts: {_shifts}")
+        console.rule("")
 
-        # now pack the specific tarball, excluding unwanted executables
+        # spdlog artifacts bundled alongside libCROWNLIB.so by BuildCROWNLib.run(),
+        # extracted into _build_dir by setup_build_environment() above; passed through
+        # to cmake so AddLogging.cmake reuses them instead of fetching+building spdlog
+        # again for every branch job.
+        _spdlog_lib = os.path.join(_build_dir, "spdlog", "lib", "libspdlog.a")
+        _spdlog_include = os.path.join(_build_dir, "spdlog", "include")
+
+        # run crown compilation script
+        command = [
+            "bash",
+            _compile_script,
+            _crown_path,  # CROWNFOLDER=$1
+            _analysis,  # ANALYSIS=$2
+            _config,  # CONFIG=$3
+            _sample_type,  # SAMPLES=$4
+            _era,  # all_eras=$5
+            _scopes,  # SCOPES=$6
+            _shifts,  # SHIFTS=$7
+            _install_dir,  # INSTALLDIR=$8
+            _build_dir,  # BUILDDIR=$9
+            f"CROWN_{_analysis}_{_config}_{_sample_type}_{_era}",  # TARBALLNAME=$10, unused by the script
+            _threads,  # THREADS=$11
+            _spdlog_lib,  # SPDLOG_PREBUILT_LIB=$12
+            _spdlog_include,  # SPDLOG_PREBUILT_INCLUDE=$13
+        ]
+        self.run_command_readable(self.wrap_command(command))
+        console.rule("Finished CROWN compilation")
+
+        # package and upload the tarball for this (sample_type, era)
+        tarball_path = os.path.join(_install_dir, output.basename)
+
         def exclude_files(tarinfo):
             filename = os.path.basename(tarinfo.name)
             if filename.endswith(".tar.gz"):
@@ -378,26 +340,19 @@ class CROWNBuild(CROWNBuildBase):
                 f"{_sample_type}_{_era}"
             ):
                 return None
-            else:
-                return tarinfo
+            return tarinfo
 
         console.log(f"Creating tarball for {_sample_type} {_era}")
-        with tarfile.open(_tarball, "w:gz") as tar:
-            tar.add(
-                _unpacked_dir,
-                arcname=".",
-                filter=exclude_files,
-            )
-        # now upload the tarball
-        self.upload_tarball(output, os.path.join(_install_dir, output.basename), 10)
-        # delete the local tarball
-        os.remove(_tarball)
+        with tarfile.open(tarball_path, "w:gz") as tar:
+            tar.add(_install_dir, arcname=".", filter=exclude_files)
+        self.upload_tarball(output, tarball_path, 10)
+        os.remove(tarball_path)
         console.rule(
             f"Finished CROWNBuild for {_analysis} {_config} {_sample_type} {_era}"
         )
 
 
-class BuildCROWNLib(CROWNBuildBase):
+class BuildCROWNLib(CROWNLocalBuildBase):
     """
     Compile the CROWN shared libary to be used for all executables with the given configuration
     """
@@ -418,8 +373,18 @@ class BuildCROWNLib(CROWNBuildBase):
         output()/complete() get called repeatedly by luigi/law while building and
         checking the task graph, so cache the result per source tree instead of
         re-walking and re-hashing hundreds of files on every call.
+
+        BuildCROWNLib itself only ever runs locally, but this method also gets
+        evaluated inside remote CROWNBuild condor jobs (law recomputes
+        workflow_requires() there, which resolves BuildCROWNLib.output()). Those jobs
+        don't have the full "CROWN" checkout, only the staged copy CROWNBuild
+        ships in build_staging/CROWN_src - which contains exactly the subdirs/file
+        hashed below, so falling back to it here reproduces the same hash/filename
+        that the local run already uploaded under.
         """
         crown_path = os.path.abspath("CROWN")
+        if not os.path.exists(crown_path):
+            crown_path = os.path.abspath(os.path.join("build_staging", "CROWN_src"))
         with _source_hash_lock:
             cached = _source_hash_cache.get(crown_path)
         if cached is not None:
@@ -450,7 +415,7 @@ class BuildCROWNLib(CROWNBuildBase):
         return digest
 
     def output(self):
-        target = self.local_target(f"libCROWNLIB_{self.get_source_hash()}.so")
+        target = self.remote_target(f"crownlib_{self.get_source_hash()}.tar.gz")
         return target
 
     def run(self):
@@ -484,8 +449,6 @@ class BuildCROWNLib(CROWNBuildBase):
         _analysis = str(self.analysis)
         if os.path.exists(_local_libfile):
             console.log(f"lib already existing in tarball directory {_install_dir}")
-            output.parent.touch()
-            output.copy_from_local(_local_libfile)
         else:
             console.rule("Building new CROWNlib")
             # create build directory
@@ -511,8 +474,33 @@ class BuildCROWNLib(CROWNBuildBase):
             ]
             self.run_command_readable(command)
             console.rule("Finished build of CROWNlib")
-            output.parent.touch()
-            output.copy_from_local(_local_libfile)
+
+        _spdlog_lib_matches = glob.glob(os.path.join(_build_dir, "lib*", "libspdlog.a"))
+        if not _spdlog_lib_matches:
+            raise FileNotFoundError(f"libspdlog.a not found under {_build_dir}")
+        _spdlog_include_dir = os.path.join(_build_dir, "include", "spdlog")
+
+        _bundle_dir = os.path.join(_install_dir, "bundle")
+        if os.path.exists(_bundle_dir):
+            shutil.rmtree(_bundle_dir)
+        os.makedirs(os.path.join(_bundle_dir, "spdlog", "lib"))
+        os.makedirs(os.path.join(_bundle_dir, "spdlog", "include"))
+        shutil.copy2(_local_libfile, os.path.join(_bundle_dir, "libCROWNLIB.so"))
+        shutil.copy2(
+            _spdlog_lib_matches[0],
+            os.path.join(_bundle_dir, "spdlog", "lib", "libspdlog.a"),
+        )
+        shutil.copytree(
+            _spdlog_include_dir,
+            os.path.join(_bundle_dir, "spdlog", "include", "spdlog"),
+        )
+
+        _bundle_tarball = os.path.join(_install_dir, output.basename)
+        with tarfile.open(_bundle_tarball, "w:gz") as tar:
+            tar.add(_bundle_dir, arcname=".")
+        output.parent.touch()
+        output.copy_from_local(_bundle_tarball)
+        os.remove(_bundle_tarball)
 
 
 class ConfigureDatasets(Task):

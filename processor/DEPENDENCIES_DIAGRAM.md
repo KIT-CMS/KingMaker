@@ -34,7 +34,6 @@ flowchart TD
   CROWNRun["CROWNRun"]
   CROWNFriend["CROWNFriend"]
   ConfigureDatasets["ConfigureDatasets"]
-  CROWNBuildCombined["CROWNBuildCombined"]
   CROWNBuild["CROWNBuild"]
   BuildCROWNLib["BuildCROWNLib"]
   CROWNBuildFriend["CROWNBuildFriend"]
@@ -45,8 +44,7 @@ flowchart TD
   %% CROWN Ntuple Production dependencies
   CROWNRun -.->|workflow_requires| ConfigureDatasets
   CROWNRun -.->|workflow_requires| CROWNBuild
-  CROWNBuildCombined -->|requires| BuildCROWNLib
-  CROWNBuild -->|requires| CROWNBuildCombined
+  CROWNBuild -.->|workflow_requires| BuildCROWNLib
   ProduceNtuples -->|requires| CROWNRun
   ProduceNtuples -->|requires| CROWNFriend
 
@@ -54,8 +52,8 @@ flowchart TD
   CROWNFriend -.->|workflow_requires| CROWNRun
   CROWNFriend -.->|workflow_requires| CROWNBuildFriend
   CROWNFriend -.->|workflow_requires| CROWNFriend
-  CROWNBuildFriend -->|requires| QuantitiesMap
-  CROWNBuildFriend -->|requires| BuildCROWNLib
+  CROWNBuildFriend -.->|workflow_requires| QuantitiesMap
+  CROWNBuildFriend -.->|workflow_requires| BuildCROWNLib
   QuantitiesMap -->|requires| CROWNRun
   QuantitiesMap -->|requires| CROWNFriend
 
@@ -65,13 +63,12 @@ flowchart TD
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
   style CROWNFriend stroke:#4682B4,stroke-width:2px
+  style CROWNBuild stroke:#4682B4,stroke-width:2px
+  style CROWNBuildFriend stroke:#4682B4,stroke-width:2px
 
   %% Styling for local tasks with green border
   style ConfigureDatasets stroke:#228B22,stroke-width:2px
-  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
-  style CROWNBuild stroke:#228B22,stroke-width:2px
   style BuildCROWNLib stroke:#228B22,stroke-width:2px
-  style CROWNBuildFriend stroke:#228B22,stroke-width:2px
   style QuantitiesMap stroke:#228B22,stroke-width:2px
 ```
 
@@ -88,15 +85,13 @@ flowchart TD
   ProduceNtuples["ProduceNtuples"]
   CROWNRun["CROWNRun"]
   ConfigureDatasets["ConfigureDatasets"]
-  CROWNBuildCombined["CROWNBuildCombined"]
   CROWNBuild["CROWNBuild"]
   BuildCROWNLib["BuildCROWNLib"]
 
   %% CROWN Ntuple Production dependencies
   CROWNRun -.->|workflow_requires| ConfigureDatasets
   CROWNRun -.->|workflow_requires| CROWNBuild
-  CROWNBuildCombined -->|requires| BuildCROWNLib
-  CROWNBuild -->|requires| CROWNBuildCombined
+  CROWNBuild -.->|workflow_requires| BuildCROWNLib
   ProduceNtuples -->|requires| CROWNRun
 
   %% Styling for top-level entry points
@@ -104,11 +99,10 @@ flowchart TD
 
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
+  style CROWNBuild stroke:#4682B4,stroke-width:2px
 
   %% Styling for local tasks with green border
   style ConfigureDatasets stroke:#228B22,stroke-width:2px
-  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
-  style CROWNBuild stroke:#228B22,stroke-width:2px
   style BuildCROWNLib stroke:#228B22,stroke-width:2px
 
 ```
@@ -126,7 +120,6 @@ flowchart TD
   %% CROWN Ntuple Production Tasks
   CROWNRun["CROWNRun"]
   ConfigureDatasets["ConfigureDatasets"]
-  CROWNBuildCombined["CROWNBuildCombined"]
   CROWNBuild["CROWNBuild"]
   BuildCROWNLib["BuildCROWNLib"]
 
@@ -143,14 +136,13 @@ flowchart TD
   %% CROWN Ntuple Production dependencies
   CROWNRun -.->|workflow_requires| ConfigureDatasets
   CROWNRun -.->|workflow_requires| CROWNBuild
-  CROWNBuildCombined -->|requires| BuildCROWNLib
-  CROWNBuild -->|requires| CROWNBuildCombined
+  CROWNBuild -.->|workflow_requires| BuildCROWNLib
 
   %% CROWN Friend Production dependencies
   CROWNFriend -.->|workflow_requires| CROWNRun
   CROWNFriend -.->|workflow_requires| CROWNBuildFriend
-  CROWNBuildFriend -->|requires| QuantitiesMap
-  CROWNBuildFriend -->|requires| BuildCROWNLib
+  CROWNBuildFriend -.->|workflow_requires| QuantitiesMap
+  CROWNBuildFriend -.->|workflow_requires| BuildCROWNLib
   ProduceNtuples -->|requires| CROWNFriend
 
   %% Styling for top-level entry points
@@ -159,13 +151,12 @@ flowchart TD
   %% Styling for workflow tasks
   style CROWNRun stroke:#4682B4,stroke-width:2px
   style CROWNFriend stroke:#4682B4,stroke-width:2px
+  style CROWNBuild stroke:#4682B4,stroke-width:2px
+  style CROWNBuildFriend stroke:#4682B4,stroke-width:2px
 
   %% Styling for local tasks with green border
   style ConfigureDatasets stroke:#228B22,stroke-width:2px
-  style CROWNBuildCombined stroke:#228B22,stroke-width:2px
-  style CROWNBuild stroke:#228B22,stroke-width:2px
   style BuildCROWNLib stroke:#228B22,stroke-width:2px
-  style CROWNBuildFriend stroke:#228B22,stroke-width:2px
   style QuantitiesMap stroke:#228B22,stroke-width:2px
 ```
 
@@ -180,12 +171,14 @@ Entry point that has no incoming dependencies. Users call this to start workflow
 **Local** task (does not inherit from `HTCondorWorkflow`), meaning it executes on the submission machine and orchestrates remote workflow tasks.
 
 ### Workflow Tasks — Blue boxes
-Tasks that inherit from `HTCondorWorkflow` (and `law.LocalWorkflow`), meaning they submit jobs to run on HTCondor cluster:
+Tasks that inherit from `HTCondorWorkflow`, meaning they submit jobs to run on HTCondor cluster. All of them also mix in `law.LocalWorkflow`, so passing e.g. `--CROWNBuild-workflow local` runs branches directly on the submission host instead:
 - **CROWNRun**: Executes CROWN ntuple production on remote cluster
 - **CROWNFriend**: Executes CROWN friend production on remote cluster, handles friend dependencies through `friend_mapping`
+- **CROWNBuild**: Compiles CROWN executables for every required (sample_type, era) combination and packages/uploads one tarball per combination.
+- **CROWNBuildFriend**: Compiles CROWN for friend tree production for one (friend_config, sample_type, era) combination and uploads the resulting tarball.
 
 ### Local Tasks
 All other tasks are Local (do not inherit from `HTCondorWorkflow`), meaning they execute on the submission machine:
-- **Build tasks** (`CROWNBuild`, `CROWNBuildCombined`, `CROWNBuildFriend`, `BuildCROWNLib`) which are responsible for building tar archives. These are needed by the remote workflows to provide them with all the tools/files they need. Inherit from `CROWNBuildBase` and `KingmakerSandbox`.
+- **Build tasks** (`BuildCROWNLib`) which are responsible for building tar archives needed by the remote workflows. Inherit from `CROWNLocalBuildBase` (`CROWNBuildBase` + `KingmakerSandbox`).
 - **Configuration tasks** (`ConfigureDatasets`) - loads dataset information from database
-- **Quantities map extraction** (`QuantitiesMap`) - extracts quantities map from ROOT files after CROWN execution
+- **Quantities map extraction** (`QuantitiesMap`) - extracts quantities map from ROOT files after CROWN execution, also via `CROWNLocalBuildBase`
