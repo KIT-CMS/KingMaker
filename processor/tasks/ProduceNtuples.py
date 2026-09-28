@@ -167,10 +167,7 @@ class ProduceNtuples(ProduceBase):
 
         # only build the (sample_type, era) pairs actually used by the requested samples
         required_build_combinations = sorted(
-            {
-                (info["sample_type"], info["era"])
-                for info in data["details"].values()
-            }
+            {(info["sample_type"], info["era"]) for info in data["details"].values()}
         )
 
         requirements = {}

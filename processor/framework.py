@@ -351,7 +351,10 @@ class Task(law.Task):
                     cwd=run_location,
                     encoding="utf-8",
                 )
-                open_streams = {p.stdout.fileno(): p.stdout, p.stderr.fileno(): p.stderr}
+                open_streams = {
+                    p.stdout.fileno(): p.stdout,
+                    p.stderr.fileno(): p.stderr,
+                }
                 while open_streams:
                     ret = select.select(list(open_streams.keys()), [], [])
                     for fd in ret[0]:

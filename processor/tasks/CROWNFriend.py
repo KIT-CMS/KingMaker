@@ -290,10 +290,12 @@ class CROWNBuildFriend(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
         with self.staged_crown_source():
             config = super().htcondor_job_config(config, job_num, branches)
-        config.custom_content.append((
-            "JobBatchName",
-            f"CROWNBuildFriend-{self.analysis}-{friend_tag}-{self.production_tag}",
-        ))
+        config.custom_content.append(
+            (
+                "JobBatchName",
+                f"CROWNBuildFriend-{self.analysis}-{friend_tag}-{self.production_tag}",
+            )
+        )
         return config
 
     def output(self):

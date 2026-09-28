@@ -136,7 +136,9 @@ class CROWNRun(CROWNExecuteBase):
         _abs_executable = "{}/{}_{}_{}".format(
             _workdir, self.config, _sample_type, _era
         )
-        _tarball_name = f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
+        _tarball_name = (
+            f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
+        )
         _tarball = next(
             t
             for t in inputs["crown_build"]["collection"]._flat_target_list
@@ -245,15 +247,19 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         return {"crownlib": BuildCROWNLib.req(self)}
 
     def htcondor_output_directory(self):
-        return self.local_dir_target(f"htcondor_files/build/{self.analysis}_{self.config}")
+        return self.local_dir_target(
+            f"htcondor_files/build/{self.analysis}_{self.config}"
+        )
 
     def htcondor_job_config(self, config, job_num, branches):
         with self.staged_crown_source():
             config = super().htcondor_job_config(config, job_num, branches)
-        config.custom_content.append((
-            "JobBatchName",
-            f"CROWNBuild-{self.analysis}-{self.config}-{self.production_tag}",
-        ))
+        config.custom_content.append(
+            (
+                "JobBatchName",
+                f"CROWNBuild-{self.analysis}-{self.config}-{self.production_tag}",
+            )
+        )
         return config
 
     def output(self):
@@ -271,7 +277,9 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         _threads = str(self.htcondor_request_cpus)
         _sample_type = self.branch_data["sample_type"]
         _era = self.branch_data["era"]
-        _tag = f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
+        _tag = (
+            f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
+        )
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = self.crown_source_path()
