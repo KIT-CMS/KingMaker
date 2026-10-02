@@ -10,12 +10,16 @@ SHIFTS=${7}
 INSTALLDIR=${8}
 BUILDDIR=${9}
 QUANTITIESMAP=${10}
+SPDLOG_PREBUILT_LIB=${11}
+SPDLOG_PREBUILT_INCLUDE=${12}
 
 echo "--- CROWN Friends Compilation ---"
 echo "Crown folder: ${CROWNFOLDER}"
 echo "Install dir:  ${INSTALLDIR}"
 echo "Build dir:    ${BUILDDIR}"
 echo "Analysis:     ${ANALYSIS}"
+echo "spdlog lib:   ${SPDLOG_PREBUILT_LIB}"
+echo "spdlog include: ${SPDLOG_PREBUILT_INCLUDE}"
 
 # Exit on any error or pipe failure
 set -o pipefail
@@ -53,6 +57,8 @@ if cmake "${CROWNFOLDER}" \
     -DPRODUCTION=True \
     -DFRIENDS=true \
     -DQUANTITIESMAP="${QUANTITIESMAP}" \
+    -DSPDLOG_PREBUILT_LIB="${SPDLOG_PREBUILT_LIB}" \
+    -DSPDLOG_PREBUILT_INCLUDE="${SPDLOG_PREBUILT_INCLUDE}" \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
     -DCMAKE_C_COMPILER="${CONDA_CC}" \
     -DCMAKE_CXX_COMPILER="${CONDA_CXX}" \
