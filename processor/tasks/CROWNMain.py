@@ -87,6 +87,7 @@ def resolve_crown_proxy():
             return candidate
     return None
 
+
 class CROWNRun(CROWNExecuteBase):
     """
     Gather and compile CROWN with the given configuration
@@ -215,6 +216,29 @@ class CROWNRun(CROWNExecuteBase):
         console.log("workdir {}".format(_workdir))  # run CROWN
         command = self.wrap_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
+
+        # Hand the container an absolute, existing proxy file. CROWN runs with
+        # cwd=<_workdir>, and the singularity container only has that workdir
+        # subtree bound - a proxy outside of it (e.g. <KingMaker>/.proxy/x509up)
+        # is invisible to XRootD inside the container even with an absolute
+        # X509_USER_PROXY ("Unable to use cert+key file ... does not exist.",
+        # "security protocol 'ztn' disallowed for non-TLS connections."). So copy
+        # the proxy into the workdir and point X509_USER_PROXY at that copy.
+        _crown_env = None
+        _crown_proxy = resolve_crown_proxy()
+        if _crown_proxy is not None:
+            _proxy_in_workdir_dir = os.path.join(_workdir, ".proxy")
+            create_abspath(_proxy_in_workdir_dir)
+            _proxy_in_workdir = os.path.join(_proxy_in_workdir_dir, "x509up")
+            shutil.copy2(_crown_proxy, _proxy_in_workdir)
+            os.chmod(_proxy_in_workdir, 0o600)
+            _crown_env = dict(os.environ)
+            _crown_env["X509_USER_PROXY"] = _proxy_in_workdir
+            console.log(f"Using proxy {_proxy_in_workdir} for CROWN input access")
+        else:
+            console.log(
+                "No X509 proxy file found; CROWN will use default xrootd credentials"
+            )
         with subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -222,6 +246,7 @@ class CROWNRun(CROWNExecuteBase):
             bufsize=1,
             universal_newlines=True,
             cwd=_workdir,
+            env=_crown_env,
         ) as p:
             for line in p.stdout:
                 if line != "\n":
