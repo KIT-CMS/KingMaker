@@ -2,6 +2,11 @@ import law
 import luigi
 import os
 import json
+import shutil
+import tarfile
+import subprocess
+import fcntl
+import contextlib
 from framework import (
     console,
     HTCondorWorkflow,
@@ -167,6 +172,10 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
     scopes = luigi.ListParameter()
     all_sample_types = luigi.ListParameter(significant=False)
     all_eras = luigi.ListParameter(significant=False)
+    required_build_combinations = luigi.ListParameter(
+        significant=False,
+        description="[sample_type, era] pairs that are actually needed",
+    )
     nick = luigi.Parameter()
     sample_type = luigi.Parameter()
     era = luigi.Parameter()
@@ -201,27 +210,6 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         config.custom_content.append(("JobBatchName", condor_batch_name_pattern))
         return config
 
-    def wrap_executable_command(self, command):
-        """
-        CROWN executables are linked with an RPATH pointing at the container's
-        /opt/conda/envs/env, so they only resolve their ROOT/libstdc++ versions
-        inside the crown image. HTCondor branches already run
-        inside that image via the container universe, but branches of the
-        local workflow execute directly on the submission host, so they need
-        to be wrapped in the same singularity container explicitly.
-        """
-        if self.effective_workflow != "local":
-            return command
-        singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
-        if self.is_local_output:
-            singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
-        return (
-            ["singularity", "exec"]
-            + singularity_args
-            + [str(self.htcondor_container_image)]
-            + command
-        )
-
     def modify_polling_status_line(self, status_line):
         """
         The function `modify_polling_status_line` modifies the status line that is printed during polling by
@@ -240,7 +228,14 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
 
-class CROWNBuildBase(KingmakerSandbox, Task):
+class CROWNBuildBase:
+    """
+    Shared parameters and helpers for tasks that compile CROWN inside the crown
+    container. Plain mixin (no Task/SandboxTask base of its own) so it composes with
+    either a KingmakerSandbox-based local build (see CROWNLocalBuildBase below) or an
+    HTCondorWorkflow-based remote build (see CROWNMain.CROWNBuild).
+    """
+
     # configuration variables
     scopes = luigi.ListParameter()
     shifts = luigi.Parameter()
@@ -254,25 +249,126 @@ class CROWNBuildBase(KingmakerSandbox, Task):
     )
     all_sample_types = luigi.ListParameter()
     all_eras = luigi.ListParameter()
+    required_build_combinations = luigi.ListParameter()
     analysis = luigi.Parameter()
     config = luigi.Parameter()
-    # Needed to propagate thread count to build tasks
-    htcondor_request_cpus = luigi.IntParameter(default=1)
 
-    # Throttle concurrent local compilation regardless of --workers, since each
-    # build is a memory-heavy ROOT/C++ link step run directly on the submission
-    # machine (see [resources] in the luigi config for the shared budget)
-    resources = {"crown_build": 1}
+    @contextlib.contextmanager
+    def staged_crown_source(self):
+        """
+        Serializes stage_crown_source() -> (caller's htcondor_job_config work,
+        i.e. tar+upload) -> cleanup_staged_crown_source() across concurrent task
+        instances. CROWNBuild has one instance submitting all its branches together,
+        but CROWNBuildFriend has one separate instance per (friend_config,
+        sample_type, era), and luigi runs different task instances' htcondor_job_config()
+        calls in separate worker *processes* - so a plain threading.Lock wouldn't help,
+        and without any lock, two instances' rmtree/copytree into the same shared
+        staging directory can interleave and corrupt each other's copy. All instances
+        stage the exact same content (same CROWN checkout subset, same
+        self.analysis-based git status), so there's nothing to gain from giving each
+        one its own copy - just make sure only one touches the shared directory at a
+        time; the others simply wait their turn.
+        """
+        lock_path = os.path.abspath(".crown_staging.lock")
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            try:
+                self.stage_crown_source()
+                try:
+                    yield
+                finally:
+                    self.cleanup_staged_crown_source()
+            finally:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
 
-    # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
-    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
-        "X509_USER_PROXY",
-        "LUIGIPORT",
-        "CCACHE_DIR",
-        "WF_NAME",
-        "LOCAL_SCHEDULER",
-        "LUIGI_CFG_SCHEDULER_PORT",
-    )
+    def stage_crown_source(self):
+        """
+        HTCondorWorkflow.htcondor_job_config() only ships 'processor', law, and the
+        lawluigi configs into the job tarball. The build additionally needs the CROWN
+        source tree, which also holds several GB of local build directories, .git,
+        .cache and other checkout-local clutter that must never be shipped. Stage only
+        the subdirectories actually needed to compile into a clean directory, and point
+        additional_files at that instead of the live checkout. Called from
+        staged_crown_source() above - not meant to be called directly.
+        """
+        crown_path = os.path.abspath("CROWN")
+        staging_dir = os.path.abspath(os.path.join("build_staging", "CROWN_src"))
+        if os.path.exists(staging_dir):
+            shutil.rmtree(staging_dir)
+        os.makedirs(staging_dir, exist_ok=True)
+        for subdir in (
+            "src",
+            "include",
+            "analysis_configurations",
+            "cmake",
+            "tests",
+            "code_generation",
+            "data",
+        ):
+            src = os.path.join(crown_path, subdir)
+            if os.path.exists(src):
+                shutil.copytree(
+                    src,
+                    os.path.join(staging_dir, subdir),
+                    ignore=shutil.ignore_patterns("__pycache__"),
+                )
+        for filename in ("CMakeLists.txt", "generate.py"):
+            shutil.copy2(
+                os.path.join(crown_path, filename),
+                os.path.join(staging_dir, filename),
+            )
+        # code_generation.py stamps generated code with the repo's commit hash / clean
+        # state by shelling out to checks/git-status.sh, which needs full git history
+        # (git status/rev-parse) - too heavy to ship (.git is hundreds of MB). Run the
+        # real script once here, where the git history already is, and stage a static
+        # replacement that just echoes the same captured output.
+        git_status_output = subprocess.check_output(
+            [
+                os.path.join(crown_path, "checks", "git-status.sh"),
+                crown_path,
+                str(self.analysis),
+            ],
+            stderr=subprocess.STDOUT,
+        ).decode("utf-8")
+        checks_dir = os.path.join(staging_dir, "checks")
+        os.makedirs(checks_dir, exist_ok=True)
+        git_status_replacement = os.path.join(checks_dir, "git-status.sh")
+        with open(git_status_replacement, "w") as f:
+            f.write(
+                "#!/bin/bash\ncat <<'CROWN_GIT_STATUS_EOF'\n"
+                + git_status_output
+                + "CROWN_GIT_STATUS_EOF\n"
+            )
+        os.chmod(git_status_replacement, 0o755)
+        rel_staging_dir = os.path.relpath(staging_dir)
+        if rel_staging_dir not in self.additional_files:
+            self.additional_files = list(self.additional_files) + [rel_staging_dir]
+
+    def cleanup_staged_crown_source(self):
+        """
+        The staged copy from stage_crown_source() is only needed transiently to build
+        the job tarball; leaving it around just duplicates a large chunk of CROWN/ on
+        local disk for no reason, so the whole build_staging/ directory gets recreated
+        fresh (and removed again) on every staged_crown_source() call. Safe to remove
+        entirely (not just the CROWN_src subdir) because the lock file guarding this
+        lives outside of it (see staged_crown_source() above). Called from
+        staged_crown_source() above, while still holding that lock - not meant to be
+        called directly.
+        """
+        shutil.rmtree(
+            os.path.abspath("build_staging"),
+            ignore_errors=True,
+        )
+
+    def crown_source_path(self):
+        """
+        Local-workflow branches run directly on the submission host and use the real
+        checkout; htcondor branches run inside the unpacked job sandbox and only have
+        the filtered copy staged by stage_crown_source().
+        """
+        if self.effective_workflow == "local":
+            return os.path.abspath("CROWN")
+        return os.path.abspath(os.path.join("build_staging", "CROWN_src"))
 
     def get_tarball_hash(self):
         """
@@ -304,15 +400,11 @@ class CROWNBuildBase(KingmakerSandbox, Task):
 
     def setup_build_environment(self, build_dir, install_dir, crownlib):
         """
-        The function sets up the build environment by creating build and install directories, localizing a
-        crownlib file, and copying it to the build directory.
-
-        :param build_dir: The `build_dir` parameter is the directory where the build files will be
-        generated. It is the location where the code will be compiled and built into an executable or
-        library
-        :param install_dir: The `install_dir` parameter is the directory where the built files will be
-        installed
-        :param crownlib: The `crownlib` parameter is the crownlib file that will be copied to the build directory
+        Downloads and extracts the crownlib bundle - libCROWNLIB.so plus the spdlog
+        artifacts built alongside it (see BuildCROWNLib.run()) - into build_dir.
+        Extracting straight into build_dir puts libCROWNLIB.so at the canonical path
+        the build system looks for it at, and leaves the spdlog artifacts alongside it
+        for SPDLOG_PREBUILT_LIB/SPDLOG_PREBUILT_INCLUDE to point at.
         """
         os.makedirs(build_dir, exist_ok=True)
         build_dir = os.path.abspath(build_dir)
@@ -320,10 +412,10 @@ class CROWNBuildBase(KingmakerSandbox, Task):
         os.makedirs(install_dir, exist_ok=True)
         install_dir = os.path.abspath(install_dir)
 
-        # localize crownlib to build directory
-        console.log(f"Localizing crownlib {crownlib.path} to {build_dir}")
-        # always copy as libCROWNLIB.so so the build system finds it by its canonical name
-        crownlib.copy_to_local(os.path.join(build_dir, "libCROWNLIB.so"))
+        console.log(f"Localizing crownlib bundle {crownlib.path} to {build_dir}")
+        with crownlib.localize("r") as _file:
+            with tarfile.open(_file.path, "r:gz") as tar:
+                tar.extractall(build_dir)
 
         return build_dir, install_dir
 
@@ -357,3 +449,22 @@ class CROWNBuildBase(KingmakerSandbox, Task):
                 time.sleep(1)
         console.log(f"Upload failed after {retries} attempts.")
         return False
+
+
+class CROWNLocalBuildBase(CROWNBuildBase, KingmakerSandbox, Task):
+    """
+    Base for build tasks that compile locally, inside a singularity sandbox wrapping
+    the whole task (KingmakerSandbox re-execs the entire `law run` invocation inside
+    the crown container) rather than submitting to HTCondor. Used by BuildCROWNLib,
+    QuantitiesMap, and CROWNBuildFriend.
+    """
+
+    # Copy over X509_USER_PROXY, LUIGIPORT, and CCACHE_DIR env values and run sandbox setup
+    sandbox_pre_setup_cmds = sandbox_pre_setup_cmds_factory(
+        "X509_USER_PROXY",
+        "LUIGIPORT",
+        "CCACHE_DIR",
+        "WF_NAME",
+        "LOCAL_SCHEDULER",
+        "LUIGI_CFG_SCHEDULER_PORT",
+    )

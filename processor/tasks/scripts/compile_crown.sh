@@ -11,23 +11,25 @@ INSTALLDIR=${8}
 BUILDDIR=${9}
 TARBALLNAME=${10}
 EXECUTABLE_THREADS=${11}
+SPDLOG_PREBUILT_LIB=${12}
+SPDLOG_PREBUILT_INCLUDE=${13}
 
 echo "--- CROWN Production Compilation ---"
 echo "Crown folder: ${CROWNFOLDER}"
 echo "Install dir:  ${INSTALLDIR}"
 echo "Build dir:    ${BUILDDIR}"
 echo "Analysis:     ${ANALYSIS}"
+echo "spdlog lib:   ${SPDLOG_PREBUILT_LIB}"
+echo "spdlog include: ${SPDLOG_PREBUILT_INCLUDE}"
 
 # Exit on any error or pipe failure
 set -o pipefail
 set -e
 
-# Use a fourth of the machine for compiling, capped so several builds can
-# run concurrently on the same node without blowing past its memory limit
-THREADS_AVAILABLE=$(grep -c ^processor /proc/cpuinfo)
-THREADS=$((THREADS_AVAILABLE / 4))
-[ "$THREADS" -lt 1 ] && THREADS=1
-[ "$THREADS" -gt 4 ] && THREADS=4
+THREADS="${EXECUTABLE_THREADS}"
+if [ -z "$THREADS" ] || [ "$THREADS" -lt 1 ]; then
+    THREADS=1
+fi
 
 echo "Using ${THREADS} threads for compilation"
 echo "Active Python: $(which python)"
@@ -57,6 +59,8 @@ if cmake "${CROWNFOLDER}" \
     -DTHREADS="${EXECUTABLE_THREADS}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \
+    -DSPDLOG_PREBUILT_LIB="${SPDLOG_PREBUILT_LIB}" \
+    -DSPDLOG_PREBUILT_INCLUDE="${SPDLOG_PREBUILT_INCLUDE}" \
     -DCMAKE_PREFIX_PATH="$(root-config --prefix)" \
     -DCMAKE_C_COMPILER="${CONDA_CC}" \
     -DCMAKE_CXX_COMPILER="${CONDA_CXX}" \
