@@ -42,6 +42,51 @@ def load_dataset_filelist(dataset_task):
     return inputdata
 
 
+def resolve_crown_proxy():
+    """
+    Resolve an absolute, existing X509 proxy file to use for the CROWN run.
+
+    setup.sh persists a copy of the proxy at <KingMaker>/.proxy/x509up, but the
+    singularity container that CROWN runs in only has the production workdir
+    subtree bound, so the proxy is copied there (see CROWNRun.run()) and this
+    helper only has to find a valid source copy. If X509_USER_PROXY is still
+    relative (e.g. "./.proxy/x509up"), XRootD inside the container cannot resolve
+    it against CROWN's working directory, TLS setup fails ("Unable to use
+    cert+key file ... does not exist."), and the CMS redirector then rejects the
+    connection ("security protocol 'ztn' disallowed for non-TLS connections."),
+    so every input file appears unreadable.
+
+    Candidate locations, in order of preference:
+      1. $X509_USER_PROXY (expanded), if it is an existing absolute path,
+      2. $ANALYSIS_PATH/.proxy/x509up (the setup.sh persisted proxy),
+      3. ./<cwd>/.proxy/x509up,
+      4. ~/.globus/x509up_u<uid> (the default voms-proxy-init location).
+
+    Returns an absolute path if one exists, otherwise None (in which case the
+    ambient environment is left untouched and xrootd falls back to its defaults).
+    """
+    candidates = []
+
+    env_proxy = os.environ.get("X509_USER_PROXY")
+    if env_proxy:
+        env_proxy = os.path.expandvars(os.path.expanduser(env_proxy))
+        candidates.append(env_proxy)
+
+    bases = [b for b in (os.environ.get("ANALYSIS_PATH"), os.getcwd()) if b]
+    candidates.extend(
+        os.path.join(base, ".proxy", "x509up") for base in bases
+    )
+
+    candidates.append(
+        os.path.join(os.path.expanduser("~"), ".globus", "x509up_u{}".format(os.getuid()))
+    )
+
+    for candidate in candidates:
+        candidate = os.path.abspath(candidate)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
 class CROWNRun(CROWNExecuteBase):
     """
     Gather and compile CROWN with the given configuration
