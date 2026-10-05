@@ -121,7 +121,12 @@ action() {
     if [[ "${BASE_DIR}" != /* ]]; then
         BASE_DIR="${PWD}/${BASE_DIR}"
     fi
+    # Normalize: when setup.sh is sourced by its bare name (e.g. `source setup.sh`),
+    # `${BASH_SOURCE[0]}` is "setup.sh" whose dirname is ".", so BASE_DIR becomes
+    # "<pwd>/." and every derived path (e.g. X509_USER_PROXY) is polluted with a
+    # spurious "/./". Strip trailing slashes and any trailing "/." segment.
     BASE_DIR="${BASE_DIR%/}"
+    BASE_DIR="${BASE_DIR%/.}"
 
     # Detect whether we're running on lxplus, to automatically enable
     # EOS/EosSubmit-specific behavior (path alias preservation, proxy handling, container
