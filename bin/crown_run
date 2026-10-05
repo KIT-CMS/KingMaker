@@ -1,0 +1,173 @@
+import argparse
+import json
+import os
+import subprocess
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+DEFAULT_SAMPLE_DATABASE_DIR = os.path.join(ROOT_DIR, "sample_database")
+DEFAULT_NANOAOD_VERSIONS = {
+    "2016preVFP": "v15",
+    "2016postVFP": "v15",
+    "2017": "v15",
+    "2018": "v15",
+    "2022preEE": "v12",
+    "2022postEE": "v12",
+    "2023preBPix": "v12",
+    "2023postBPix": "v12",
+    "2024": "v15",
+    "2025": "v15",
+}
+
+
+def _parse_args():
+    # Create the command-line parser
+    parser = argparse.ArgumentParser()
+
+    # Add arguments
+    parser.add_argument(
+        "--analysis",
+        "-a",
+        default="bbtautau",
+        help="Name of the analysis",
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
+        default="nmssm_config",
+        help="Name of the analysis config",
+    )
+    parser.add_argument(
+        "--era",
+        "-e",
+        required=True,
+        help="Era of the processed sample",
+    )
+    parser.add_argument(
+        "--nick",
+        "-n",
+        required=True,
+        help="Sample nick",
+    )
+    parser.add_argument(
+        "--production-tag",
+        "-t",
+        required=True,
+        help="Tag of the ntuple production",
+    )
+    parser.add_argument(
+        "--scopes",
+        "-s",
+        nargs="+",
+        required=True,
+        help="Scopes for which the ntuples are produced",
+    )
+    parser.add_argument(
+        "--sample-database-dir",
+        "-d",
+        default=DEFAULT_SAMPLE_DATABASE_DIR,
+        help="Path to the sample database directory",
+    )
+    parser.add_argument(
+        "--nanoaod-version",
+        "-v",
+        default=None,
+        help="NANOAOD version used for processing",
+    )
+
+    return vars(parser.parse_args())
+
+
+def _load_sample_database_entry(
+    sample_database_dir,
+    era,
+    nick,
+    nanoaod_version=None,
+):
+    # Load the database
+    if nanoaod_version is None:
+        nanoaod_version = DEFAULT_NANOAOD_VERSIONS[era]
+    sample_database_file = os.path.join(
+        sample_database_dir,
+        f"nanoAOD_{nanoaod_version}",
+        "datasets.json",
+    )
+    with open(sample_database_file, "r") as f:
+        database = json.load(f)
+
+    # Load the sample entry
+    sample = database[nick]
+
+    return sample
+
+
+def main(
+    *,
+    analysis,
+    config,
+    nick,
+    production_tag,
+    era,
+    scopes,
+    sample_database_dir,
+    nanoaod_version,
+):
+    # Get the sample type
+    sample_type = _load_sample_database_entry(
+        sample_database_dir,
+        era,
+        nick,
+        nanoaod_version=nanoaod_version,
+    )["sample_type"]
+
+    # Construct required build combinations
+    build_combinations = [[sample_type, era]]
+
+    # Construct command
+    cmd = [
+        "law",
+        "run",
+        "CROWNRun",
+        "--analysis",
+        analysis,
+        "--config",
+        config,
+        "--nick",
+        nick,
+        "--production-tag",
+        production_tag,
+        "--scopes",
+        json.dumps(scopes),
+        "--sample-type",
+        sample_type,
+        "--era",
+        era,
+        "--all-sample-types",
+        json.dumps([sample_type]),
+        "--all-eras",
+        json.dumps([era]),
+        "--required-build-combinations",
+        json.dumps(build_combinations),
+        "--workflow",
+        "local",
+    ]
+
+    p = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        shell=False,
+        env=os.environ,
+    )
+
+    for line in iter(p.stdout.readline, b""):
+        print(line.decode("utf-8"), end="")
+        p.stdout.flush()
+    p.wait()
+
+
+if __name__ == "__main__":
+    kwargs = _parse_args()
+    main(**kwargs)
+
