@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import os
@@ -39,6 +41,12 @@ def _parse_args():
         help="Name of the analysis config",
     )
     parser.add_argument(
+        "--friend-config",
+        "-f",
+        default=None,
+        help="Name of the friend config",
+    )
+    parser.add_argument(
         "--era",
         "-e",
         required=True,
@@ -55,6 +63,11 @@ def _parse_args():
         "-t",
         required=True,
         help="Tag of the ntuple production",
+    )
+    parser.add_argument(
+        "--friend-tag",
+        default=None,
+        help="Tag of the friend production",
     )
     parser.add_argument(
         "--scopes",
@@ -74,6 +87,11 @@ def _parse_args():
         "-v",
         default=None,
         help="NANOAOD version used for processing",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="WARNING",
+        help="Logging level",
     )
 
     return vars(parser.parse_args())
@@ -106,12 +124,15 @@ def main(
     *,
     analysis,
     config,
+    friend_config,
     nick,
     production_tag,
+    friend_tag,
     era,
     scopes,
     sample_database_dir,
     nanoaod_version,
+    log_level,
 ):
     # Get the sample type
     sample_type = _load_sample_database_entry(
@@ -124,11 +145,8 @@ def main(
     # Construct required build combinations
     build_combinations = [[sample_type, era]]
 
-    # Construct command
-    cmd = [
-        "law",
-        "run",
-        "CROWNRun",
+    # Default arguments used for main and friend ntuple production
+    args = [
         "--analysis",
         analysis,
         "--config",
@@ -151,7 +169,36 @@ def main(
         json.dumps(build_combinations),
         "--workflow",
         "local",
+        "--log-level",
+        log_level,
     ]
+
+    # Construct command to produce the main NTuple
+    if friend_config is None and friend_tag is None:
+        cmd = [
+            "law",
+            "run",
+            "CROWNRun",
+            "--CROWNBuild-workflow",
+            "local",
+        ] + args
+    elif friend_config is not None and friend_tag is not None:
+        cmd = [
+            "law",
+            "run",
+            "CROWNFriend",
+            "--friend-config",
+            friend_config,
+            "--friend-mapping",
+            json.dumps({friend_config: {"friend_tag": friend_tag}}),
+            "--CROWNBuildFriend-workflow",
+            "local",
+        ] + args
+    else:
+        raise ValueError(
+            "--friend-config and --friend-tag must be set or must be unused "
+            + "together"
+        )
 
     p = subprocess.Popen(
         cmd,
