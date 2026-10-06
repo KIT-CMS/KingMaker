@@ -193,12 +193,20 @@ class CROWNRun(CROWNExecuteBase):
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
-        # first unpack the tarball if the exec is not there yet
+        # first unpack the tarball if the exec is not there yet. A marker file can
+        # survive a crashed/interrupted unpack - treat it as stale (and remove it)
+        # once it is older than UNPACK_LOCK_TIMEOUT so that future runs are not
+        # blocked in the wait loop below.
+        _UNPACK_LOCK_TIMEOUT = 600  # seconds
         _tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(self.config, _sample_type, _era),
         )
         while os.path.exists(_tempfile):
+            if time.time() - os.path.getmtime(_tempfile) > _UNPACK_LOCK_TIMEOUT:
+                console.log(f"Removing stale unpack marker {_tempfile}")
+                os.remove(_tempfile)
+                break
             time.sleep(1)
         if not os.path.exists(_abs_executable) and not os.path.exists(_tempfile):
             # create a temp file to signal that we are unpacking

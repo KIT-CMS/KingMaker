@@ -155,8 +155,8 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.friend_config, sample_type, era
+        _abs_executable = "{}/{}_{}_{}_{}".format(
+            _workdir, self.friend_config, sample_type, era, scope
         )
         _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(
@@ -164,14 +164,23 @@ class CROWNFriend(CROWNExecuteBase):
         )
         with _friend_tarball.localize("r") as _file:
             _tarballpath = _file.path
-        # first unpack the tarball if the exec is not there yet
+        # first unpack the tarball if the exec is not there yet. All branches share
+        # the same workdir and tarball, so a marker file signals that one of them is
+        # currently unpacking; the others wait for it to disappear. A marker can
+        # survive a crashed/interrupted run - treat it as stale (and remove it) once
+        # it is older than UNPACK_LOCK_TIMEOUT so that future runs are not blocked.
+        UNPACK_LOCK_TIMEOUT = 600  # seconds
         tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(self.friend_config, sample_type, era),
         )
         while os.path.exists(tempfile):
+            if time.time() - os.path.getmtime(tempfile) > UNPACK_LOCK_TIMEOUT:
+                console.log(f"Removing stale unpack marker {tempfile}")
+                os.remove(tempfile)
+                break
             time.sleep(1)
-        if not os.path.exists(_abs_executable):
+        if not os.path.exists(_abs_executable) and not os.path.exists(tempfile):
             # create a temp file to signal that we are unpacking
             open(
                 tempfile,
