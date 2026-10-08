@@ -73,12 +73,12 @@ def resolve_crown_proxy():
         candidates.append(env_proxy)
 
     bases = [b for b in (os.environ.get("ANALYSIS_PATH"), os.getcwd()) if b]
-    candidates.extend(
-        os.path.join(base, ".proxy", "x509up") for base in bases
-    )
+    candidates.extend(os.path.join(base, ".proxy", "x509up") for base in bases)
 
     candidates.append(
-        os.path.join(os.path.expanduser("~"), ".globus", "x509up_u{}".format(os.getuid()))
+        os.path.join(
+            os.path.expanduser("~"), ".globus", "x509up_u{}".format(os.getuid())
+        )
     )
 
     for candidate in candidates:
