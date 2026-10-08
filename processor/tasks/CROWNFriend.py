@@ -219,7 +219,9 @@ class CROWNFriend(CROWNExecuteBase):
             os.chmod(_proxy_in_workdir, 0o600)
             _crown_env = dict(os.environ)
             _crown_env["X509_USER_PROXY"] = _proxy_in_workdir
-            console.log(f"Using proxy {_proxy_in_workdir} for CROWN friend input access")
+            console.log(
+                f"Using proxy {_proxy_in_workdir} for CROWN friend input access"
+            )
         else:
             console.log(
                 "No X509 proxy file found; CROWN will use default xrootd credentials"
