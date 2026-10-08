@@ -5,6 +5,7 @@ import json
 import shutil
 import tarfile
 import subprocess
+import sys
 import fcntl
 import contextlib
 from framework import (
@@ -296,6 +297,12 @@ class CROWNBuildBase:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir)
         os.makedirs(staging_dir, exist_ok=True)
+        # the job has no sample_database: build the norm/STXS tables here so they ship inside data/
+        norm_script = os.path.join(crown_path, "analysis_configurations", str(self.analysis), "norm_table.py")
+        if os.path.exists(norm_script):
+            combos = getattr(self, "required_build_combinations", None)
+            sample_types = {c[0] for c in combos} if combos else getattr(self, "all_sample_types", [])
+            subprocess.check_call([sys.executable, norm_script, os.path.join(crown_path, "data", "normalization"), *sample_types])
         for subdir in (
             "src",
             "include",
