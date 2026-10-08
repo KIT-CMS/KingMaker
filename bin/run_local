@@ -35,19 +35,26 @@ Two production modes are supported:
 Providing only one of --friend-config and --friend-tag is a configuration
 error and raises a ValueError.
 
+The options --analysis, --config, --era, --nick, --production-tag and
+--scopes are required and have to be provided on the command line. All
+other options are optional and fall back to their default values.
+
 Example usage:
 
     # Produce main NTuples for a single sample and era locally
-    ./bin/run_local --era 2018 --nick <sample_nick> \
+    ./bin/run_local --analysis bbtautau --config nmssm_config \
+        --era 2018 --nick <sample_nick> \
         --production-tag test_production --scopes et mt tt
 
     # Produce friend trees in addition to the main NTuples
-    ./bin/run_local --era 2018 --nick <sample_nick> \
+    ./bin/run_local --analysis bbtautau --config nmssm_config \
+        --era 2018 --nick <sample_nick> \
         --production-tag test_production --scopes et mt tt \
         --friend-config <friend_config> --friend-tag test_friend
 
     # Only print the resulting law command without executing it
-    ./bin/run_local --era 2018 --nick <sample_nick> \
+    ./bin/run_local --analysis bbtautau --config nmssm_config \
+        --era 2018 --nick <sample_nick> \
         --production-tag test_production --scopes et mt tt \
         --print-command
 """
@@ -89,12 +96,12 @@ def _parse_args():
     The argument parser is created with `argparse.ArgumentParser` and a
     short description of the tool, which is shown in the help output. All
     arguments are registered with their long option name as the dictionary
-    key (without the leading `--`). The required arguments (`--era`,
-    `--nick`, `--production-tag` and `--scopes`) have to be provided on the
-    command line, while all other arguments fall back to their default
-    values if they are not specified. `--friend-config` and `--friend-tag`
-    are validated later in `main`, where either both or none of them have
-    to be set.
+    key (without the leading `--`). The required arguments (`--analysis`,
+    `--config`, `--era`, `--nick`, `--production-tag` and `--scopes`) have
+    to be provided on the command line, while all other arguments fall back
+    to their default values if they are not specified. `--friend-config`
+    and `--friend-tag` are validated later in `main`, where either both or
+    none of them have to be set.
 
     :return: A dictionary that maps the name of each command line argument
         (without the leading `--`) to its parsed value. The dictionary is
@@ -126,7 +133,7 @@ def _parse_args():
     parser.add_argument(
         "--config",
         "-c",
-        default="nmssm_config",
+        required=True,
         help=(
             "Name of the analysis config. The config file contains the "
             "producers, parameters and output branches needed for the "
