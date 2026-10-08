@@ -116,11 +116,11 @@ def _parse_args():
     parser.add_argument(
         "--analysis",
         "-a",
-        default="bbtautau",
+        required=True,
         help=(
             "Name of the analysis. The name has to correspond to the "
             "analysis folder in the CROWN/analysis_configurations "
-            "directory. [default: bbtautau]"
+            "directory. [required]"
         ),
     )
     parser.add_argument(
@@ -132,7 +132,7 @@ def _parse_args():
             "producers, parameters and output branches needed for the "
             "ntuple production and has to be located in the "
             "CROWN/analysis_configurations/<analysis>/ directory. "
-            "[default: nmssm_config]"
+            "[required]"
         ),
     )
     parser.add_argument(
