@@ -1,0 +1,514 @@
+#!/usr/bin/env python3
+"""
+run_local is a command-line tool to run the CROWN ntuple production for a
+single sample directly on the local machine. It serves as a thin wrapper
+around the law-based KingMaker workflow and triggers either the CROWNRun
+task for the production of main NTuples or the CROWNFriend task for the
+production of friend trees, which extend the main NTuples with additional
+information.
+
+In contrast to the full KingMaker workflow, which is designed to produce
+many samples distributed over a batch system (e.g. HTCondor), run_local
+focuses on a single sample and always executes the production locally by
+setting --workflow local and --CROWNBuild-workflow local. This makes the
+tool well suited for debugging a production, processing a single re-run
+sample or running a sample locally when the batch system is not available.
+
+The tool automatically determines the sample_type of the requested sample
+by looking it up in the KingMaker sample database (see
+_load_sample_database_entry), so the sample type does not have to be
+provided by the user. After the sample type is known, run_local constructs
+the plain `law run` command and either executes it, forwarding the output
+of the underlying process to the console in real time, or prints the
+command without executing it when --print-command is set.
+
+Two production modes are supported:
+
+1. Main NTuple production, invoking `law run CROWNRun`. This mode is used
+   when neither --friend-config nor --friend-tag are provided.
+
+2. Friend tree production, invoking `law run CROWNFriend`. This mode is
+   used when both --friend-config and --friend-tag are provided. The
+   friend trees are produced in addition to the main NTuples, which are
+   generated automatically as a dependency of the CROWNFriend task.
+
+Providing only one of --friend-config and --friend-tag is a configuration
+error and raises a ValueError.
+
+Example usage:
+
+    # Produce main NTuples for a single sample and era locally
+    ./bin/run_local --era 2018 --nick <sample_nick> \
+        --production-tag test_production --scopes et mt tt
+
+    # Produce friend trees in addition to the main NTuples
+    ./bin/run_local --era 2018 --nick <sample_nick> \
+        --production-tag test_production --scopes et mt tt \
+        --friend-config <friend_config> --friend-tag test_friend
+
+    # Only print the resulting law command without executing it
+    ./bin/run_local --era 2018 --nick <sample_nick> \
+        --production-tag test_production --scopes et mt tt \
+        --print-command
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import shlex
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+DEFAULT_SAMPLE_DATABASE_DIR = os.path.join(ROOT_DIR, "sample_database")
+
+# Map each era to the default NanoAOD version of the sample database that
+# is used when no explicit --nanoaod-version is provided on the command
+# line. The Run 2 eras (2016-2018) as well as 2024 and 2025 default to v15,
+# while the start of Run 3 (2022 and 2023) defaults to v12.
+DEFAULT_NANOAOD_VERSIONS = {
+    "2016preVFP": "v15",
+    "2016postVFP": "v15",
+    "2017": "v15",
+    "2018": "v15",
+    "2022preEE": "v12",
+    "2022postEE": "v12",
+    "2023preBPix": "v12",
+    "2023postBPix": "v12",
+    "2024": "v15",
+    "2025": "v15",
+}
+
+
+def _parse_args():
+    """
+    The function `_parse_args` parses the command line arguments provided
+    to `run_local` and returns them in a single dictionary.
+
+    The argument parser is created with `argparse.ArgumentParser` and a
+    short description of the tool, which is shown in the help output. All
+    arguments are registered with their long option name as the dictionary
+    key (without the leading `--`). The required arguments (`--era`,
+    `--nick`, `--production-tag` and `--scopes`) have to be provided on the
+    command line, while all other arguments fall back to their default
+    values if they are not specified. `--friend-config` and `--friend-tag`
+    are validated later in `main`, where either both or none of them have
+    to be set.
+
+    :return: A dictionary that maps the name of each command line argument
+        (without the leading `--`) to its parsed value. The dictionary is
+        passed to `main` as keyword arguments.
+    :rtype: dict
+    """
+    # Create the command-line parser
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the CROWN ntuple production for a single sample on the "
+            "local machine. The tool resolves the sample type of the "
+            "provided nick from the KingMaker sample database and either "
+            "runs the corresponding law command or prints it with "
+            "--print-command."
+        ),
+    )
+
+    # Add arguments
+    parser.add_argument(
+        "--analysis",
+        "-a",
+        required=True,
+        help=(
+            "Name of the analysis. The name has to correspond to the "
+            "analysis folder in the CROWN/analysis_configurations "
+            "directory. [required]"
+        ),
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
+        default="nmssm_config",
+        help=(
+            "Name of the analysis config. The config file contains the "
+            "producers, parameters and output branches needed for the "
+            "ntuple production and has to be located in the "
+            "CROWN/analysis_configurations/<analysis>/ directory. "
+            "[required]"
+        ),
+    )
+    parser.add_argument(
+        "--friend-config",
+        "-f",
+        default=None,
+        help=(
+            "Name of the friend config. The friend config file describes "
+            "the friend trees to be produced, e.g. the producers to run "
+            "and the output branches to save, and has to be located in the "
+            "CROWN/analysis_configurations/<analysis>/ directory. "
+            "--friend-config has to be used together with --friend-tag: "
+            "either both have to be set, which triggers the production of "
+            "friend trees in addition to the main NTuples, or none of "
+            "them, in which case only the main NTuples are produced."
+        ),
+    )
+    parser.add_argument(
+        "--era",
+        "-e",
+        required=True,
+        help=(
+            "Era of the processed sample, e.g. 2016preVFP, 2016postVFP, "
+            "2017, 2018, 2022preEE, 2022postEE, 2023preBPix, 2023postBPix, "
+            "2024 or 2025. The era determines the default NanoAOD version "
+            "of the sample database. [required]"
+        ),
+    )
+    parser.add_argument(
+        "--nick",
+        "-n",
+        required=True,
+        help=(
+            "Nick of the sample as stored in the KingMaker sample "
+            "database, e.g. a DAS-based nick. The nick is used to look up "
+            "the sample and to resolve its sample type. [required]"
+        ),
+    )
+    parser.add_argument(
+        "--production-tag",
+        "-t",
+        required=True,
+        help=(
+            "Tag identifying the ntuple production. The tag is part of "
+            "the output folder structure, which is "
+            "/<base>/<production-tag>/CROWNRun/<era>/<nick>/<scope>/... "
+            "A distinct tag should be used whenever the production setup "
+            "changes in order to avoid stale cached output files. "
+            "[required]"
+        ),
+    )
+    parser.add_argument(
+        "--friend-tag",
+        default=None,
+        help=(
+            "Tag identifying the friend production. The tag can differ "
+            "from the friend config file name and is used as the folder "
+            "name for the resulting friend trees, i.e. "
+            "/<base>/<production-tag>/CROWNFriend/<friend-tag>/... "
+            "--friend-tag has to be used together with --friend-config."
+        ),
+    )
+    parser.add_argument(
+        "--scopes",
+        "-s",
+        nargs="+",
+        required=True,
+        help=(
+            "Scopes for which the ntuples are produced, e.g. et, mt or tt. "
+            "Scopes correspond to the channels of the analysis, and for "
+            "each scope a separate output file is created. Multiple scopes "
+            "can be provided as a whitespace-separated list. [required]"
+        ),
+    )
+    parser.add_argument(
+        "--sample-database-dir",
+        "-d",
+        default=DEFAULT_SAMPLE_DATABASE_DIR,
+        help=(
+            "Path to the sample database directory. The script expects a "
+            "datasets.json file inside the nanoAOD_<nanoaod-version>/ "
+            "subfolder. [default: <KingMaker>/sample_database]"
+        ),
+    )
+    parser.add_argument(
+        "--nanoaod-version",
+        "-v",
+        default=None,
+        help=(
+            "NanoAOD version of the sample database to use for the sample "
+            "lookup, e.g. v9, v12 or v15. If not provided, the default "
+            "version of the selected era is used (Run 2 eras, 2024 and "
+            "2025: v15, 2022 and 2023: v12)."
+        ),
+    )
+    parser.add_argument(
+        "--print-command",
+        action="store_true",
+        help=(
+            "Do not execute the command, but print the constructed law "
+            "command to the console instead. This is useful to inspect the "
+            "command before it is run or to debug the command construction."
+        ),
+    )
+    parser.add_argument(
+        "--log-level",
+        default="WARNING",
+        help=(
+            "Logging level passed to the law command, e.g. WARNING, INFO "
+            "or DEBUG. A higher verbosity (DEBUG) can help to debug the "
+            "task execution. [default: WARNING]"
+        ),
+    )
+
+    return vars(parser.parse_args())
+
+
+def _load_sample_database_entry(
+    sample_database_dir,
+    era,
+    nick,
+    nanoaod_version=None,
+):
+    """
+    The function `_load_sample_database_entry` loads the entry of a single
+    sample from the KingMaker sample database.
+
+    The KingMaker sample database describes all datasets that can be
+    processed with KingMaker. It is stored in a JSON file named
+    `datasets.json`, which is located in the folder
+    `<sample_database_dir>/nanoAOD_<nanoaod_version>/`. The file maps the
+    nick of each sample to its metadata, e.g. the DAS name (`dbs`), the
+    era, the number of events (`nevents`) and files (`nfiles`), the cross
+    section (`xsec`), the generator weight (`generator_weight`) and, most
+    importantly for this script, the physics sample type (`sample_type`).
+
+    If no NanoAOD version is provided, the default version for the given
+    era is taken from the `DEFAULT_NANOAOD_VERSIONS` mapping, e.g. `v15`
+    for the Run 2 eras (2016-2018) and `v12` for the start of Run 3
+    (2022-2023).
+
+    :param sample_database_dir: Path to the root of the KingMaker sample
+        database, which contains one folder per available NanoAOD version.
+    :type sample_database_dir: str
+    :param era: Era of the processed sample, e.g. `2018` or `2022preEE`.
+        The era is used to select the default NanoAOD version when no
+        explicit version is provided.
+    :type era: str
+    :param nick: Nick of the sample as stored in the sample database. The
+        nick is used as the dictionary key to look up the sample entry.
+    :type nick: str
+    :param nanoaod_version: NanoAOD version of the sample database to use,
+        e.g. `v9`, `v12` or `v15`. When `None`, the default version for
+        `era` is used.
+    :type nanoaod_version: str or None
+    :return: The database entry of the sample as a dictionary containing
+        the sample metadata, e.g. `dbs`, `era`, `generator_weight`,
+        `nevents`, `nfiles`, `nick`, `sample_type` and `xsec`.
+    :rtype: dict
+    """
+    # Load the database. If no explicit NanoAOD version was provided,
+    # resolve the default version of the era from the
+    # DEFAULT_NANOAOD_VERSIONS mapping and construct the path to the
+    # datasets.json file of the corresponding database.
+    if nanoaod_version is None:
+        nanoaod_version = DEFAULT_NANOAOD_VERSIONS[era]
+    sample_database_file = os.path.join(
+        sample_database_dir,
+        f"nanoAOD_{nanoaod_version}",
+        "datasets.json",
+    )
+    with open(sample_database_file, "r") as f:
+        database = json.load(f)
+
+    # Load the sample entry using the nick as the dictionary key
+    sample = database[nick]
+
+    return sample
+
+
+def main(
+    *,
+    analysis,
+    config,
+    friend_config,
+    nick,
+    production_tag,
+    friend_tag,
+    era,
+    scopes,
+    sample_database_dir,
+    nanoaod_version,
+    print_command,
+    log_level,
+):
+    """
+    The function `main` is the central entry point of `run_local`. It
+    orchestrates the whole execution of the tool.
+
+    The function proceeds in four steps:
+
+    1. It resolves the `sample_type` of the requested sample by loading the
+       sample database entry with `_load_sample_database_entry` and
+       extracting the `sample_type` from it. The sample type corresponds to
+       the physics process of the sample, e.g. `data`, `dyjets` or `ttbar`,
+       and defines together with the era which CROWN configuration has to
+       be built and executed.
+
+    2. It derives the required build combinations from the sample type and
+       the era and assembles the base argument list that is shared by the
+       main NTuple and the friend tree production. These arguments include
+       the law parameters needed by both the CROWNRun and the CROWNFriend
+       task, e.g. `--scopes`, `--sample-type`, `--era`, `--all-sample-types`,
+       `--all-eras` and `--required-build-combinations`. The workflow of the
+       task itself and of the required build are both fixed to `local`,
+       since this script always executes the production on the local
+       machine.
+
+    3. It decides which law task has to be run. If both `--friend-config`
+       and `--friend-tag` are provided, the `CROWNFriend` task is used,
+       which produces the friend trees on top of the main NTuples. The main
+       NTuples are generated automatically as a dependency of the friend
+       production, so a single command produces both in one go. If neither
+       of the two arguments is provided, only the `CROWNRun` task is run to
+       produce the main NTuples. Providing exactly one of the two arguments
+       is invalid, since it would be unclear whether or how friend trees
+       should be produced, and raises a `ValueError`.
+
+    4. It either prints the constructed law command to the console (when
+       `--print-command` is set) or executes it. When the command is
+       executed, the standard output of the subprocess is forwarded to the
+       console in real time, so that the user can follow the progress of
+       the law workflow, including the parsing of the law configuration,
+       the task execution and the status updates.
+
+    :param analysis: Name of the analysis. The name corresponds to the
+        analysis folder in the `CROWN/analysis_configurations` directory.
+    :type analysis: str
+    :param config: Name of the analysis config, which contains the
+        producers, parameters and output branches needed for the ntuple
+        production.
+    :type config: str
+    :param friend_config: Name of the friend config, which describes the
+        friend trees to be produced. Has to be used together with
+        `friend_tag`; when both are provided, the `CROWNFriend` task is
+        run.
+    :type friend_config: str or None
+    :param nick: Nick of the sample as stored in the KingMaker sample
+        database.
+    :type nick: str
+    :param production_tag: Tag identifying the ntuple production, which is
+        part of the output folder structure.
+    :type production_tag: str
+    :param friend_tag: Tag identifying the friend production. Has to be
+        used together with `friend_config`; when both are provided, the
+        `CROWNFriend` task is run.
+    :type friend_tag: str or None
+    :param era: Era of the processed sample.
+    :type era: str
+    :param scopes: List of scopes for which the ntuples are produced.
+    :type scopes: list of str
+    :param sample_database_dir: Path to the root of the KingMaker sample
+        database.
+    :type sample_database_dir: str
+    :param nanoaod_version: NanoAOD version of the sample database to use.
+        When `None`, the default version of the era is used.
+    :type nanoaod_version: str or None
+    :param print_command: If `True`, the constructed law command is printed
+        to the console instead of being executed.
+    :type print_command: bool
+    :param log_level: Logging level passed to the law command.
+    :type log_level: str
+    :raises ValueError: When exactly one of `friend_config` and
+        `friend_tag` is set.
+    """
+    # Get the sample type. The sample type is not provided on the command
+    # line but resolved automatically from the KingMaker sample database.
+    sample_type = _load_sample_database_entry(
+        sample_database_dir,
+        era,
+        nick,
+        nanoaod_version=nanoaod_version,
+    )["sample_type"]
+
+    # Construct the required build combinations. The combination of sample
+    # type and era defines which CROWN configurations have to be built for
+    # this production.
+    build_combinations = [[sample_type, era]]
+
+    # Default arguments used for main and friend ntuple production. The
+    # argument list is passed to the law task unchanged and contains the
+    # parameters required by both CROWNRun and CROWNFriend, such as the
+    # scopes, the sample type of the current sample, the era and the
+    # combination of all sample types and eras that have to be built.
+    args = [
+        "--analysis",
+        analysis,
+        "--config",
+        config,
+        "--nick",
+        nick,
+        "--production-tag",
+        production_tag,
+        "--scopes",
+        json.dumps(scopes),
+        "--sample-type",
+        sample_type,
+        "--era",
+        era,
+        "--all-sample-types",
+        json.dumps([sample_type]),
+        "--all-eras",
+        json.dumps([era]),
+        "--required-build-combinations",
+        json.dumps(build_combinations),
+        "--workflow",
+        "local",
+        "--log-level",
+        log_level,
+        "--CROWNBuild-workflow",
+        "local",
+    ]
+
+    # Construct the command to produce the main NTuple and, optionally, the
+    # friend trees. If neither a friend config nor a friend tag is
+    # provided, only the CROWNRun task is run to produce the main NTuples.
+    # If both are provided, the CROWNFriend task is run instead, which
+    # produces the friend trees on top of the main NTuples and generates
+    # the main NTuples automatically as a dependency. Setting exactly one
+    # of the two arguments is a misconfiguration.
+    if friend_config is None and friend_tag is None:
+        cmd = [
+            "law",
+            "run",
+            "CROWNRun",
+        ] + args
+    elif friend_config is not None and friend_tag is not None:
+        cmd = [
+            "law",
+            "run",
+            "CROWNFriend",
+            "--friend-config",
+            friend_config,
+            "--friend-mapping",
+            json.dumps({friend_config: {"friend_tag": friend_tag}}),
+            "--CROWNBuildFriend-workflow",
+            "local",
+        ] + args
+    else:
+        # Exactly one of the two arguments was provided, which is invalid.
+        raise ValueError(
+            "--friend-config and --friend-tag must be set or must be unused "
+            + "together"
+        )
+
+    # Either print the constructed law command for inspection or execute it.
+    # When executing, the output of the subprocess is streamed to the
+    # console in real time.
+    if print_command:
+        print(shlex.join(cmd))
+    else:
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+            env=os.environ,
+        )
+
+        for line in iter(p.stdout.readline, b""):
+            print(line.decode("utf-8"), end="")
+            p.stdout.flush()
+        p.wait()
+
+
+if __name__ == "__main__":
+    kwargs = _parse_args()
+    main(**kwargs)
+
