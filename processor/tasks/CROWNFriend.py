@@ -6,7 +6,7 @@ import subprocess
 import time
 import law
 from framework import console, HTCondorWorkflow
-from CROWNMain import CROWNRun
+from CROWNMain import CROWNRun, resolve_crown_proxy
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from CROWNBase import CROWNBuildBase
@@ -155,8 +155,8 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.friend_config, sample_type, era
+        _abs_executable = "{}/{}_{}_{}_{}".format(
+            _workdir, self.friend_config, sample_type, era, scope
         )
         _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(
@@ -164,14 +164,23 @@ class CROWNFriend(CROWNExecuteBase):
         )
         with _friend_tarball.localize("r") as _file:
             _tarballpath = _file.path
-        # first unpack the tarball if the exec is not there yet
+        # first unpack the tarball if the exec is not there yet. All branches share
+        # the same workdir and tarball, so a marker file signals that one of them is
+        # currently unpacking; the others wait for it to disappear. A marker can
+        # survive a crashed/interrupted run - treat it as stale (and remove it) once
+        # it is older than UNPACK_LOCK_TIMEOUT so that future runs are not blocked.
+        UNPACK_LOCK_TIMEOUT = 600  # seconds
         tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(self.friend_config, sample_type, era),
         )
         while os.path.exists(tempfile):
+            if time.time() - os.path.getmtime(tempfile) > UNPACK_LOCK_TIMEOUT:
+                console.log(f"Removing stale unpack marker {tempfile}")
+                os.remove(tempfile)
+                break
             time.sleep(1)
-        if not os.path.exists(_abs_executable):
+        if not os.path.exists(_abs_executable) and not os.path.exists(tempfile):
             # create a temp file to signal that we are unpacking
             open(
                 tempfile,
@@ -192,6 +201,31 @@ class CROWNFriend(CROWNExecuteBase):
         console.log("workdir {}".format(_workdir))  # run CROWN
         command = self.wrap_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
+
+        # Hand the container an absolute, existing proxy file. CROWN runs with
+        # cwd=<_workdir>, and the singularity container only has that workdir
+        # subtree bound - a proxy outside of it (e.g. <KingMaker>/.proxy/x509up)
+        # is invisible to XRootD inside the container even with an absolute
+        # X509_USER_PROXY ("Unable to use cert+key file ... does not exist.",
+        # "security protocol 'ztn' disallowed for non-TLS connections."). So copy
+        # the proxy into the workdir and point X509_USER_PROXY at that copy.
+        _crown_env = None
+        _crown_proxy = resolve_crown_proxy()
+        if _crown_proxy is not None:
+            _proxy_in_workdir_dir = os.path.join(_workdir, ".proxy")
+            create_abspath(_proxy_in_workdir_dir)
+            _proxy_in_workdir = os.path.join(_proxy_in_workdir_dir, "x509up")
+            shutil.copy2(_crown_proxy, _proxy_in_workdir)
+            os.chmod(_proxy_in_workdir, 0o600)
+            _crown_env = dict(os.environ)
+            _crown_env["X509_USER_PROXY"] = _proxy_in_workdir
+            console.log(
+                f"Using proxy {_proxy_in_workdir} for CROWN friend input access"
+            )
+        else:
+            console.log(
+                "No X509 proxy file found; CROWN will use default xrootd credentials"
+            )
         with subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -199,6 +233,7 @@ class CROWNFriend(CROWNExecuteBase):
             bufsize=1,
             universal_newlines=True,
             cwd=_workdir,
+            env=_crown_env,
         ) as p:
             for line in p.stdout:
                 if line != "\n":
@@ -230,16 +265,24 @@ class CROWNFriend(CROWNExecuteBase):
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
 
-            from helpers.GetQuantitiesMap import read_quantities_map
-
-            read_quantities_map(
-                input_file=inputfile,
-                era=self.branch_data["era"],
-                sample_type=self.branch_data["sample_type"],
-                scope=scope,
-                outputfile=local_outputfile,
-                libdir=os.path.join(_workdir, "lib"),
+            # The quantities map is extracted with ROOT, which is not available in
+            # the luigi worker env of the local workflow - run the helper inside the
+            # crown container instead, same as the ResetROOTStatusBit step in
+            # CROWNRun. wrap_command() keeps the command plain on HTCondor, where
+            # the branch already runs inside the container.
+            qmap_command = self.wrap_command(
+                [
+                    "python3",
+                    "processor/tasks/helpers/GetQuantitiesMap.py",
+                    "--input {}".format(inputfile),
+                    "--era {}".format(self.branch_data["era"]),
+                    "--sample_type {}".format(self.branch_data["sample_type"]),
+                    "--scope {}".format(scope),
+                    "--output {}".format(local_outputfile),
+                    "--libdir {}".format(os.path.join(_workdir, "lib")),
+                ]
             )
+            self.run_command_readable(qmap_command)
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
         console.rule("Finished CROWNFriend")

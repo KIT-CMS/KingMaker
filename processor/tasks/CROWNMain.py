@@ -42,6 +42,52 @@ def load_dataset_filelist(dataset_task):
     return inputdata
 
 
+def resolve_crown_proxy():
+    """
+    Resolve an absolute, existing X509 proxy file to use for the CROWN run.
+
+    setup.sh persists a copy of the proxy at <KingMaker>/.proxy/x509up, but the
+    singularity container that CROWN runs in only has the production workdir
+    subtree bound, so the proxy is copied there (see CROWNRun.run()) and this
+    helper only has to find a valid source copy. If X509_USER_PROXY is still
+    relative (e.g. "./.proxy/x509up"), XRootD inside the container cannot resolve
+    it against CROWN's working directory, TLS setup fails ("Unable to use
+    cert+key file ... does not exist."), and the CMS redirector then rejects the
+    connection ("security protocol 'ztn' disallowed for non-TLS connections."),
+    so every input file appears unreadable.
+
+    Candidate locations, in order of preference:
+      1. $X509_USER_PROXY (expanded), if it is an existing absolute path,
+      2. $ANALYSIS_PATH/.proxy/x509up (the setup.sh persisted proxy),
+      3. ./<cwd>/.proxy/x509up,
+      4. ~/.globus/x509up_u<uid> (the default voms-proxy-init location).
+
+    Returns an absolute path if one exists, otherwise None (in which case the
+    ambient environment is left untouched and xrootd falls back to its defaults).
+    """
+    candidates = []
+
+    env_proxy = os.environ.get("X509_USER_PROXY")
+    if env_proxy:
+        env_proxy = os.path.expandvars(os.path.expanduser(env_proxy))
+        candidates.append(env_proxy)
+
+    bases = [b for b in (os.environ.get("ANALYSIS_PATH"), os.getcwd()) if b]
+    candidates.extend(os.path.join(base, ".proxy", "x509up") for base in bases)
+
+    candidates.append(
+        os.path.join(
+            os.path.expanduser("~"), ".globus", "x509up_u{}".format(os.getuid())
+        )
+    )
+
+    for candidate in candidates:
+        candidate = os.path.abspath(candidate)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
 class CROWNRun(CROWNExecuteBase):
     """
     Gather and compile CROWN with the given configuration
@@ -147,12 +193,20 @@ class CROWNRun(CROWNExecuteBase):
         console.log(f"Getting CROWN tarball from {_tarball.uri()}")
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
-        # first unpack the tarball if the exec is not there yet
+        # first unpack the tarball if the exec is not there yet. A marker file can
+        # survive a crashed/interrupted unpack - treat it as stale (and remove it)
+        # once it is older than UNPACK_LOCK_TIMEOUT so that future runs are not
+        # blocked in the wait loop below.
+        _UNPACK_LOCK_TIMEOUT = 600  # seconds
         _tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(self.config, _sample_type, _era),
         )
         while os.path.exists(_tempfile):
+            if time.time() - os.path.getmtime(_tempfile) > _UNPACK_LOCK_TIMEOUT:
+                console.log(f"Removing stale unpack marker {_tempfile}")
+                os.remove(_tempfile)
+                break
             time.sleep(1)
         if not os.path.exists(_abs_executable) and not os.path.exists(_tempfile):
             # create a temp file to signal that we are unpacking
@@ -170,6 +224,29 @@ class CROWNRun(CROWNExecuteBase):
         console.log("workdir {}".format(_workdir))  # run CROWN
         command = self.wrap_command([_executable] + _crown_args)
         console.log(f"Running command: {command}")
+
+        # Hand the container an absolute, existing proxy file. CROWN runs with
+        # cwd=<_workdir>, and the singularity container only has that workdir
+        # subtree bound - a proxy outside of it (e.g. <KingMaker>/.proxy/x509up)
+        # is invisible to XRootD inside the container even with an absolute
+        # X509_USER_PROXY ("Unable to use cert+key file ... does not exist.",
+        # "security protocol 'ztn' disallowed for non-TLS connections."). So copy
+        # the proxy into the workdir and point X509_USER_PROXY at that copy.
+        _crown_env = None
+        _crown_proxy = resolve_crown_proxy()
+        if _crown_proxy is not None:
+            _proxy_in_workdir_dir = os.path.join(_workdir, ".proxy")
+            create_abspath(_proxy_in_workdir_dir)
+            _proxy_in_workdir = os.path.join(_proxy_in_workdir_dir, "x509up")
+            shutil.copy2(_crown_proxy, _proxy_in_workdir)
+            os.chmod(_proxy_in_workdir, 0o600)
+            _crown_env = dict(os.environ)
+            _crown_env["X509_USER_PROXY"] = _proxy_in_workdir
+            console.log(f"Using proxy {_proxy_in_workdir} for CROWN input access")
+        else:
+            console.log(
+                "No X509 proxy file found; CROWN will use default xrootd credentials"
+            )
         with subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -177,6 +254,7 @@ class CROWNRun(CROWNExecuteBase):
             bufsize=1,
             universal_newlines=True,
             cwd=_workdir,
+            env=_crown_env,
         ) as p:
             for line in p.stdout:
                 if line != "\n":
