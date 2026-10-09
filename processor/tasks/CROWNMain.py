@@ -137,8 +137,8 @@ class CROWNRun(CROWNExecuteBase):
                 filename,
                 [
                     "root://cmsdcache-kit-disk.gridka.de",
-                    "root://xrootd-cms.infn.it",
                     "root://cms-xrd-global.cern.ch",
+                    "root://xrootd-cms.infn.it",
                 ],
             )
             for filename in _inputfiles
