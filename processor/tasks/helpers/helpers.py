@@ -5,7 +5,6 @@ import traceback
 import logging
 from law.logger import get_logger
 from XRootD.client import FileSystem
-from XRootD.client.flags import StatInfoFlags
 
 # Get law loggers for this module
 logger = get_logger("xrootd.stat")
@@ -126,11 +125,12 @@ def get_alternate_file_uri(
 
     # Cycle through the given XRootD servers and check if the file exists
     # there. Return the first one that is found. If no file is found on the
-    # servers given in the list, the original file is returned.
+    # servers given in the list, the original file is returned. The readable
+    # flag is not checked: redirectors report the flags of whichever endpoint
+    # answers, often 0 for readable files.
     for xrootd_server in xrootd_servers:
-        status, stat_info = get_xrootd_client(xrootd_server).stat(path)
+        status, _ = get_xrootd_client(xrootd_server).stat(path)
         if status.ok:
-            if (stat_info.flags & StatInfoFlags.IS_READABLE) > 0:
-                return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
+            return f"{xrootd_server.rstrip('/')}///{path.lstrip('/')}"
 
     return file
