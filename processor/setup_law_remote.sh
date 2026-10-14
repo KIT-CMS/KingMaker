@@ -56,8 +56,21 @@ action() {
         echo "cp {{TARBALL_PATH}} ${SPAWNPOINT}"
         cp {{TARBALL_PATH}} ${SPAWNPOINT}
     else
-        echo "gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}"
-        gfal-copy {{TARBALL_PATH}} ${SPAWNPOINT}
+        # pick one of the tarball replicas at random to spread the load on the storage
+        TARBALL_SRC="{{TARBALL_PATH}}"
+        N_REPLICAS={{TARBALL_REPLICAS}}
+        if [ "${N_REPLICAS}" -gt 1 ]; then
+            REPLICA=$(( (RANDOM + $$) % N_REPLICAS ))
+            if [ "${REPLICA}" -gt 0 ]; then
+                TARBALL_SRC="{{TARBALL_DIR}}/processor_${REPLICA}.tar.gz"
+            fi
+        fi
+        echo "gfal-copy ${TARBALL_SRC} ${SPAWNPOINT}/processor.tar.gz"
+        if ! gfal-copy ${TARBALL_SRC} ${SPAWNPOINT}/processor.tar.gz; then
+            # fall back to the original tarball
+            echo "Copy failed, falling back to {{TARBALL_PATH}}"
+            gfal-copy -f {{TARBALL_PATH}} ${SPAWNPOINT}/processor.tar.gz
+        fi
     fi
 
     tar -xzf processor.tar.gz && rm processor.tar.gz
