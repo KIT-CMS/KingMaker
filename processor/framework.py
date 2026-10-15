@@ -561,6 +561,15 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         hostfile = self.bootstrap_file
         return law.util.rel_path(__file__, hostfile)
 
+    def job_tarball_subdir(self):
+        """
+        Subfolder of the job tarball path. Friend tasks use their friend tag, so
+        productions with different friend tags never share (and reuse a stale) tarball.
+        """
+        if getattr(self, "friend_config", ""):
+            return self.friend_mapping[self.friend_config]["friend_tag"]
+        return ""
+
     def htcondor_job_config(self, config, job_num, branches):
         domain = self.htcondor_domain()
 
@@ -608,12 +617,14 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             os.makedirs(f"tarballs/{self.production_tag}")
         # Repack tarball if it is not available remotely
 
+        tarball_subdir = self.job_tarball_subdir()
         if self.is_local_output:
             tarball = law.LocalFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,
                     "job_tarball",
+                    tarball_subdir,
                     "processor.tar.gz",
                 ),
                 fs=law.LocalFileSystem(
@@ -627,6 +638,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     self.production_tag,
                     self.__class__.__name__,
                     "job_tarball",
+                    tarball_subdir,
                     "processor.tar.gz",
                 )
             )
@@ -638,6 +650,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 os.path.join(
                     tarball_dir,
                     task_name,
+                    tarball_subdir,
                     "processor.tar.gz",
                 )
             )
