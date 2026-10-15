@@ -494,6 +494,12 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         significant=False,
     )
 
+    tarball_replicas = luigi.IntParameter(
+        default=10,
+        description="Number of identical copies of the job tarball kept on the remote storage. Each job picks one at random, which spreads the file accesses over several files. Only used for remote (WLCG) output.",
+        significant=False,
+    )
+
     # Use proxy file located in $X509_USER_PROXY or /tmp/x509up_u$(id) if empty
     htcondor_user_proxy = law.wlcg.get_vomsproxy_file()
 
@@ -511,6 +517,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "htcondor_container_image",
         "additional_files",
         "force_repack_tarball",
+        "tarball_replicas",
         "workflow",
         "poll_interval",
     }
@@ -608,29 +615,36 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             os.makedirs(f"tarballs/{self.production_tag}")
         # Repack tarball if it is not available remotely
 
-        if self.is_local_output:
-            tarball = law.LocalFileTarget(
-                os.path.join(
-                    self.production_tag,
-                    self.__class__.__name__,
-                    "job_tarball",
-                    "processor.tar.gz",
-                ),
-                fs=law.LocalFileSystem(
-                    None,
-                    base=f"{os.path.expandvars(self.local_output_path)}",
-                ),
+        # Replica 0 is "processor.tar.gz", further replicas "processor_<i>.tar.gz".
+        # Jobs pick a replica at random (see setup_law_remote.sh) to spread the
+        # file accesses on the storage over several files.
+        n_replicas = 1 if self.is_local_output else max(1, int(self.tarball_replicas))
+
+        def make_tarball_target(index):
+            name = "processor.tar.gz" if index == 0 else f"processor_{index}.tar.gz"
+            path = os.path.join(
+                self.production_tag,
+                self.__class__.__name__,
+                "job_tarball",
+                name,
             )
-        else:
-            tarball = CachedWLCGFileTarget(
-                os.path.join(
-                    self.production_tag,
-                    self.__class__.__name__,
-                    "job_tarball",
-                    "processor.tar.gz",
+            if self.is_local_output:
+                return law.LocalFileTarget(
+                    path,
+                    fs=law.LocalFileSystem(
+                        None,
+                        base=f"{os.path.expandvars(self.local_output_path)}",
+                    ),
                 )
-            )
-        if not tarball.exists() or self.force_repack_tarball:
+            return CachedWLCGFileTarget(path)
+
+        tarballs = [make_tarball_target(i) for i in range(n_replicas)]
+        tarball = tarballs[0]
+        if self.force_repack_tarball:
+            missing = tarballs
+        else:
+            missing = [t for t in tarballs if not t.exists()]
+        if missing:
             # Make new tarball
             # get absolute path to tarball dir
             tarball_dir = os.path.abspath(f"tarballs/{self.production_tag}")
@@ -640,9 +654,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     task_name,
                     "processor.tar.gz",
                 )
-            )
-            print(
-                f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
             )
             tarball_local.parent.touch()
             # Create tarball containing:
@@ -676,10 +687,14 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 raise Exception("tar failed")
             else:
                 console.rule("Successful tar of framework tarball !")
-            # Copy new tarball to remote
-            tarball.parent.touch()
-            tarball.copy_from_local(src=tarball_local.path)
-            console.rule("Framework tarball uploaded!")
+            # Copy new tarball (and its replicas) to remote
+            for target in missing:
+                print(
+                    f"Uploading framework tarball from {tarball_local.path} to {target.path}"
+                )
+                target.parent.touch()
+                target.copy_from_local(src=tarball_local.path)
+            console.rule(f"Framework tarball uploaded ({len(missing)} copies)!")
         config.render_variables["USER"] = self.local_user
         config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME
@@ -698,6 +713,10 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             config.render_variables["TARBALL_PATH"] = (
                 os.path.expandvars(self.local_output_path) + tarball.path
             )
+        config.render_variables["TARBALL_REPLICAS"] = str(n_replicas)
+        config.render_variables["TARBALL_DIR"] = os.path.dirname(
+            config.render_variables["TARBALL_PATH"]
+        )
         config.render_variables["LOCAL_TIMESTAMP"] = startup_time
         config.render_variables["LOCAL_PWD"] = startup_dir
         return config
