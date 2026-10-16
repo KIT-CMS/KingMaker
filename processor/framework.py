@@ -631,7 +631,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 )
             )
         # repack if missing remotely, or once per law run when forced; the lock serializes workflows sharing it
-        tarball_dir = os.path.abspath(os.path.join("tarballs", self.production_tag, task_name))
+        tarball_dir = os.path.abspath(
+            os.path.join("tarballs", self.production_tag, task_name)
+        )
         os.makedirs(tarball_dir, exist_ok=True)
         repacked_marker = os.path.join(tarball_dir, f".repacked_{RUN_ID}")
         # checked once per workflow instance, not for each of its jobs
@@ -641,7 +643,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 if not tarball.exists() or (
                     self.force_repack_tarball and not os.path.exists(repacked_marker)
                 ):
-                    tarball_local = law.LocalFileTarget(os.path.join(tarball_dir, "processor.tar.gz"))
+                    tarball_local = law.LocalFileTarget(
+                        os.path.join(tarball_dir, "processor.tar.gz")
+                    )
                     print(
                         f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
                     )
@@ -681,7 +685,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     tarball.parent.touch()
                     tarball.copy_from_local(src=tarball_local.path, cache=False)
                     console.rule("Framework tarball uploaded!")
-                    for old_marker in glob.glob(os.path.join(tarball_dir, ".repacked_*")):
+                    for old_marker in glob.glob(
+                        os.path.join(tarball_dir, ".repacked_*")
+                    ):
                         os.remove(old_marker)
                     open(repacked_marker, "w").close()
             self._tarball_ready = True
