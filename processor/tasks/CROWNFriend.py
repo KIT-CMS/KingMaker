@@ -477,4 +477,5 @@ class QuantitiesMap(CROWNLocalBuildBase):
                 libdir=self.KingMaker_path("CROWN/.cache"),
             )
             outputfile.parent.touch()
-            outputfile.copy_from_local(local_outputfile)
+            # bypass the law cache: concurrent sandboxes share its dir and race in cache.allocate()
+            outputfile.copy_from_local(local_outputfile, cache=False)
