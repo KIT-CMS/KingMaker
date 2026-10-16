@@ -7,6 +7,8 @@ import select
 import subprocess
 import socket
 import time
+import fcntl
+import functools
 from enum import Enum
 from law.util import interruptable_popen
 from rich.console import Console
@@ -28,7 +30,26 @@ try:
 except:
     pass
 
+# identifies one law run (inherited by its forked workers) for once-per-run actions
+RUN_ID = os.environ.setdefault("KINGMAKER_RUN_ID", f"{os.getpid()}_{int(time.time())}")
+
 law.contrib.load("wlcg", "htcondor", "singularity")
+
+
+@functools.lru_cache(maxsize=None)
+def _multi_match_any(name, patterns):
+    return law.util.multi_match(name, list(patterns), any)
+
+
+def _cached_multi_match(name, patterns, mode=any, regex=None):
+    # law's req_params fnmatches every param against every exclude pattern for each branch task;
+    # the result only depends on the strings, and there are ~10^5 branch tasks per production
+    if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
+        return _multi_match_any(name, frozenset(patterns))
+    return law.util.multi_match(name, patterns, mode=mode, regex=regex)
+
+
+law.task.base.multi_match = _cached_multi_match
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
@@ -86,6 +107,19 @@ def resolve_nanoAOD_version(relative_path, requested_version):
     return matches[0]
 
 
+_dataset_db_cache = {}
+
+
+def load_dataset_db(db_path):
+    # parsed once per file version: resolve_sample_data runs for every sample in the list
+    mtime = os.path.getmtime(db_path)
+    cached = _dataset_db_cache.get(db_path)
+    if cached is None or cached[0] != mtime:
+        with open(db_path) as stream:
+            cached = _dataset_db_cache[db_path] = (mtime, json.load(stream))
+    return cached[1]
+
+
 def resolve_sample_data(nick, requested_version):
     """
     Resolve which sample_database/nanoAOD_v*/datasets.json contains `nick`, and
@@ -110,8 +144,7 @@ def resolve_sample_data(nick, requested_version):
         db_path = os.path.join("sample_database", version, "datasets.json")
         if not os.path.exists(db_path):
             continue
-        with open(db_path) as stream:
-            dataset_db = json.load(stream)
+        dataset_db = load_dataset_db(db_path)
         if nick in dataset_db:
             matches.append((version, dataset_db[nick]))
     if len(matches) == 0:
@@ -132,6 +165,13 @@ def resolve_sample_data(nick, requested_version):
 
 class Task(law.Task):
     local_user = getuser()
+
+    @classmethod
+    def get_params(cls):
+        # luigi rescans dir(cls) on every task creation; parameters never change after class creation
+        if "_cached_params" not in cls.__dict__:
+            cls._cached_params = super().get_params()
+        return list(cls._cached_params)
     wlcg_path = luigi.Parameter(
         description="Base-path to remote file location.",
         significant=False,
@@ -438,7 +478,15 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
         return job_file, c
 
 
+class HTCondorWorkflowProxy(law.contrib.htcondor.workflow.HTCondorWorkflowProxy):
+    def process_resources(self, force=False):
+        # no job declares luigi resources; law would otherwise build every branch task and
+        # check all branch outputs of each workflow just to sum up empty resource dicts
+        return {}
+
+
 class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
+    workflow_proxy_cls = HTCondorWorkflowProxy
     ENV_NAME = luigi.Parameter(description="Environment to be used in HTCondor job.")
     htcondor_accounting_group = luigi.Parameter(
         description="Accounting group to be set in Hthe TCondor job submission."
@@ -513,6 +561,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "force_repack_tarball",
         "workflow",
         "poll_interval",
+        "parallel_jobs",
+        "retries",
     }
     exclude_params_req = (
         Task.exclude_params_req
@@ -603,11 +653,6 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.custom_content.append(("RequestMemory", self.htcondor_request_memory))
         config.custom_content.append(("RequestDisk", self.htcondor_request_disk))
 
-        # Ensure tarball dir exists
-        if not os.path.exists(f"tarballs/{self.production_tag}"):
-            os.makedirs(f"tarballs/{self.production_tag}")
-        # Repack tarball if it is not available remotely
-
         if self.is_local_output:
             tarball = law.LocalFileTarget(
                 os.path.join(
@@ -622,7 +667,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 ),
             )
         else:
-            tarball = CachedWLCGFileTarget(
+            # uncached: a stale exists-cache entry must never hide a deleted tarball
+            tarball = law.wlcg.WLCGFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,
@@ -630,56 +676,62 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     "processor.tar.gz",
                 )
             )
-        if not tarball.exists() or self.force_repack_tarball:
-            # Make new tarball
-            # get absolute path to tarball dir
-            tarball_dir = os.path.abspath(f"tarballs/{self.production_tag}")
-            tarball_local = law.LocalFileTarget(
-                os.path.join(
-                    tarball_dir,
-                    task_name,
-                    "processor.tar.gz",
-                )
-            )
-            print(
-                f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
-            )
-            tarball_local.parent.touch()
-            # Create tarball containing:
-            #   The processor directory, the relevant config files, law
-            #   and any other files specified in the additional_files parameter
-            command = [
-                "tar",
-                "--exclude",
-                "*.pyc",
-                "--exclude",
-                "*.git",
-                "-czf",
-                tarball_local.path,
-                "processor",
-                f"lawluigi_configs/{workflow_name}_luigi.cfg",
-                f"lawluigi_configs/{workflow_name}_law.cfg",
-                "law",
-            ] + list(self.additional_files)
-            code, out, error = interruptable_popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                # rich_console=console
-            )
-            if code != 0:
-                console.log(f"Error when taring job {error}")
-                console.log(f"Output: {out}")
-                console.log(f"tar returned non-zero exit status {code}")
-                console.rule()
-                os.remove(tarball_local.path)
-                raise Exception("tar failed")
-            else:
-                console.rule("Successful tar of framework tarball !")
-            # Copy new tarball to remote
-            tarball.parent.touch()
-            tarball.copy_from_local(src=tarball_local.path)
-            console.rule("Framework tarball uploaded!")
+        # Repack tarball if it is not available remotely, or once per law run when forced;
+        # the lock keeps workflows sharing it from re-uploading under each other's running jobs
+        tarball_dir = os.path.abspath(os.path.join("tarballs", self.production_tag, task_name))
+        os.makedirs(tarball_dir, exist_ok=True)
+        repacked_marker = os.path.join(tarball_dir, f".repacked_{RUN_ID}")
+        # checked once per workflow instance, not for each of its jobs
+        if not getattr(self, "_tarball_ready", False):
+            with open(os.path.join(tarball_dir, ".lock"), "a") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                if not tarball.exists() or (
+                    self.force_repack_tarball and not os.path.exists(repacked_marker)
+                ):
+                    tarball_local = law.LocalFileTarget(os.path.join(tarball_dir, "processor.tar.gz"))
+                    print(
+                        f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
+                    )
+                    tarball_local.parent.touch()
+                    # Create tarball containing:
+                    #   The processor directory, the relevant config files, law
+                    #   and any other files specified in the additional_files parameter
+                    command = [
+                        "tar",
+                        "--exclude",
+                        "*.pyc",
+                        "--exclude",
+                        "*.git",
+                        "-czf",
+                        tarball_local.path,
+                        "processor",
+                        f"lawluigi_configs/{workflow_name}_luigi.cfg",
+                        f"lawluigi_configs/{workflow_name}_law.cfg",
+                        "law",
+                    ] + list(self.additional_files)
+                    code, out, error = interruptable_popen(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        # rich_console=console
+                    )
+                    if code != 0:
+                        console.log(f"Error when taring job {error}")
+                        console.log(f"Output: {out}")
+                        console.log(f"tar returned non-zero exit status {code}")
+                        console.rule()
+                        os.remove(tarball_local.path)
+                        raise Exception("tar failed")
+                    else:
+                        console.rule("Successful tar of framework tarball !")
+                    # Copy new tarball to remote
+                    tarball.parent.touch()
+                    tarball.copy_from_local(src=tarball_local.path, cache=False)
+                    console.rule("Framework tarball uploaded!")
+                    for old_marker in glob.glob(os.path.join(tarball_dir, ".repacked_*")):
+                        os.remove(old_marker)
+                    open(repacked_marker, "w").close()
+            self._tarball_ready = True
         config.render_variables["USER"] = self.local_user
         config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME

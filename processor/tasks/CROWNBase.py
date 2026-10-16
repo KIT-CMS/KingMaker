@@ -5,7 +5,6 @@ import json
 import shutil
 import tarfile
 import subprocess
-import sys
 import fcntl
 import contextlib
 from framework import (
@@ -15,6 +14,7 @@ from framework import (
     KingmakerSandbox,
     sandbox_pre_setup_cmds_factory,
     resolve_sample_data,
+    load_dataset_db,
 )
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -35,10 +35,33 @@ class ProduceBase(WrapperTask, Task):
     dataset_database = luigi.Parameter(default="", significant=False)
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
+    # generic flags, applied to every task class that defines them (see apply_generic_flags)
+    force_repack_tarball = luigi.BoolParameter(
+        default=False,
+        significant=False,
+        description="Repack and re-upload every job tarball once in this run.",
+    )
+    poll_interval = luigi.OptionalParameter(
+        default=None,
+        significant=False,
+        description="Polling interval of all htcondor workflows, e.g. 5min.",
+    )
+    parallel_jobs = luigi.OptionalIntParameter(
+        default=None,
+        significant=False,
+        description="Maximum number of running jobs per htcondor workflow.",
+    )
+    retries = luigi.OptionalIntParameter(
+        default=None,
+        significant=False,
+        description="Automatic resubmissions per job for all htcondor workflows.",
+    )
+    generic_flags = ("force_repack_tarball", "poll_interval", "parallel_jobs", "retries")
     silent = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.apply_generic_flags()
         # Only pin dataset_database to a single version's datasets.json when a
         # nanoAOD_version was requested explicitly, matching the historical
         # single-version behavior. If nanoAOD_version is left unset, dataset_database
@@ -48,6 +71,25 @@ class ProduceBase(WrapperTask, Task):
             self.dataset_database = (
                 f"sample_database/{self.nanoAOD_version}/datasets.json"
             )
+
+    def apply_generic_flags(self):
+        # write the flags into each owning task's config section: every instance created later
+        # picks them up, while being root-task args they are never forwarded into sandboxes
+        cfg = luigi.configuration.get_config()
+        values = {
+            name: getattr(self, name)
+            for name in self.generic_flags
+            if getattr(self, name) not in (None, False)
+        }
+        for family, cls in luigi.task_register.Register._get_reg().items():
+            if not isinstance(cls, type) or issubclass(cls, ProduceBase):
+                continue
+            params = cls.get_param_names(include_significant=True)
+            for name, value in values.items():
+                if name in params:
+                    if not cfg.has_section(family):
+                        cfg.add_section(family)
+                    cfg.set(family, name, str(value))
 
     def parse_samplelist(self, sample_list):
         """
@@ -128,8 +170,7 @@ class ProduceBase(WrapperTask, Task):
         # sample's version is resolved individually, so the list can span versions.
         sample_db = None
         if self.dataset_database:
-            with open(str(self.dataset_database), "r") as stream:
-                sample_db = json.load(stream)
+            sample_db = load_dataset_db(str(self.dataset_database))
 
         for nick in samples:
             data["details"][nick] = {}
@@ -297,12 +338,6 @@ class CROWNBuildBase:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir)
         os.makedirs(staging_dir, exist_ok=True)
-        # the job has no sample_database: build the norm/STXS tables here so they ship inside data/
-        norm_script = os.path.join(crown_path, "analysis_configurations", str(self.analysis), "norm_table.py")
-        if os.path.exists(norm_script):
-            combos = getattr(self, "required_build_combinations", None)
-            sample_types = {c[0] for c in combos} if combos else getattr(self, "all_sample_types", [])
-            subprocess.check_call([sys.executable, norm_script, os.path.join(crown_path, "data", "normalization"), *sample_types])
         for subdir in (
             "src",
             "include",
@@ -319,6 +354,12 @@ class CROWNBuildBase:
                     os.path.join(staging_dir, subdir),
                     ignore=shutil.ignore_patterns("__pycache__"),
                 )
+        # friend jobs have no sample_database: ship the tables built on demand by samplemanager.scripts.build_norm_table
+        if getattr(self, "friend_config", ""):
+            norm_tables = os.path.abspath(os.path.join("sample_database", "norm_tables"))
+            if not os.path.exists(os.path.join(norm_tables, "norm_table.json")):
+                raise FileNotFoundError(f"{norm_tables} has no norm_table.json: run `python -m samplemanager.scripts.build_norm_table` in sample_database")
+            shutil.copytree(norm_tables, os.path.join(staging_dir, "data", "normalization"), dirs_exist_ok=True)
         for filename in ("CMakeLists.txt", "generate.py"):
             shutil.copy2(
                 os.path.join(crown_path, filename),
