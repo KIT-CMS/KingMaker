@@ -171,6 +171,7 @@ class Task(law.Task):
         if "_cached_params" not in cls.__dict__:
             cls._cached_params = super().get_params()
         return list(cls._cached_params)
+
     wlcg_path = luigi.Parameter(
         description="Base-path to remote file location.",
         significant=False,

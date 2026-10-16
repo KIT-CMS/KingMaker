@@ -100,7 +100,9 @@ class CROWNFriend(CROWNExecuteBase):
 
     def workflow_complete(self):
         # same targets as the workflow collection, without instantiating every branch task (~650 per sample)
-        targets = {b: self.branch_output(data) for b, data in self.get_branch_map().items()}
+        targets = {
+            b: self.branch_output(data) for b, data in self.get_branch_map().items()
+        }
         return self.output_collection_cls(
             targets, threshold=self.workflow_proxy.threshold(len(targets))
         ).complete()

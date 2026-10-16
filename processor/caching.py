@@ -285,7 +285,9 @@ class CachedNestedSiblingFileCollection(
         if basenames is None:
             # dedupe by uri: every t.parent is a new object, a set of them never collapses
             unique_dirs = {
-                (t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)): t.parent
+                (
+                    t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
+                ): t.parent
                 for t in all_targets
                 if hasattr(t, "parent")
             }
