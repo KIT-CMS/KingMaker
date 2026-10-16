@@ -346,7 +346,9 @@ class CROWNBuildBase:
                 shutil.copytree(
                     src,
                     os.path.join(staging_dir, subdir),
-                    ignore=shutil.ignore_patterns("__pycache__"),
+                    ignore=shutil.ignore_patterns(
+                        "__pycache__", ".git", "generation_logs", "payloads"
+                    ),
                 )
         # friend builds ship only the modules their config imports and the data/payloads paths these name
         if friend_config:
