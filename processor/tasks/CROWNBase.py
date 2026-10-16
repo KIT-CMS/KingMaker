@@ -63,10 +63,33 @@ class ProduceBase(WrapperTask, Task):
     dataset_database = luigi.Parameter(default="", significant=False)
     shifts = luigi.Parameter()
     scopes = luigi.Parameter()
+    # generic flags, applied to every task class that defines them (see apply_generic_flags)
+    force_repack_tarball = luigi.BoolParameter(
+        default=False,
+        significant=False,
+        description="Repack and re-upload every job tarball once in this run.",
+    )
+    poll_interval = luigi.OptionalParameter(
+        default=None,
+        significant=False,
+        description="Polling interval of all htcondor workflows, e.g. 5min.",
+    )
+    parallel_jobs = luigi.OptionalIntParameter(
+        default=None,
+        significant=False,
+        description="Maximum number of running jobs per htcondor workflow.",
+    )
+    retries = luigi.OptionalIntParameter(
+        default=None,
+        significant=False,
+        description="Automatic resubmissions per job for all htcondor workflows.",
+    )
+    generic_flags = ("force_repack_tarball", "poll_interval", "parallel_jobs", "retries")
     silent = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.apply_generic_flags()
         # Only pin dataset_database to a single version's datasets.json when a
         # nanoAOD_version was requested explicitly, matching the historical
         # single-version behavior. If nanoAOD_version is left unset, dataset_database
@@ -76,6 +99,24 @@ class ProduceBase(WrapperTask, Task):
             self.dataset_database = (
                 f"sample_database/{self.nanoAOD_version}/datasets.json"
             )
+
+    def apply_generic_flags(self):
+        # set via each task's config section, so root-task args never get forwarded into sandboxes
+        cfg = luigi.configuration.get_config()
+        values = {
+            name: getattr(self, name)
+            for name in self.generic_flags
+            if getattr(self, name) not in (None, False)
+        }
+        for family, cls in luigi.task_register.Register._get_reg().items():
+            if not isinstance(cls, type) or issubclass(cls, ProduceBase):
+                continue
+            params = cls.get_param_names(include_significant=True)
+            for name, value in values.items():
+                if name in params:
+                    if not cfg.has_section(family):
+                        cfg.add_section(family)
+                    cfg.set(family, name, str(value))
 
     def parse_samplelist(self, sample_list):
         """
