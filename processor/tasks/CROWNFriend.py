@@ -96,30 +96,39 @@ class CROWNFriend(CROWNExecuteBase):
         return branch_map
 
     def output(self):
+        return self.branch_output(self.branch_data)
+
+    def workflow_complete(self):
+        # same targets as the workflow collection, without instantiating every branch task (~650 per sample)
+        targets = {b: self.branch_output(data) for b, data in self.get_branch_map().items()}
+        return self.output_collection_cls(
+            targets, threshold=self.workflow_proxy.threshold(len(targets))
+        ).complete()
+
+    def branch_output(self, branch_data):
         """
-        The function `output` generates a file path based on various input parameters and returns the
-        corresponding file target.
-        :return: The `target` variable is being returned.
+        The function `branch_output` generates the file paths of the branch with `branch_data` and returns the
+        corresponding file targets.
         """
         friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
         nicks = [
             "{friendtag}/{era}/{nick}/{scope}/{nick}_{branch}.root".format(
                 friendtag=friend_tag,
-                era=self.branch_data["era"],
-                nick=self.branch_data["nick"],
-                branch=self.branch_data["filecounter"],
-                scope=self.branch_data["scope"],
+                era=branch_data["era"],
+                nick=branch_data["nick"],
+                branch=branch_data["filecounter"],
+                scope=branch_data["scope"],
             )
         ]
         # quantities_map json for each scope only needs to be created once per sample
-        if self.branch_data["filecounter"] == 0:
+        if branch_data["filecounter"] == 0:
             friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
             nicks.append(
                 "{friendtag}/{era}/{nick}/{scope}/{era}_{nick}_{scope}_quantities_map.json".format(
                     friendtag=friend_tag,
-                    era=self.branch_data["era"],
-                    nick=self.branch_data["nick"],
-                    scope=self.branch_data["scope"],
+                    era=branch_data["era"],
+                    nick=branch_data["nick"],
+                    scope=branch_data["scope"],
                 )
             )
 

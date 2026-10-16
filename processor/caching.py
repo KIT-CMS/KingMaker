@@ -283,10 +283,14 @@ class CachedNestedSiblingFileCollection(
 
         # 2. If not cached, fetch live directory contents for all unique directories
         if basenames is None:
-            unique_dirs = {t.parent for t in all_targets if hasattr(t, "parent")}
+            # dedupe by uri: every t.parent is a new object, a set of them never collapses
+            unique_dirs = {
+                (t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)): t.parent
+                for t in all_targets
+                if hasattr(t, "parent")
+            }
             basenames = {}
-            for d in unique_dirs:
-                dir_key = d.uri() if hasattr(d, "uri") else str(d.path)
+            for dir_key, d in unique_dirs.items():
                 if d.exists():
                     basenames[dir_key] = set(d.listdir())
                 else:

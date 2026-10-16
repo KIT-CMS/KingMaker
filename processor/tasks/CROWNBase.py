@@ -17,6 +17,7 @@ from framework import (
     KingmakerSandbox,
     sandbox_pre_setup_cmds_factory,
     resolve_sample_data,
+    load_dataset_db,
 )
 from law.task.base import WrapperTask
 from rich.table import Table
@@ -160,8 +161,7 @@ class ProduceBase(WrapperTask, Task):
         # sample's version is resolved individually, so the list can span versions.
         sample_db = None
         if self.dataset_database:
-            with open(str(self.dataset_database), "r") as stream:
-                sample_db = json.load(stream)
+            sample_db = load_dataset_db(str(self.dataset_database))
 
         for nick in samples:
             data["details"][nick] = {}
