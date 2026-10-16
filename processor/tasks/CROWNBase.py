@@ -84,7 +84,12 @@ class ProduceBase(WrapperTask, Task):
         significant=False,
         description="Automatic resubmissions per job for all htcondor workflows.",
     )
-    generic_flags = ("force_repack_tarball", "poll_interval", "parallel_jobs", "retries")
+    generic_flags = (
+        "force_repack_tarball",
+        "poll_interval",
+        "parallel_jobs",
+        "retries",
+    )
     silent = False
 
     def __init__(self, *args, **kwargs):
