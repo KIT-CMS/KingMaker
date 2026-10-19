@@ -386,8 +386,8 @@ class BuildCROWNLib(CROWNLocalBuildBase):
         evaluated inside remote CROWNBuild condor jobs (law recomputes
         workflow_requires() there, which resolves BuildCROWNLib.output()). Those jobs
         don't have the full "CROWN" checkout, only the staged copy CROWNBuild
-        ships in build_staging/CROWN_src - which contains exactly the subdirs/file
-        hashed below, so falling back to it here reproduces the same hash/filename
+        ships in build_staging/CROWN_src - which contains the subdirs/file hashed
+        below unchanged, so falling back to it here reproduces the same hash/filename
         that the local run already uploaded under.
         """
         crown_path = os.path.abspath("CROWN")
@@ -397,7 +397,12 @@ class BuildCROWNLib(CROWNLocalBuildBase):
             cached = _source_hash_cache.get(crown_path)
         if cached is not None:
             return cached
-        subdirs = ["src", "include", "analysis_configurations"]
+        # only what CROWNLIB compiles: staging keeps these whole, so the staged copy hashes the same
+        subdirs = [
+            "src",
+            "include",
+            os.path.join("analysis_configurations", str(self.analysis), "cpp_addons"),
+        ]
         h = hashlib.sha256()
         for subdir in sorted(subdirs):
             dirpath = os.path.join(crown_path, subdir)
