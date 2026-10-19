@@ -636,61 +636,56 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         )
         os.makedirs(tarball_dir, exist_ok=True)
         repacked_marker = os.path.join(tarball_dir, f".repacked_{RUN_ID}")
-        # checked once per workflow instance, not for each of its jobs
-        if not getattr(self, "_tarball_ready", False):
-            with open(os.path.join(tarball_dir, ".lock"), "a") as lock:
-                fcntl.flock(lock, fcntl.LOCK_EX)
-                if not tarball.exists() or (
-                    self.force_repack_tarball and not os.path.exists(repacked_marker)
+        with open(os.path.join(tarball_dir, ".lock"), "a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if not tarball.exists() or (
+                self.force_repack_tarball and not os.path.exists(repacked_marker)
+            ):
+                tarball_local = law.LocalFileTarget(
+                    os.path.join(tarball_dir, "processor.tar.gz")
+                )
+                print(
+                    f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
+                )
+                tarball_local.parent.touch()
+                # Create tarball containing:
+                #   The processor directory, the relevant config files, law
+                #   and any other files specified in the additional_files parameter
+                command = [
+                    "tar",
+                    "--exclude",
+                    "*.pyc",
+                    "--exclude",
+                    "*.git",
+                    "-czf",
+                    tarball_local.path,
+                    "processor",
+                    f"lawluigi_configs/{workflow_name}_luigi.cfg",
+                    f"lawluigi_configs/{workflow_name}_law.cfg",
+                    "law",
+                ] + list(self.additional_files)
+                code, out, error = interruptable_popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                if code != 0:
+                    console.log(f"Error when taring job {error}")
+                    console.log(f"Output: {out}")
+                    console.log(f"tar returned non-zero exit status {code}")
+                    console.rule()
+                    os.remove(tarball_local.path)
+                    raise Exception("tar failed")
+                else:
+                    console.rule("Successful tar of framework tarball !")
+                tarball.parent.touch()
+                tarball.copy_from_local(src=tarball_local.path, cache=False)
+                console.rule("Framework tarball uploaded!")
+                for old_marker in glob.glob(
+                    os.path.join(tarball_dir, ".repacked_*")
                 ):
-                    tarball_local = law.LocalFileTarget(
-                        os.path.join(tarball_dir, "processor.tar.gz")
-                    )
-                    print(
-                        f"Uploading framework tarball from {tarball_local.path} to {tarball.path}"
-                    )
-                    tarball_local.parent.touch()
-                    # Create tarball containing:
-                    #   The processor directory, the relevant config files, law
-                    #   and any other files specified in the additional_files parameter
-                    command = [
-                        "tar",
-                        "--exclude",
-                        "*.pyc",
-                        "--exclude",
-                        "*.git",
-                        "-czf",
-                        tarball_local.path,
-                        "processor",
-                        f"lawluigi_configs/{workflow_name}_luigi.cfg",
-                        f"lawluigi_configs/{workflow_name}_law.cfg",
-                        "law",
-                    ] + list(self.additional_files)
-                    code, out, error = interruptable_popen(
-                        command,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        # rich_console=console
-                    )
-                    if code != 0:
-                        console.log(f"Error when taring job {error}")
-                        console.log(f"Output: {out}")
-                        console.log(f"tar returned non-zero exit status {code}")
-                        console.rule()
-                        os.remove(tarball_local.path)
-                        raise Exception("tar failed")
-                    else:
-                        console.rule("Successful tar of framework tarball !")
-                    # Copy new tarball to remote
-                    tarball.parent.touch()
-                    tarball.copy_from_local(src=tarball_local.path, cache=False)
-                    console.rule("Framework tarball uploaded!")
-                    for old_marker in glob.glob(
-                        os.path.join(tarball_dir, ".repacked_*")
-                    ):
-                        os.remove(old_marker)
-                    open(repacked_marker, "w").close()
-            self._tarball_ready = True
+                    os.remove(old_marker)
+                open(repacked_marker, "w").close()
         config.render_variables["USER"] = self.local_user
         config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME
