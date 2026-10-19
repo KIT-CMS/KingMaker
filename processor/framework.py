@@ -681,11 +681,10 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                 tarball.parent.touch()
                 tarball.copy_from_local(src=tarball_local.path, cache=False)
                 console.rule("Framework tarball uploaded!")
-                for old_marker in glob.glob(
-                    os.path.join(tarball_dir, ".repacked_*")
-                ):
+                for old_marker in glob.glob(os.path.join(tarball_dir, ".repacked_*")):
                     os.remove(old_marker)
                 open(repacked_marker, "w").close()
+
         config.render_variables["USER"] = self.local_user
         config.render_variables["WF_NAME"] = os.getenv("WF_NAME")
         config.render_variables["ENV_NAME"] = self.ENV_NAME
