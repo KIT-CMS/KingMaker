@@ -96,11 +96,13 @@ def resolve_nanoAOD_version(relative_path, requested_version):
 def _multi_match_any(name, patterns):
     return law.util.multi_match(name, list(patterns), any)
 
+
 def _cached_multi_match(name, patterns, mode=any, regex=None):
     # law's req_params fnmatches every param against every exclude pattern for each of ~10^5 branch tasks
     if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
         return _multi_match_any(name, frozenset(patterns))
     return law.util.multi_match(name, patterns, mode=mode, regex=regex)
+
 
 law.task.base.multi_match = _cached_multi_match
 
