@@ -99,7 +99,7 @@ class CROWNFriend(CROWNExecuteBase):
         return self.branch_output(self.branch_data)
 
     def workflow_complete(self):
-        # same targets as the workflow collection, without instantiating every branch task (~650 per sample)
+        # same targets as the workflow collection, without instantiating every branch task
         targets = {
             b: self.branch_output(data) for b, data in self.get_branch_map().items()
         }
