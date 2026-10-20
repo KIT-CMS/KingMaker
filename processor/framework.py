@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import functools
 import luigi
 import law
 import select
@@ -91,6 +92,27 @@ def resolve_nanoAOD_version(relative_path, requested_version):
     return matches[0]
 
 
+@functools.lru_cache(maxsize=None)
+def _multi_match_any(name, patterns):
+    return law.util.multi_match(name, list(patterns), any)
+
+
+def _cached_multi_match(name, patterns, mode=any, regex=None):
+    # law's req_params fnmatches every param against every exclude pattern for each of ~10^5 branch tasks
+    if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
+        return _multi_match_any(name, frozenset(patterns))
+    return law.util.multi_match(name, patterns, mode=mode, regex=regex)
+
+
+law.task.base.multi_match = _cached_multi_match
+
+
+@functools.lru_cache(maxsize=None)
+def load_dataset_db(db_path):
+    with open(db_path) as stream:
+        return json.load(stream)
+
+
 def resolve_sample_data(nick, requested_version):
     """
     Resolve which sample_database/nanoAOD_v*/datasets.json contains `nick`, and
@@ -115,8 +137,7 @@ def resolve_sample_data(nick, requested_version):
         db_path = os.path.join("sample_database", version, "datasets.json")
         if not os.path.exists(db_path):
             continue
-        with open(db_path) as stream:
-            dataset_db = json.load(stream)
+        dataset_db = load_dataset_db(db_path)
         if nick in dataset_db:
             matches.append((version, dataset_db[nick]))
     if len(matches) == 0:
@@ -137,6 +158,14 @@ def resolve_sample_data(nick, requested_version):
 
 class Task(law.Task):
     local_user = getuser()
+
+    @classmethod
+    def get_params(cls):
+        # luigi rescans dir(cls) on every task creation; parameters never change after class creation
+        if "_cached_params" not in cls.__dict__:
+            cls._cached_params = super().get_params()
+        return list(cls._cached_params)
+
     wlcg_path = luigi.Parameter(
         description="Base-path to remote file location.",
         significant=False,
@@ -456,7 +485,14 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
         return job_file, c
 
 
+class HTCondorWorkflowProxy(law.contrib.htcondor.workflow.HTCondorWorkflowProxy):
+    def process_resources(self, force=False):
+        # no job declares luigi resources; law would build every branch task just to sum empty dicts
+        return {}
+
+
 class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
+    workflow_proxy_cls = HTCondorWorkflowProxy
     ENV_NAME = luigi.Parameter(description="Environment to be used in HTCondor job.")
     htcondor_accounting_group = luigi.Parameter(
         description="Accounting group to be set in Hthe TCondor job submission."
@@ -597,10 +633,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # Write job config file
         log_base_path = self.htcondor_log_directory().abspath
         config.custom_log_file = os.path.join("All_$(JobId).txt")
-        # config.stdout = "Out_$(JobId).txt"
-        # config.stderr = "Err_$(JobId).txt"
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
-        # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
+
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
