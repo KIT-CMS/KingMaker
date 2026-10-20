@@ -30,7 +30,10 @@ def friend_config_modules(analysis_path, friend_config):
     Python files of an analysis that generating friend_config needs: generate_friends.py, the
     config and everything they import relatively, followed recursively.
     """
-    todo = [os.path.join(analysis_path, name + ".py") for name in ("generate_friends", friend_config)]
+    todo = [
+        os.path.join(analysis_path, name + ".py")
+        for name in ("generate_friends", friend_config)
+    ]
     found = set()
     while todo:
         path = todo.pop()
@@ -348,15 +351,23 @@ class CROWNBuildBase:
         # friend builds ship only the modules their config imports and the data/payloads paths these name
         if friend_config:
             references = set()
-            for module in friend_config_modules(os.path.join(crown_path, analysis_dir), friend_config):
+            for module in friend_config_modules(
+                os.path.join(crown_path, analysis_dir), friend_config
+            ):
                 dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(module, dst)
                 with open(module) as f:
-                    references.update(re.findall(r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read()))
+                    references.update(
+                        re.findall(
+                            r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read()
+                        )
+                    )
             for reference in references:
                 base = analysis_dir if reference.startswith("payloads/") else ""
-                for src in glob.glob(os.path.join(crown_path, base, re.sub(r"\{[^}]*\}", "*", reference))):
+                for src in glob.glob(
+                    os.path.join(crown_path, base, re.sub(r"\{[^}]*\}", "*", reference))
+                ):
                     dst = os.path.join(staging_dir, os.path.relpath(src, crown_path))
                     if os.path.isdir(src):
                         shutil.copytree(src, dst, dirs_exist_ok=True)
