@@ -96,27 +96,19 @@ def resolve_nanoAOD_version(relative_path, requested_version):
 def _multi_match_any(name, patterns):
     return law.util.multi_match(name, list(patterns), any)
 
-
 def _cached_multi_match(name, patterns, mode=any, regex=None):
     # law's req_params fnmatches every param against every exclude pattern for each of ~10^5 branch tasks
     if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
         return _multi_match_any(name, frozenset(patterns))
     return law.util.multi_match(name, patterns, mode=mode, regex=regex)
 
-
 law.task.base.multi_match = _cached_multi_match
 
-_dataset_db_cache = {}
 
-
+@functools.lru_cache(maxsize=None)
 def load_dataset_db(db_path):
-    # parsed once per file version: resolve_sample_data runs for every sample in the list
-    mtime = os.path.getmtime(db_path)
-    cached = _dataset_db_cache.get(db_path)
-    if cached is None or cached[0] != mtime:
-        with open(db_path) as stream:
-            cached = _dataset_db_cache[db_path] = (mtime, json.load(stream))
-    return cached[1]
+    with open(db_path) as stream:
+        return json.load(stream)
 
 
 def resolve_sample_data(nick, requested_version):
@@ -639,10 +631,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # Write job config file
         log_base_path = self.htcondor_log_directory().abspath
         config.custom_log_file = os.path.join("All_$(JobId).txt")
-        # config.stdout = "Out_$(JobId).txt"
-        # config.stderr = "Err_$(JobId).txt"
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
-        # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
+
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
