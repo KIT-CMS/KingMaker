@@ -178,25 +178,6 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
         return exists
 
 
-class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
-    cache_ttl = 86400
-
-    def _cache_key(self):
-        return self.uri() if hasattr(self, "uri") else str(self.path)
-
-    def exists(self):
-        key = self._cache_key()
-        with CACHE_LOCK:
-            _ensure_target_cache_loaded()
-            if cache_get_exists(key, self.cache_ttl):
-                return True
-
-        exists = super().exists()
-        if exists:
-            _queue_cache_update(key, {"ts": time.time()})
-        return exists
-
-
 class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
     cache_ttl = 86400
 
@@ -273,36 +254,25 @@ class CachedNestedSiblingFileCollection(
             # Mock the basenames dict mapping {dir_key: set(files)}
             basenames = {}
             for t in all_targets:
-                dir_key = (
-                    t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
+                basenames.setdefault(t.parent.abspath, set()).add(
+                    os.path.basename(t.path)
                 )
-                basenames.setdefault(dir_key, set()).add(os.path.basename(t.path))
             return super()._iter_state(
                 existing, optional_existing, basenames, keys, unpack, exists_func
             )
 
         # 2. If not cached, fetch live directory contents for all unique directories
         if basenames is None:
-            # dedupe by uri: every t.parent is a new object, a set of them never collapses
-            unique_dirs = {
-                (
-                    t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
-                ): t.parent
-                for t in all_targets
-                if hasattr(t, "parent")
+            # law already groups targets into one sibling collection per directory
+            basenames = {
+                col.dir.abspath: (set(col.dir.listdir()) if col.dir.exists() else set())
+                for col in self.collections
             }
-            basenames = {}
-            for dir_key, d in unique_dirs.items():
-                if d.exists():
-                    basenames[dir_key] = set(d.listdir())
-                else:
-                    basenames[dir_key] = set()
 
         # 3. Check if ALL items are present across all nested directories
         all_present = True
         for t in all_targets:
-            dir_key = t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
-            if os.path.basename(t.path) not in basenames.get(dir_key, set()):
+            if os.path.basename(t.path) not in basenames.get(t.parent.abspath, set()):
                 all_present = False
                 break
 
