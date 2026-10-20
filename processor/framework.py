@@ -611,6 +611,15 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         hostfile = self.bootstrap_file
         return law.util.rel_path(__file__, hostfile)
 
+    def job_tarball_subdir(self):
+        """
+        Subfolder of the job tarball path. Friend tasks use their friend tag, so
+        productions with different friend tags never share (and reuse a stale) tarball.
+        """
+        if getattr(self, "friend_config", ""):
+            return self.friend_mapping[self.friend_config]["friend_tag"]
+        return ""
+
     def htcondor_job_config(self, config, job_num, branches):
         domain = self.htcondor_domain()
 
@@ -653,12 +662,14 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         config.custom_content.append(("RequestMemory", self.htcondor_request_memory))
         config.custom_content.append(("RequestDisk", self.htcondor_request_disk))
 
+        tarball_subdir = self.job_tarball_subdir()
         if self.is_local_output:
             tarball = law.LocalFileTarget(
                 os.path.join(
                     self.production_tag,
                     self.__class__.__name__,
                     "job_tarball",
+                    tarball_subdir,
                     "processor.tar.gz",
                 ),
                 fs=law.LocalFileSystem(
@@ -673,12 +684,13 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
                     self.production_tag,
                     self.__class__.__name__,
                     "job_tarball",
+                    tarball_subdir,
                     "processor.tar.gz",
                 )
             )
         # Repack tarball if it is not available remotely, or once per law run when forced;
         # the lock keeps workflows sharing it from re-uploading under each other's running jobs
-        tarball_dir = os.path.abspath(os.path.join("tarballs", self.production_tag, task_name))
+        tarball_dir = os.path.abspath(os.path.join("tarballs", self.production_tag, task_name, tarball_subdir))
         os.makedirs(tarball_dir, exist_ok=True)
         repacked_marker = os.path.join(tarball_dir, f".repacked_{RUN_ID}")
         # checked once per workflow instance, not for each of its jobs

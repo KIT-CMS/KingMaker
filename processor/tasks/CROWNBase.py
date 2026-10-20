@@ -2,6 +2,7 @@ import law
 import luigi
 import os
 import re
+import ast
 import glob
 import json
 import shutil
@@ -23,6 +24,33 @@ from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
 import hashlib
 import time
+
+
+def friend_config_modules(analysis_path, friend_config):
+    """
+    Python files of an analysis that generating friend_config needs: generate_friends.py, the
+    config and everything they import relatively, followed recursively.
+    """
+    todo = [os.path.join(analysis_path, name + ".py") for name in ("generate_friends", friend_config)]
+    found = set()
+    while todo:
+        path = todo.pop()
+        if path in found or not os.path.isfile(path):
+            continue
+        found.add(path)
+        with open(path) as f:
+            tree = ast.parse(f.read(), filename=path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.level == 0:
+                continue
+            base = os.path.dirname(path)
+            for _ in range(node.level - 1):
+                base = os.path.dirname(base)
+            if node.module:
+                base = os.path.join(base, *node.module.split("."))
+                todo.append(base + ".py")
+            todo += [os.path.join(base, alias.name + ".py") for alias in node.names]
+    return found
 
 
 class ProduceBase(WrapperTask, Task):
@@ -340,16 +368,24 @@ class CROWNBuildBase:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir)
         os.makedirs(staging_dir, exist_ok=True)
+        friend_config = getattr(self, "friend_config", "")
         analysis_dir = os.path.join("analysis_configurations", str(self.analysis))
-        for subdir in (
+        subdirs = [
             "src",
             "include",
-            analysis_dir,
             os.path.join("analysis_configurations", "quantities"),
             "cmake",
             "tests",
             "code_generation",
-        ):
+        ]
+        # friend builds get only the modules their config imports, main builds the whole analysis
+        if friend_config:
+            subdirs += [os.path.join(analysis_dir, "cpp_addons"), os.path.join(analysis_dir, "quantities")]
+            configs = friend_config_modules(os.path.join(crown_path, analysis_dir), friend_config)
+        else:
+            subdirs.append(analysis_dir)
+            configs = glob.glob(os.path.join(crown_path, analysis_dir, "**", "*.py"), recursive=True)
+        for subdir in subdirs:
             src = os.path.join(crown_path, subdir)
             if os.path.exists(src):
                 shutil.copytree(
@@ -359,11 +395,14 @@ class CROWNBuildBase:
                         "__pycache__", ".git", "generation_logs", "payloads"
                     ),
                 )
+        if friend_config:
+            for module in configs:
+                dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(module, dst)
         # ship only data/payloads paths the config names, f-string fields as wildcards
         references = set()
-        for config in glob.glob(
-            os.path.join(crown_path, analysis_dir, "**", "*.py"), recursive=True
-        ):
+        for config in configs:
             with open(config) as f:
                 references.update(
                     re.findall(r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read())
@@ -379,7 +418,7 @@ class CROWNBuildBase:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
         # friend jobs have no sample_database: ship the tables built on demand by samplemanager.scripts.build_norm_table
-        if getattr(self, "friend_config", ""):
+        if friend_config:
             norm_tables = os.path.abspath(os.path.join("sample_database", "norm_tables"))
             if not os.path.exists(os.path.join(norm_tables, "norm_table.json")):
                 raise FileNotFoundError(f"{norm_tables} has no norm_table.json: run `python -m samplemanager.scripts.build_norm_table` in sample_database")
