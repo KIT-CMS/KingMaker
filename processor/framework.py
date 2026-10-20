@@ -15,6 +15,7 @@ from datetime import datetime
 from tempfile import mkdtemp
 from getpass import getuser
 from caching import (
+    set_ignore_cache,
     CachedNestedSiblingFileCollection,
     CachedSiblingFileCollection,
     CachedWLCGFileTarget,
@@ -150,6 +151,14 @@ class Task(law.Task):
         default=False,
         significant=False,
     )
+    ignore_target_cache = luigi.BoolParameter(
+        description=(
+            "Ignore the cache of remote target existence checks and always query the "
+            "remote storage. Use this if outputs changed but are still considered existing."
+        ),
+        default=False,
+        significant=False,
+    )
 
     # Modify production_tag to check for override
     production_tag = luigi.Parameter(
@@ -174,6 +183,11 @@ class Task(law.Task):
 
     # Set default for all inheriting Tasks
     output_collection_cls = CachedNestedSiblingFileCollection
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.ignore_target_cache:
+            set_ignore_cache(True)
 
     def KingMaker_path(self, *path):
         parts = (os.getenv("ANALYSIS_PATH"),) + path

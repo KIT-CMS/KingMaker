@@ -24,6 +24,12 @@ MAX_CACHE_ENTRY_AGE = 7 * 86400
 FLUSH_BATCH_SIZE = 25
 FLUSH_INTERVAL = 5.0
 
+IGNORE_CACHE = os.getenv("KINGMAKER_IGNORE_TARGET_CACHE", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 _PENDING_UPDATES = {}
 _PENDING_LOCK = Lock()
 _LAST_FLUSH_TIME = 0
@@ -117,7 +123,14 @@ def _ensure_target_cache_loaded():
         _TARGET_CACHE_MTIME = mtime
 
 
+def set_ignore_cache(value=True):
+    global IGNORE_CACHE
+    IGNORE_CACHE = bool(value) or IGNORE_CACHE
+
+
 def cache_get_exists(key, ttl):
+    if IGNORE_CACHE:
+        return False
     entry = _TARGET_CACHE.get(key)
     if not entry:
         return False
