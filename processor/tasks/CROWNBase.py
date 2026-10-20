@@ -1,6 +1,9 @@
 import law
 import luigi
 import os
+import re
+import ast
+import glob
 import json
 import shutil
 import tarfile
@@ -20,6 +23,36 @@ from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
 import hashlib
 import time
+
+
+def friend_config_modules(analysis_path, friend_config):
+    """
+    Python files of an analysis that generating friend_config needs: generate_friends.py, the
+    config and everything they import relatively, followed recursively.
+    """
+    todo = [
+        os.path.join(analysis_path, name + ".py")
+        for name in ("generate_friends", friend_config)
+    ]
+    found = set()
+    while todo:
+        path = todo.pop()
+        if path in found or not os.path.isfile(path):
+            continue
+        found.add(path)
+        with open(path) as f:
+            tree = ast.parse(f.read(), filename=path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.level == 0:
+                continue
+            base = os.path.dirname(path)
+            for _ in range(node.level - 1):
+                base = os.path.dirname(base)
+            if node.module:
+                base = os.path.join(base, *node.module.split("."))
+                todo.append(base + ".py")
+            todo += [os.path.join(base, alias.name + ".py") for alias in node.names]
+    return found
 
 
 class ProduceBase(WrapperTask, Task):
@@ -296,15 +329,18 @@ class CROWNBuildBase:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir)
         os.makedirs(staging_dir, exist_ok=True)
-        for subdir in (
-            "src",
-            "include",
-            "analysis_configurations",
-            "cmake",
-            "tests",
-            "code_generation",
-            "data",
-        ):
+        friend_config = getattr(self, "friend_config", "")
+        analysis_dir = os.path.join("analysis_configurations", str(self.analysis))
+        subdirs = ["src", "include", "cmake", "tests", "code_generation"]
+        if friend_config:
+            subdirs += [
+                os.path.join(analysis_dir, "cpp_addons"),
+                os.path.join(analysis_dir, "quantities"),
+                os.path.join("analysis_configurations", "quantities"),
+            ]
+        else:
+            subdirs += ["analysis_configurations", "data"]
+        for subdir in subdirs:
             src = os.path.join(crown_path, subdir)
             if os.path.exists(src):
                 shutil.copytree(
@@ -312,6 +348,32 @@ class CROWNBuildBase:
                     os.path.join(staging_dir, subdir),
                     ignore=shutil.ignore_patterns("__pycache__"),
                 )
+        # friend builds ship only the modules their config imports and the data/payloads paths these name
+        if friend_config:
+            references = set()
+            for module in friend_config_modules(
+                os.path.join(crown_path, analysis_dir), friend_config
+            ):
+                dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(module, dst)
+                with open(module) as f:
+                    references.update(
+                        re.findall(
+                            r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read()
+                        )
+                    )
+            for reference in references:
+                base = analysis_dir if reference.startswith("payloads/") else ""
+                for src in glob.glob(
+                    os.path.join(crown_path, base, re.sub(r"\{[^}]*\}", "*", reference))
+                ):
+                    dst = os.path.join(staging_dir, os.path.relpath(src, crown_path))
+                    if os.path.isdir(src):
+                        shutil.copytree(src, dst, dirs_exist_ok=True)
+                    else:
+                        os.makedirs(os.path.dirname(dst), exist_ok=True)
+                        shutil.copy2(src, dst)
         for filename in ("CMakeLists.txt", "generate.py"):
             shutil.copy2(
                 os.path.join(crown_path, filename),
