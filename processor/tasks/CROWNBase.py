@@ -1,6 +1,8 @@
 import law
 import luigi
 import os
+import re
+import glob
 import json
 import shutil
 import tarfile
@@ -338,22 +340,44 @@ class CROWNBuildBase:
         if os.path.exists(staging_dir):
             shutil.rmtree(staging_dir)
         os.makedirs(staging_dir, exist_ok=True)
+        analysis_dir = os.path.join("analysis_configurations", str(self.analysis))
         for subdir in (
             "src",
             "include",
-            "analysis_configurations",
+            analysis_dir,
+            os.path.join("analysis_configurations", "quantities"),
             "cmake",
             "tests",
             "code_generation",
-            "data",
         ):
             src = os.path.join(crown_path, subdir)
             if os.path.exists(src):
                 shutil.copytree(
                     src,
                     os.path.join(staging_dir, subdir),
-                    ignore=shutil.ignore_patterns("__pycache__"),
+                    ignore=shutil.ignore_patterns(
+                        "__pycache__", ".git", "generation_logs", "payloads"
+                    ),
                 )
+        # ship only data/payloads paths the config names, f-string fields as wildcards
+        references = set()
+        for config in glob.glob(
+            os.path.join(crown_path, analysis_dir, "**", "*.py"), recursive=True
+        ):
+            with open(config) as f:
+                references.update(
+                    re.findall(r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read())
+                )
+        for reference in references:
+            base = analysis_dir if reference.startswith("payloads/") else ""
+            pattern = re.sub(r"\{[^}]*\}", "*", reference)
+            for src in glob.glob(os.path.join(crown_path, base, pattern)):
+                dst = os.path.join(staging_dir, os.path.relpath(src, crown_path))
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.copy2(src, dst)
         # friend jobs have no sample_database: ship the tables built on demand by samplemanager.scripts.build_norm_table
         if getattr(self, "friend_config", ""):
             norm_tables = os.path.abspath(os.path.join("sample_database", "norm_tables"))
