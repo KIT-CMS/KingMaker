@@ -31,7 +31,10 @@ def friend_config_modules(analysis_path, friend_config):
     Python files of an analysis that generating friend_config needs: generate_friends.py, the
     config and everything they import relatively, followed recursively.
     """
-    todo = [os.path.join(analysis_path, name + ".py") for name in ("generate_friends", friend_config)]
+    todo = [
+        os.path.join(analysis_path, name + ".py")
+        for name in ("generate_friends", friend_config)
+    ]
     found = set()
     while todo:
         path = todo.pop()
