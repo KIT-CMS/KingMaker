@@ -166,8 +166,8 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.friend_config, sample_type, era
+        _abs_executable = "{}/{}_{}_{}_{}".format(
+            _workdir, self.friend_config, sample_type, era, scope
         )
         _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(
@@ -175,14 +175,23 @@ class CROWNFriend(CROWNExecuteBase):
         )
         with _friend_tarball.localize("r") as _file:
             _tarballpath = _file.path
-        # first unpack the tarball if the exec is not there yet
+        # first unpack the tarball if the exec is not there yet. All branches share
+        # the same workdir and tarball, so a marker file signals that one of them is
+        # currently unpacking; the others wait for it to disappear. A marker can
+        # survive a crashed/interrupted run - treat it as stale (and remove it) once
+        # it is older than UNPACK_LOCK_TIMEOUT so that future runs are not blocked.
+        UNPACK_LOCK_TIMEOUT = 600  # seconds
         tempfile = os.path.join(
             _workdir,
             "unpacking_{}_{}_{}".format(self.friend_config, sample_type, era),
         )
         while os.path.exists(tempfile):
+            if time.time() - os.path.getmtime(tempfile) > UNPACK_LOCK_TIMEOUT:
+                console.log(f"Removing stale unpack marker {tempfile}")
+                os.remove(tempfile)
+                break
             time.sleep(1)
-        if not os.path.exists(_abs_executable):
+        if not os.path.exists(_abs_executable) and not os.path.exists(tempfile):
             # create a temp file to signal that we are unpacking
             open(
                 tempfile,
@@ -241,16 +250,24 @@ class CROWNFriend(CROWNExecuteBase):
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
 
-            from helpers.GetQuantitiesMap import read_quantities_map
-
-            read_quantities_map(
-                input_file=inputfile,
-                era=self.branch_data["era"],
-                sample_type=self.branch_data["sample_type"],
-                scope=scope,
-                outputfile=local_outputfile,
-                libdir=os.path.join(_workdir, "lib"),
+            # The quantities map is extracted with ROOT, which is not available in
+            # the luigi worker env of the local workflow - run the helper inside the
+            # crown container instead, same as the ResetROOTStatusBit step in
+            # CROWNRun. wrap_command() keeps the command plain on HTCondor, where
+            # the branch already runs inside the container.
+            qmap_command = self.wrap_command(
+                [
+                    "python3",
+                    "processor/tasks/helpers/GetQuantitiesMap.py",
+                    "--input {}".format(inputfile),
+                    "--era {}".format(self.branch_data["era"]),
+                    "--sample_type {}".format(self.branch_data["sample_type"]),
+                    "--scope {}".format(scope),
+                    "--output {}".format(local_outputfile),
+                    "--libdir {}".format(os.path.join(_workdir, "lib")),
+                ]
             )
+            self.run_command_readable(qmap_command)
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
         console.rule("Finished CROWNFriend")
