@@ -4,7 +4,6 @@ import os
 import re
 import ast
 import glob
-import json
 import shutil
 import tarfile
 import subprocess
@@ -22,7 +21,6 @@ from framework import (
 from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
-import hashlib
 import time
 
 
@@ -375,14 +373,6 @@ class CROWNBuildBase:
                 else:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
-        # friend jobs have no sample_database: ship its norm tables (samplemanager.scripts.build_norm_table) if built
-        norm_tables = os.path.abspath(os.path.join("sample_database", "norm_tables"))
-        if friend_config and os.path.isdir(norm_tables):
-            shutil.copytree(
-                norm_tables,
-                os.path.join(staging_dir, "data", "normalization"),
-                dirs_exist_ok=True,
-            )
         for filename in ("CMakeLists.txt", "generate.py"):
             shutil.copy2(
                 os.path.join(crown_path, filename),
