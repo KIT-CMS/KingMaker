@@ -4,7 +4,6 @@ import os
 import re
 import ast
 import glob
-import json
 import shutil
 import tarfile
 import subprocess
@@ -22,19 +21,15 @@ from framework import (
 from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
-import hashlib
 import time
 
 
-def friend_config_modules(analysis_path, friend_config):
+def config_modules(analysis_path, *names):
     """
-    Python files of an analysis that generating friend_config needs: generate_friends.py, the
-    config and everything they import relatively, followed recursively.
+    Python files of an analysis that code generation needs: the given modules (its generate script
+    and config) and everything they import relatively, followed recursively.
     """
-    todo = [
-        os.path.join(analysis_path, name + ".py")
-        for name in ("generate_friends", friend_config)
-    ]
+    todo = [os.path.join(analysis_path, name + ".py") for name in names]
     found = set()
     while todo:
         path = todo.pop()
@@ -331,49 +326,53 @@ class CROWNBuildBase:
         os.makedirs(staging_dir, exist_ok=True)
         friend_config = getattr(self, "friend_config", "")
         analysis_dir = os.path.join("analysis_configurations", str(self.analysis))
-        subdirs = ["src", "include", "cmake", "tests", "code_generation"]
-        if friend_config:
-            subdirs += [
-                os.path.join(analysis_dir, "cpp_addons"),
-                os.path.join(analysis_dir, "quantities"),
-                os.path.join("analysis_configurations", "quantities"),
-            ]
-        else:
-            subdirs += ["analysis_configurations", "data"]
+        subdirs = [
+            "src",
+            "include",
+            os.path.join("analysis_configurations", "quantities"),
+            os.path.join(analysis_dir, "cpp_addons"),
+            os.path.join(analysis_dir, "quantities"),
+            "cmake",
+            "tests",
+            "code_generation",
+        ]
+        # only the generate script, the config and the modules they import
+        configs = config_modules(
+            os.path.join(crown_path, analysis_dir),
+            "generate_friends" if friend_config else "generate",
+            friend_config or str(self.config),
+        )
         for subdir in subdirs:
             src = os.path.join(crown_path, subdir)
             if os.path.exists(src):
                 shutil.copytree(
                     src,
                     os.path.join(staging_dir, subdir),
-                    ignore=shutil.ignore_patterns("__pycache__"),
+                    ignore=shutil.ignore_patterns(
+                        "__pycache__", ".git", "generation_logs", "payloads"
+                    ),
                 )
-        # friend builds ship only the modules their config imports and the data/payloads paths these name
-        if friend_config:
-            references = set()
-            for module in friend_config_modules(
-                os.path.join(crown_path, analysis_dir), friend_config
-            ):
-                dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-                shutil.copy2(module, dst)
-                with open(module) as f:
-                    references.update(
-                        re.findall(
-                            r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read()
-                        )
-                    )
-            for reference in references:
-                base = analysis_dir if reference.startswith("payloads/") else ""
-                for src in glob.glob(
-                    os.path.join(crown_path, base, re.sub(r"\{[^}]*\}", "*", reference))
-                ):
-                    dst = os.path.join(staging_dir, os.path.relpath(src, crown_path))
-                    if os.path.isdir(src):
-                        shutil.copytree(src, dst, dirs_exist_ok=True)
-                    else:
-                        os.makedirs(os.path.dirname(dst), exist_ok=True)
-                        shutil.copy2(src, dst)
+        for module in configs:
+            dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(module, dst)
+        # ship only data/payloads paths the config names, f-string fields as wildcards
+        references = set()
+        for config in configs:
+            with open(config) as f:
+                references.update(
+                    re.findall(r"""["']((?:data|payloads)/[^"'\s]+)["']""", f.read())
+                )
+        for reference in references:
+            base = analysis_dir if reference.startswith("payloads/") else ""
+            pattern = re.sub(r"\{[^}]*\}", "*", reference)
+            for src in glob.glob(os.path.join(crown_path, base, pattern)):
+                dst = os.path.join(staging_dir, os.path.relpath(src, crown_path))
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.copy2(src, dst)
         for filename in ("CMakeLists.txt", "generate.py"):
             shutil.copy2(
                 os.path.join(crown_path, filename),
