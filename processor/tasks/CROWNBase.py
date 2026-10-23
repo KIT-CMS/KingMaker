@@ -72,7 +72,7 @@ class ProduceBase(WrapperTask, Task):
     poll_interval = luigi.OptionalParameter(
         default=None,
         significant=False,
-        description="Polling interval of all htcondor workflows, e.g. 5min.",
+        description="Polling interval of all htcondor workflows in minutes.",
     )
     parallel_jobs = luigi.OptionalIntParameter(
         default=None,
