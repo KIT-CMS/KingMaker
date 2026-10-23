@@ -787,6 +787,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
         if self.is_local_output:
             singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        proxy = os.environ.get("X509_USER_PROXY")
+        if proxy and os.path.exists(proxy):
+            singularity_args += ["-B", os.path.abspath(proxy)]
         return (
             ["singularity", "exec"]
             + singularity_args
