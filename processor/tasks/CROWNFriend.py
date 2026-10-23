@@ -39,23 +39,27 @@ class CROWNFriend(CROWNExecuteBase):
     def create_branch_map(self):
         branch_map = {}
         counter = 0
-        inputs = self.workflow_input()
+        # input targets from the branch maps, workflow_input() would instantiate every branch task of the inputs
+        requirements = self.workflow_requires()
+        ntuples = requirements["ntuples"]
         branches = [
             inputfile
-            for inputfile in inputs["ntuples"]["collection"]._flat_target_list
+            for branch, data in ntuples.get_branch_map().items()
+            for inputfile in ntuples.branch_output(branch, data)
             if inputfile.path.endswith(".root")
         ]
         required_friends = self.friend_mapping[self.friend_config].get("requires", [])
         friend_inputs = [
-            inputs[
+            requirements[
                 f'CROWNFriend_{self.nick}_{self.friend_mapping[requires_config]["friend_tag"]}'
-            ]["collection"]
+            ]
             for requires_config in required_friends  # type: ignore
         ]
         friend_branches = [
             [
                 friend_inputfile
-                for friend_inputfile in friend_input._flat_target_list
+                for data in friend_input.get_branch_map().values()
+                for friend_inputfile in friend_input.branch_output(data)
                 if friend_inputfile.path.endswith(".root")
             ]
             for friend_input in friend_inputs
