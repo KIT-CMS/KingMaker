@@ -567,6 +567,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "force_repack_tarball",
         "workflow",
         "poll_interval",
+        "parallel_jobs",
+        "retries",
     }
     exclude_params_req = (
         Task.exclude_params_req
