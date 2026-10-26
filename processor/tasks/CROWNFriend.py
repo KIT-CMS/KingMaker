@@ -166,8 +166,8 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
-        _abs_executable = "{}/{}_{}_{}_{}".format(
-            _workdir, self.friend_config, sample_type, era, scope
+        _abs_executable = "{}/{}_{}_{}".format(
+            _workdir, self.friend_config, sample_type, era
         )
         _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(

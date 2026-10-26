@@ -402,7 +402,9 @@ class CROWNBuildBase:
             dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(module, dst)
-        # ship only data/payloads paths the config names, f-string fields as wildcards
+        # ship only data/payloads paths the config names, f-string fields as wildcards.
+        # cmake installs data/ unconditionally, so it has to exist even if nothing is named
+        os.makedirs(os.path.join(staging_dir, "data"), exist_ok=True)
         references = set()
         for config in configs:
             with open(config) as f:
