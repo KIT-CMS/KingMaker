@@ -18,6 +18,11 @@ from helpers.helpers import convert_to_comma_seperated
 class CROWNFriend(CROWNExecuteBase):
     friend_mapping = luigi.DictParameter(default={})
     friend_config = luigi.Parameter()
+    stage_inputs = luigi.BoolParameter(
+        default=False,
+        description="Copy the friend inputs to the worker before running CROWN instead of reading them over xrootd.",
+        significant=False,
+    )
     config = luigi.Parameter()
     nick = luigi.Parameter()
     analysis = luigi.Parameter()
@@ -191,7 +196,21 @@ class CROWNFriend(CROWNExecuteBase):
             tar = tarfile.open(_tarballpath, "r:gz")
             tar.extractall(_workdir)
             os.remove(tempfile)
-        _crown_args = [_outputfile] + [_inputfile] + _friend_inputs
+        # stage inputs: a slow friend leaves the remote file idle for ~1h, after which the next xrootd read fails on the workers
+        _input_dir = os.path.join(_workdir, "inputs")
+        _crown_inputs = [_inputfile] + _friend_inputs
+        if self.stage_inputs:
+            _local_inputs = []
+            for index, _remote in enumerate(_crown_inputs):
+                _local = os.path.join(_input_dir, str(index), *_remote.split("/")[-4:])
+                create_abspath(os.path.dirname(_local))
+                console.log(f"Copying {_remote} to {_local}")
+                subprocess.run(
+                    ["xrdcp", "-f", "--retry", "3", _remote, _local], check=True
+                )
+                _local_inputs.append(_local)
+            _crown_inputs = _local_inputs
+        _crown_args = [_outputfile] + _crown_inputs
         _executable = "./{}_{}_{}_{}".format(
             self.friend_config, sample_type, era, scope
         )
@@ -217,6 +236,8 @@ class CROWNFriend(CROWNExecuteBase):
             for line in p.stderr:
                 if line != "\n":
                     console.log("Error: {}".format(line.replace("\n", "")))
+        if self.stage_inputs:
+            shutil.rmtree(_input_dir)
         if p.returncode != 0:
             console.log(
                 "Error when running crown {}".format(

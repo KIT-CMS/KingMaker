@@ -19,6 +19,11 @@ class ProduceNtuples(ProduceBase):
     friend_config = luigi.Parameter(default="")
     friend_tag = luigi.Parameter(default="")
     friend_mapping = luigi.Parameter(default="{}")
+    stage_inputs = luigi.BoolParameter(
+        default=False,
+        description="Copy the friend inputs to the worker before running CROWN instead of reading them over xrootd.",
+        significant=False,
+    )
 
     def derive_mapping(self, read_only=False):
         if read_only:
