@@ -1,9 +1,9 @@
 import luigi
 import os
+import fcntl
 import shutil
 import tarfile
 import subprocess
-import time
 import law
 from framework import console, HTCondorWorkflow
 from CROWNMain import CROWNRun
@@ -166,9 +166,6 @@ class CROWNFriend(CROWNExecuteBase):
         ]
         # set the outputfilename to the first name in the output list, removing the scope suffix
         _outputfile = str(output.basename.replace(f"_{scope}.root", ".root"))
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.friend_config, sample_type, era
-        )
         _friend_tarball = inputs["friend_tarball"]["collection"]._flat_target_list[0]
         console.log(
             "Getting CROWN friend_tarball from {}".format(_friend_tarball.uri())
@@ -176,21 +173,16 @@ class CROWNFriend(CROWNExecuteBase):
         with _friend_tarball.localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
-        tempfile = os.path.join(
-            _workdir,
-            "unpacking_{}_{}_{}".format(self.friend_config, sample_type, era),
-        )
-        while os.path.exists(tempfile):
-            time.sleep(1)
-        if not os.path.exists(_abs_executable):
-            # create a temp file to signal that we are unpacking
-            open(
-                tempfile,
-                "a",
-            ).close()
-            tar = tarfile.open(_tarballpath, "r:gz")
-            tar.extractall(_workdir)
-            os.remove(tempfile)
+        _unpack_tag = "{}_{}_{}".format(self.friend_config, sample_type, era)
+        _lockfile = os.path.join(_workdir, f".unpack_{_unpack_tag}.lock")
+        _donefile = os.path.join(_workdir, f".unpacked_{_unpack_tag}")
+        with open(_lockfile, "w") as _lock:
+            fcntl.flock(_lock, fcntl.LOCK_EX)
+            if not os.path.exists(_donefile):
+                console.log(f"Unpacking {_tarballpath} into {_workdir}")
+                with tarfile.open(_tarballpath, "r:gz") as tar:
+                    tar.extractall(_workdir)
+                open(_donefile, "w").close()
         _crown_args = [_outputfile] + [_inputfile] + _friend_inputs
         _executable = "./{}_{}_{}_{}".format(
             self.friend_config, sample_type, era, scope
@@ -241,16 +233,19 @@ class CROWNFriend(CROWNExecuteBase):
             )
             local_outputfile = os.path.join(_workdir, "quantities_map.json")
 
-            from helpers.GetQuantitiesMap import read_quantities_map
-
-            read_quantities_map(
-                input_file=inputfile,
-                era=self.branch_data["era"],
-                sample_type=self.branch_data["sample_type"],
-                scope=scope,
-                outputfile=local_outputfile,
-                libdir=os.path.join(_workdir, "lib"),
+            qmap_command = self.wrap_command(
+                [
+                    "python3",
+                    "processor/tasks/helpers/GetQuantitiesMap.py",
+                    "--input {}".format(inputfile),
+                    "--era {}".format(self.branch_data["era"]),
+                    "--sample_type {}".format(self.branch_data["sample_type"]),
+                    "--scope {}".format(scope),
+                    "--output {}".format(local_outputfile),
+                    "--libdir {}".format(os.path.join(_workdir, "lib")),
+                ]
             )
+            self.run_command_readable(qmap_command)
             # copy the generated quantities_map json to the output
             quantities_map_output.copy_from_local(local_outputfile)
         console.rule("Finished CROWNFriend")

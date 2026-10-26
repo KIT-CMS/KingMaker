@@ -2,6 +2,7 @@ import law
 import luigi
 import os
 import glob
+import fcntl
 import shutil
 import tarfile
 import subprocess
@@ -147,9 +148,6 @@ class CROWNRun(CROWNExecuteBase):
         _outputfile = str(
             outputs[0].basename.replace("_{}.root".format(self.scopes[0]), ".root")
         )
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.config, _sample_type, _era
-        )
         _tarball_name = (
             f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
         )
@@ -162,18 +160,16 @@ class CROWNRun(CROWNExecuteBase):
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
-        _tempfile = os.path.join(
-            _workdir,
-            "unpacking_{}_{}_{}".format(self.config, _sample_type, _era),
-        )
-        while os.path.exists(_tempfile):
-            time.sleep(1)
-        if not os.path.exists(_abs_executable) and not os.path.exists(_tempfile):
-            # create a temp file to signal that we are unpacking
-            open(_tempfile, "a").close()
-            tar = tarfile.open(_tarballpath, "r:gz")
-            tar.extractall(_workdir)
-            os.remove(_tempfile)
+        _unpack_tag = "{}_{}_{}".format(self.config, _sample_type, _era)
+        _lockfile = os.path.join(_workdir, f".unpack_{_unpack_tag}.lock")
+        _donefile = os.path.join(_workdir, f".unpacked_{_unpack_tag}")
+        with open(_lockfile, "w") as _lock:
+            fcntl.flock(_lock, fcntl.LOCK_EX)
+            if not os.path.exists(_donefile):
+                console.log(f"Unpacking {_tarballpath} into {_workdir}")
+                with tarfile.open(_tarballpath, "r:gz") as tar:
+                    tar.extractall(_workdir)
+                open(_donefile, "w").close()
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(self.config, _sample_type, _era)
         # actual payload:
