@@ -5,6 +5,7 @@ build/
 .law/
 generation_logs/
 tarballs/
+python_friend_staging/
 workdir/
 logs/
 *.tar.gz
