@@ -626,11 +626,16 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             return self.friend_mapping[self.friend_config]["friend_tag"]
         return ""
 
+    def job_tarball_task_dir(self):
+        """
+        Task folder of the job tarball path, the task name unless a task overrides it.
+        """
+        return self.__class__.__name__
+
     def htcondor_job_config(self, config, job_num, branches):
         domain = self.htcondor_domain()
 
         workflow_name = os.getenv("WF_NAME")
-        task_name = self.__class__.__name__
 
         # Write job config file
         log_base_path = self.htcondor_log_directory().abspath
@@ -670,7 +675,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             tarball = law.LocalFileTarget(
                 os.path.join(
                     self.production_tag,
-                    self.__class__.__name__,
+                    self.job_tarball_task_dir(),
                     "job_tarball",
                     tarball_subdir,
                     "processor.tar.gz",
@@ -685,7 +690,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             tarball = law.wlcg.WLCGFileTarget(
                 os.path.join(
                     self.production_tag,
-                    self.__class__.__name__,
+                    self.job_tarball_task_dir(),
                     "job_tarball",
                     tarball_subdir,
                     "processor.tar.gz",
@@ -693,7 +698,12 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
             )
         # repack if missing remotely, or once per law run when forced; the lock serializes workflows sharing it
         tarball_dir = os.path.abspath(
-            os.path.join("tarballs", self.production_tag, task_name, tarball_subdir)
+            os.path.join(
+                "tarballs",
+                self.production_tag,
+                self.job_tarball_task_dir(),
+                tarball_subdir,
+            )
         )
         os.makedirs(tarball_dir, exist_ok=True)
         repacked_marker = os.path.join(tarball_dir, f".repacked_{RUN_ID}")
