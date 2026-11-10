@@ -39,23 +39,25 @@ class CROWNFriend(CROWNExecuteBase):
     def create_branch_map(self):
         branch_map = {}
         counter = 0
-        inputs = self.workflow_input()
+        requirements = self.workflow_requires()
         branches = [
             inputfile
-            for inputfile in inputs["ntuples"]["collection"]._flat_target_list
+            for targets in requirements["ntuples"].branch_outputs().values()
+            for inputfile in targets
             if inputfile.path.endswith(".root")
         ]
         required_friends = self.friend_mapping[self.friend_config].get("requires", [])
         friend_inputs = [
-            inputs[
+            requirements[
                 f'CROWNFriend_{self.nick}_{self.friend_mapping[requires_config]["friend_tag"]}'
-            ]["collection"]
+            ]
             for requires_config in required_friends  # type: ignore
         ]
         friend_branches = [
             [
                 friend_inputfile
-                for friend_inputfile in friend_input._flat_target_list
+                for targets in friend_input.branch_outputs().values()
+                for friend_inputfile in targets
                 if friend_inputfile.path.endswith(".root")
             ]
             for friend_input in friend_inputs
@@ -95,22 +97,10 @@ class CROWNFriend(CROWNExecuteBase):
                 counter += 1
         return branch_map
 
-    def output(self):
-        return self.branch_output(self.branch_data)
-
-    def workflow_complete(self):
-        # same targets as the workflow collection, without instantiating every branch task
-        targets = {
-            b: self.branch_output(data) for b, data in self.get_branch_map().items()
-        }
-        return self.output_collection_cls(
-            targets, threshold=self.workflow_proxy.threshold(len(targets))
-        ).complete()
-
-    def branch_output(self, branch_data):
+    def branch_output(self, branch, branch_data):
         """
         The function `branch_output` generates the file paths of the branch with `branch_data` and returns the
-        corresponding file targets.
+        corresponding file targets. `branch` is unused, file names follow `filecounter`.
         """
         friend_tag = self.friend_mapping[self.friend_config]["friend_tag"]
         nicks = [
