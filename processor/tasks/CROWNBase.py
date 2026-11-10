@@ -301,6 +301,34 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             status_line_pattern = f"{self.nick} (Analysis: {self.analysis} Config: {self.config} Tag: {self.production_tag})"
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
+    def branch_output(self, branch, branch_data):
+        """
+        Return the output targets of the branch number `branch` with `branch_data`.
+        Must be implemented by subclasses and must only depend on its arguments, so
+        targets can be built from the branch map without instantiating branch tasks.
+        """
+        raise NotImplementedError
+
+    def output(self):
+        return self.branch_output(self.branch, self.branch_data)
+
+    def branch_outputs(self):
+        """
+        Output targets of all branches, keyed by branch number. Same content and
+        order as the workflow's output collection, but without instantiating every
+        branch task.
+        """
+        return {
+            branch: self.branch_output(branch, data)
+            for branch, data in self.get_branch_map().items()
+        }
+
+    def workflow_complete(self):
+        targets = self.branch_outputs()
+        return self.output_collection_cls(
+            targets, threshold=self.workflow_proxy.threshold(len(targets))
+        ).complete()
+
 
 class CROWNBuildBase:
     """

@@ -94,18 +94,6 @@ class CROWNRun(CROWNExecuteBase):
             branchcounter += 1
         return branch_map
 
-    def output(self):
-        return self.branch_output(self.branch, self.branch_data)
-
-    def workflow_complete(self):
-        # same targets as the workflow collection, without instantiating every branch task
-        targets = {
-            b: self.branch_output(b, data) for b, data in self.get_branch_map().items()
-        }
-        return self.output_collection_cls(
-            targets, threshold=self.workflow_proxy.threshold(len(targets))
-        ).complete()
-
     def branch_output(self, branch, branch_data):
         """
         The function `branch_output` generates the file paths of the branch number `branch` with
