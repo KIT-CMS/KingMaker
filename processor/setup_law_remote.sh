@@ -25,6 +25,12 @@ action() {
     export X509_VOMS_DIR=/cvmfs/grid.cern.ch/etc/grid-security/vomsdir
     export XRD_WORKERTHREADS={{NTHREADS}}
     export XRD_PARALLELEVTLOOP={{NTHREADS}}
+    # Keep idle xrootd connections alive: long running jobs may leave the input
+    # file untouched for a few hours between reads, after which the next read fails.
+    export XRD_TCPKEEPALIVE=1
+    export XRD_TCPKEEPALIVETIME=60
+    export XRD_TCPKEEPALIVEINTERVAL=30
+    export XRD_TCPKEEPALIVEPROBES=5
     # if no XRD_LOGLEVEL set: no xrootd debug output written
     # set export XRD_LOGLEVEL=Debug for xrootd debug output
     export XRD_LOGLEVEL=""
@@ -43,6 +49,7 @@ action() {
     echo " | TAG = {{TAG}}"
     echo " | XRD_WORKERTHREADS = ${XRD_WORKERTHREADS}"
     echo " | XRD_PARALLELEVTLOOP = ${XRD_PARALLELEVTLOOP}"
+    echo " | XRD_TCPKEEPALIVE = ${XRD_TCPKEEPALIVE} (time ${XRD_TCPKEEPALIVETIME}s, interval ${XRD_TCPKEEPALIVEINTERVAL}s, probes ${XRD_TCPKEEPALIVEPROBES})"
     echo " | XRD_LOGLEVEL = ${XRD_LOGLEVEL}"
     echo "------------------------------------------"
 
