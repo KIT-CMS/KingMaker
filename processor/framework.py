@@ -35,6 +35,15 @@ except:
 RUN_ID = os.environ.setdefault("KINGMAKER_RUN_ID", f"{os.getpid()}_{int(time.time())}")
 
 law.contrib.load("wlcg", "htcondor", "singularity")
+
+# Setting this option to False avoids additional WebDAV requests
+# and it halves the requests to the storage door
+_wlcg_fs = law.wlcg.WLCGFileSystem.default_instance
+if _wlcg_fs is not None:
+    _wlcg_fs.file_interface.gfal_options.setdefault("boolean", []).append(
+        ("HTTP PLUGIN", "RETRIEVE_BEARER_TOKEN", False)
+    )
+
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
