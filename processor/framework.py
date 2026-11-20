@@ -35,6 +35,15 @@ except:
 RUN_ID = os.environ.setdefault("KINGMAKER_RUN_ID", f"{os.getpid()}_{int(time.time())}")
 
 law.contrib.load("wlcg", "htcondor", "singularity")
+
+# Setting this option to False avoids additional WebDAV requests
+# and it halves the requests to the storage door
+_wlcg_fs = law.wlcg.WLCGFileSystem.default_instance
+if _wlcg_fs is not None:
+    _wlcg_fs.file_interface.gfal_options.setdefault("boolean", []).append(
+        ("HTTP PLUGIN", "RETRIEVE_BEARER_TOKEN", False)
+    )
+
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
@@ -567,6 +576,8 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         "force_repack_tarball",
         "workflow",
         "poll_interval",
+        "parallel_jobs",
+        "retries",
     }
     exclude_params_req = (
         Task.exclude_params_req
@@ -785,6 +796,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
         if self.is_local_output:
             singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        proxy = os.environ.get("X509_USER_PROXY")
+        if proxy and os.path.exists(proxy):
+            singularity_args += ["-B", os.path.abspath(proxy)]
         return (
             ["singularity", "exec"]
             + singularity_args

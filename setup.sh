@@ -122,6 +122,7 @@ action() {
         BASE_DIR="${PWD}/${BASE_DIR}"
     fi
     BASE_DIR="${BASE_DIR%/}"
+    BASE_DIR="${BASE_DIR%/.}"
 
     # Detect whether we're running on lxplus, to automatically enable
     # EOS/EosSubmit-specific behavior (path alias preservation, proxy handling, container

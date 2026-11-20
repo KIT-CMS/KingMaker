@@ -2,6 +2,7 @@ import law
 import luigi
 import os
 import glob
+import fcntl
 import shutil
 import tarfile
 import subprocess
@@ -78,26 +79,20 @@ class CROWNRun(CROWNExecuteBase):
             if (int(filecounter / files_per_task)) not in branches:
                 branches[int(filecounter / files_per_task)] = []
             branches[int(filecounter / files_per_task)].append(filename)
+        sample_info = {
+            key: inputdata[key]
+            for key in ["nick", "xsec", "nevents", "generator_weight"]
+            if key in inputdata
+        }
         for x in branches:
             branch_map[branchcounter] = {}
             branch_map[branchcounter]["nick"] = self.nick
             branch_map[branchcounter]["era"] = self.era
             branch_map[branchcounter]["sample_type"] = self.sample_type
             branch_map[branchcounter]["files"] = branches[x]
+            branch_map[branchcounter]["sample_info"] = sample_info
             branchcounter += 1
         return branch_map
-
-    def output(self):
-        return self.branch_output(self.branch, self.branch_data)
-
-    def workflow_complete(self):
-        # same targets as the workflow collection, without instantiating every branch task
-        targets = {
-            b: self.branch_output(b, data) for b, data in self.get_branch_map().items()
-        }
-        return self.output_collection_cls(
-            targets, threshold=self.workflow_proxy.threshold(len(targets))
-        ).complete()
 
     def branch_output(self, branch, branch_data):
         """
@@ -147,9 +142,6 @@ class CROWNRun(CROWNExecuteBase):
         _outputfile = str(
             outputs[0].basename.replace("_{}.root".format(self.scopes[0]), ".root")
         )
-        _abs_executable = "{}/{}_{}_{}".format(
-            _workdir, self.config, _sample_type, _era
-        )
         _tarball_name = (
             f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
         )
@@ -162,18 +154,24 @@ class CROWNRun(CROWNExecuteBase):
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
-        _tempfile = os.path.join(
-            _workdir,
-            "unpacking_{}_{}_{}".format(self.config, _sample_type, _era),
-        )
-        while os.path.exists(_tempfile):
-            time.sleep(1)
-        if not os.path.exists(_abs_executable) and not os.path.exists(_tempfile):
-            # create a temp file to signal that we are unpacking
-            open(_tempfile, "a").close()
-            tar = tarfile.open(_tarballpath, "r:gz")
-            tar.extractall(_workdir)
-            os.remove(_tempfile)
+        _unpack_tag = "{}_{}_{}".format(self.config, _sample_type, _era)
+        _lockfile = os.path.join(_workdir, f".unpack_{_unpack_tag}.lock")
+        _donefile = os.path.join(_workdir, f".unpacked_{_unpack_tag}")
+        with open(_lockfile, "w") as _lock:
+            fcntl.flock(_lock, fcntl.LOCK_EX)
+            if not os.path.exists(_donefile):
+                console.log(f"Unpacking {_tarballpath} into {_workdir}")
+                with tarfile.open(_tarballpath, "r:gz") as tar:
+                    tar.extractall(_workdir)
+                open(_donefile, "w").close()
+        # provide the sample information (nick, xsec, nevents, generator_weight) to CROWN
+        _sample_json = f"sample_info_{self.nick}.json"
+        _abs_sample_json = os.path.join(_workdir, _sample_json)
+        _tmp_sample_json = f"{_abs_sample_json}.{os.getpid()}.tmp"
+        with open(_tmp_sample_json, "w") as _file:
+            json.dump(branch_data["sample_info"], _file)
+        os.replace(_tmp_sample_json, _abs_sample_json)
+        _crown_env = dict(os.environ, CROWN_SAMPLE_INFO=_sample_json)
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(self.config, _sample_type, _era)
         # actual payload:
@@ -191,6 +189,7 @@ class CROWNRun(CROWNExecuteBase):
             bufsize=1,
             universal_newlines=True,
             cwd=_workdir,
+            env=_crown_env,
         ) as p:
             for line in p.stdout:
                 if line != "\n":
