@@ -80,9 +80,7 @@ class CROWNRun(CROWNExecuteBase):
                 branches[int(filecounter / files_per_task)] = []
             branches[int(filecounter / files_per_task)].append(filename)
         sample_info = {
-            key: inputdata[key]
-            for key in ["nick", "xsec", "nevents", "generator_weight"]
-            if key in inputdata
+            key: value for key, value in inputdata.items() if key != "filelist"
         }
         for x in branches:
             branch_map[branchcounter] = {}
@@ -164,14 +162,8 @@ class CROWNRun(CROWNExecuteBase):
                 with tarfile.open(_tarballpath, "r:gz") as tar:
                     tar.extractall(_workdir)
                 open(_donefile, "w").close()
-        # provide the sample information (nick, xsec, nevents, generator_weight) to CROWN
-        _sample_json = f"sample_info_{self.nick}.json"
-        _abs_sample_json = os.path.join(_workdir, _sample_json)
-        _tmp_sample_json = f"{_abs_sample_json}.{os.getpid()}.tmp"
-        with open(_tmp_sample_json, "w") as _file:
-            json.dump(branch_data["sample_info"], _file)
-        os.replace(_tmp_sample_json, _abs_sample_json)
-        _crown_env = dict(os.environ, CROWN_SAMPLE_INFO=_sample_json)
+        # provide the sample database entry (nick, xsec, nevents, generator_weight, ...) to CROWN
+        _crown_env = self.sample_info_env(_workdir, branch_data["sample_info"])
         _crown_args = [_outputfile] + _inputfiles
         _executable = "./{}_{}_{}".format(self.config, _sample_type, _era)
         # actual payload:
