@@ -1,6 +1,7 @@
 import law
 import luigi
 import os
+import json
 import re
 import ast
 import glob
@@ -270,6 +271,19 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
         else:
             path = f"htcondor_files/ntuples/{self.nick}"
         return self.local_dir_target(path)
+
+    def sample_info_env(self, workdir, sample_info):
+        """
+        The function `sample_info_env` writes the sample database entry of the nick into `workdir` and returns
+        the environment of the CROWN process with `CROWN_SAMPLE_INFO` pointing to it.
+        """
+        _sample_json = f"sample_info_{self.nick}.json"
+        _abs_sample_json = os.path.join(workdir, _sample_json)
+        _tmp_sample_json = f"{_abs_sample_json}.{os.getpid()}.tmp"
+        with open(_tmp_sample_json, "w") as _file:
+            json.dump(sample_info, _file)
+        os.replace(_tmp_sample_json, _abs_sample_json)
+        return dict(os.environ, CROWN_SAMPLE_INFO=_sample_json)
 
     def htcondor_job_config(self, config, job_num, branches):
         effective_name = (
