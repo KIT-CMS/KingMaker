@@ -40,9 +40,6 @@ class CROWNFriend(CROWNExecuteBase):
         branch_map = {}
         counter = 0
         requirements = self.workflow_requires()
-        sample_info = next(iter(requirements["ntuples"].get_branch_map().values()))[
-            "sample_info"
-        ]
         branches = [
             inputfile
             for targets in requirements["ntuples"].branch_outputs().values()
@@ -79,7 +76,6 @@ class CROWNFriend(CROWNExecuteBase):
                     "inputfile": os.path.expandvars(str(self.wlcg_path))
                     + inputfile.path,
                     "filecounter": int(counter / len(self.scopes)),
-                    "sample_info": sample_info,
                 }
                 filename = inputfile.path.split("/")[-1]
                 for friend_index, _ in enumerate(required_friends):
@@ -177,7 +173,6 @@ class CROWNFriend(CROWNExecuteBase):
                 with tarfile.open(_tarballpath, "r:gz") as tar:
                     tar.extractall(_workdir)
                 open(_donefile, "w").close()
-        _crown_env = self.sample_info_env(_workdir, branch_data["sample_info"])
         _crown_args = [_outputfile] + [_inputfile] + _friend_inputs
         _executable = "./{}_{}_{}_{}".format(
             self.friend_config, sample_type, era, scope
@@ -197,7 +192,6 @@ class CROWNFriend(CROWNExecuteBase):
             bufsize=1,
             universal_newlines=True,
             cwd=_workdir,
-            env=_crown_env,
         ) as p:
             for line in p.stdout:
                 if line != "\n":
