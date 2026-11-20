@@ -87,41 +87,6 @@ def _flush_pending_locked():
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
-def _prune_expired_entries(cache, cutoff_time):
-    expired_keys = [k for k, v in cache.items() if v.get("ts", 0) < cutoff_time]
-    for k in expired_keys:
-        del cache[k]
-    return cache
-
-
-def _flush_pending_locked():
-    global _LAST_FLUSH_TIME, _TARGET_CACHE
-
-    with _PENDING_LOCK:
-        if not _PENDING_UPDATES:
-            return
-        pending_copy = dict(_PENDING_UPDATES)
-        _PENDING_UPDATES.clear()
-
-    cache_dir = os.path.dirname(CACHE_PATH)
-    if cache_dir and not os.path.exists(cache_dir):
-        os.makedirs(cache_dir, exist_ok=True)
-
-    lock_path = CACHE_PATH + ".lock"
-    with open(lock_path, "a") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
-        try:
-            cache = _load_json(CACHE_PATH)
-            cache.update(pending_copy)
-            cutoff = time.time() - MAX_CACHE_ENTRY_AGE
-            cache = _prune_expired_entries(cache, cutoff)
-            _save_json_atomic(CACHE_PATH, cache)
-            _TARGET_CACHE = cache
-            _LAST_FLUSH_TIME = time.time()
-        finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-
-
 def _queue_cache_update(key, value_dict):
     global _TARGET_CACHE, _LAST_FLUSH_TIME
 
@@ -213,25 +178,6 @@ class CachedWLCGFileTarget(law.wlcg.WLCGFileTarget):
         return exists
 
 
-class CachedWLCGDirectoryTarget(law.wlcg.WLCGDirectoryTarget):
-    cache_ttl = 86400
-
-    def _cache_key(self):
-        return self.uri() if hasattr(self, "uri") else str(self.path)
-
-    def exists(self):
-        key = self._cache_key()
-        with CACHE_LOCK:
-            _ensure_target_cache_loaded()
-            if cache_get_exists(key, self.cache_ttl):
-                return True
-
-        exists = super().exists()
-        if exists:
-            _queue_cache_update(key, {"ts": time.time()})
-        return exists
-
-
 class CachedSiblingFileCollection(law.target.collection.SiblingFileCollection):
     cache_ttl = 86400
 
@@ -308,34 +254,25 @@ class CachedNestedSiblingFileCollection(
             # Mock the basenames dict mapping {dir_key: set(files)}
             basenames = {}
             for t in all_targets:
-                dir_key = (
-                    t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
+                basenames.setdefault(t.parent.abspath, set()).add(
+                    os.path.basename(t.path)
                 )
-                basenames.setdefault(dir_key, set()).add(os.path.basename(t.path))
             return super()._iter_state(
                 existing, optional_existing, basenames, keys, unpack, exists_func
             )
 
         # 2. If not cached, fetch live directory contents for all unique directories
         if basenames is None:
-            # dedupe by uri: every t.parent is a new object, a set of them never collapses
-            unique_dirs = {
-                (t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)): t.parent
-                for t in all_targets
-                if hasattr(t, "parent")
+            # law already groups targets into one sibling collection per directory
+            basenames = {
+                col.dir.abspath: (set(col.dir.listdir()) if col.dir.exists() else set())
+                for col in self.collections
             }
-            basenames = {}
-            for dir_key, d in unique_dirs.items():
-                if d.exists():
-                    basenames[dir_key] = set(d.listdir())
-                else:
-                    basenames[dir_key] = set()
 
         # 3. Check if ALL items are present across all nested directories
         all_present = True
         for t in all_targets:
-            dir_key = t.parent.uri() if hasattr(t.parent, "uri") else str(t.parent.path)
-            if os.path.basename(t.path) not in basenames.get(dir_key, set()):
+            if os.path.basename(t.path) not in basenames.get(t.parent.abspath, set()):
                 all_present = False
                 break
 

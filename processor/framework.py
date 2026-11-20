@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import functools
 import luigi
 import law
 import select
@@ -8,7 +9,6 @@ import subprocess
 import socket
 import time
 import fcntl
-import functools
 from enum import Enum
 from law.util import interruptable_popen
 from rich.console import Console
@@ -36,21 +36,14 @@ RUN_ID = os.environ.setdefault("KINGMAKER_RUN_ID", f"{os.getpid()}_{int(time.tim
 
 law.contrib.load("wlcg", "htcondor", "singularity")
 
+# Setting this option to False avoids additional WebDAV requests
+# and it halves the requests to the storage door
+_wlcg_fs = law.wlcg.WLCGFileSystem.default_instance
+if _wlcg_fs is not None:
+    _wlcg_fs.file_interface.gfal_options.setdefault("boolean", []).append(
+        ("HTTP PLUGIN", "RETRIEVE_BEARER_TOKEN", False)
+    )
 
-@functools.lru_cache(maxsize=None)
-def _multi_match_any(name, patterns):
-    return law.util.multi_match(name, list(patterns), any)
-
-
-def _cached_multi_match(name, patterns, mode=any, regex=None):
-    # law's req_params fnmatches every param against every exclude pattern for each branch task;
-    # the result only depends on the strings, and there are ~10^5 branch tasks per production
-    if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
-        return _multi_match_any(name, frozenset(patterns))
-    return law.util.multi_match(name, patterns, mode=mode, regex=regex)
-
-
-law.task.base.multi_match = _cached_multi_match
 # try to get the terminal width, if this fails, we are probably in a remote job, set it to 140
 try:
     current_width = os.get_terminal_size().columns
@@ -108,17 +101,25 @@ def resolve_nanoAOD_version(relative_path, requested_version):
     return matches[0]
 
 
-_dataset_db_cache = {}
+@functools.lru_cache(maxsize=None)
+def _multi_match_any(name, patterns):
+    return law.util.multi_match(name, list(patterns), any)
 
 
+def _cached_multi_match(name, patterns, mode=any, regex=None):
+    # law's req_params fnmatches every param against every exclude pattern for each of ~10^5 branch tasks
+    if mode is any and regex is None and isinstance(patterns, (set, frozenset)):
+        return _multi_match_any(name, frozenset(patterns))
+    return law.util.multi_match(name, patterns, mode=mode, regex=regex)
+
+
+law.task.base.multi_match = _cached_multi_match
+
+
+@functools.lru_cache(maxsize=None)
 def load_dataset_db(db_path):
-    # parsed once per file version: resolve_sample_data runs for every sample in the list
-    mtime = os.path.getmtime(db_path)
-    cached = _dataset_db_cache.get(db_path)
-    if cached is None or cached[0] != mtime:
-        with open(db_path) as stream:
-            cached = _dataset_db_cache[db_path] = (mtime, json.load(stream))
-    return cached[1]
+    with open(db_path) as stream:
+        return json.load(stream)
 
 
 def resolve_sample_data(nick, requested_version):
@@ -173,6 +174,7 @@ class Task(law.Task):
         if "_cached_params" not in cls.__dict__:
             cls._cached_params = super().get_params()
         return list(cls._cached_params)
+
     wlcg_path = luigi.Parameter(
         description="Base-path to remote file location.",
         significant=False,
@@ -494,8 +496,7 @@ class EosSubmitJobFileFactory(law.htcondor.HTCondorJobFileFactory):
 
 class HTCondorWorkflowProxy(law.contrib.htcondor.workflow.HTCondorWorkflowProxy):
     def process_resources(self, force=False):
-        # no job declares luigi resources; law would otherwise build every branch task and
-        # check all branch outputs of each workflow just to sum up empty resource dicts
+        # no job declares luigi resources; law would build every branch task just to sum empty dicts
         return {}
 
 
@@ -643,10 +644,7 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         # Write job config file
         log_base_path = self.htcondor_log_directory().abspath
         config.custom_log_file = os.path.join("All_$(JobId).txt")
-        # config.stdout = "Out_$(JobId).txt"
-        # config.stderr = "Err_$(JobId).txt"
-        # config.custom_content.append(("stream_error", "True"))  # Remove before commit. Streamed files will end up in
-        # config.custom_content.append(("stream_output", "True"))  # `self.htcondor_create_job_file_factory().dir
+
         if self.htcondor_requirements:
             config.custom_content.append(("Requirements", self.htcondor_requirements))
         config.log = os.path.join(log_base_path, "Log_$(JobId).txt")
@@ -799,6 +797,9 @@ class HTCondorWorkflow(Task, law.htcondor.HTCondorWorkflow):
         singularity_args = ["-B", "/etc/grid-security/certificates", "-B", "/cvmfs"]
         if self.is_local_output:
             singularity_args += ["-B", "/" + self.local_output_path.split("/")[1]]
+        proxy = os.environ.get("X509_USER_PROXY")
+        if proxy and os.path.exists(proxy):
+            singularity_args += ["-B", os.path.abspath(proxy)]
         return (
             ["singularity", "exec"]
             + singularity_args

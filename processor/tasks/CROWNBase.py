@@ -4,7 +4,6 @@ import os
 import re
 import ast
 import glob
-import json
 import shutil
 import tarfile
 import subprocess
@@ -22,19 +21,15 @@ from framework import (
 from law.task.base import WrapperTask
 from rich.table import Table
 from helpers.helpers import convert_to_comma_seperated
-import hashlib
 import time
 
 
-def friend_config_modules(analysis_path, friend_config):
+def config_modules(analysis_path, *names):
     """
-    Python files of an analysis that generating friend_config needs: generate_friends.py, the
-    config and everything they import relatively, followed recursively.
+    Python files of an analysis that code generation needs: the given modules (its generate script
+    and config) and everything they import relatively, followed recursively.
     """
-    todo = [
-        os.path.join(analysis_path, name + ".py")
-        for name in ("generate_friends", friend_config)
-    ]
+    todo = [os.path.join(analysis_path, name + ".py") for name in names]
     found = set()
     while todo:
         path = todo.pop()
@@ -77,7 +72,7 @@ class ProduceBase(WrapperTask, Task):
     poll_interval = luigi.OptionalParameter(
         default=None,
         significant=False,
-        description="Polling interval of all htcondor workflows, e.g. 5min.",
+        description="Polling interval of all htcondor workflows in minutes.",
     )
     parallel_jobs = luigi.OptionalIntParameter(
         default=None,
@@ -89,7 +84,12 @@ class ProduceBase(WrapperTask, Task):
         significant=False,
         description="Automatic resubmissions per job for all htcondor workflows.",
     )
-    generic_flags = ("force_repack_tarball", "poll_interval", "parallel_jobs", "retries")
+    generic_flags = (
+        "force_repack_tarball",
+        "poll_interval",
+        "parallel_jobs",
+        "retries",
+    )
     silent = False
 
     def __init__(self, *args, **kwargs):
@@ -106,8 +106,7 @@ class ProduceBase(WrapperTask, Task):
             )
 
     def apply_generic_flags(self):
-        # write the flags into each owning task's config section: every instance created later
-        # picks them up, while being root-task args they are never forwarded into sandboxes
+        # set via each task's config section, so root-task args never get forwarded into sandboxes
         cfg = luigi.configuration.get_config()
         values = {
             name: getattr(self, name)
@@ -302,6 +301,34 @@ class CROWNExecuteBase(HTCondorWorkflow, law.LocalWorkflow):
             status_line_pattern = f"{self.nick} (Analysis: {self.analysis} Config: {self.config} Tag: {self.production_tag})"
         return f"{status_line} - {law.util.colored(status_line_pattern, color='light_cyan')}"
 
+    def branch_output(self, branch, branch_data):
+        """
+        Return the output targets of the branch number `branch` with `branch_data`.
+        Must be implemented by subclasses and must only depend on its arguments, so
+        targets can be built from the branch map without instantiating branch tasks.
+        """
+        raise NotImplementedError
+
+    def output(self):
+        return self.branch_output(self.branch, self.branch_data)
+
+    def branch_outputs(self):
+        """
+        Output targets of all branches, keyed by branch number. Same content and
+        order as the workflow's output collection, but without instantiating every
+        branch task.
+        """
+        return {
+            branch: self.branch_output(branch, data)
+            for branch, data in self.get_branch_map().items()
+        }
+
+    def workflow_complete(self):
+        targets = self.branch_outputs()
+        return self.output_collection_cls(
+            targets, threshold=self.workflow_proxy.threshold(len(targets))
+        ).complete()
+
 
 class CROWNBuildBase:
     """
@@ -377,17 +404,18 @@ class CROWNBuildBase:
             "src",
             "include",
             os.path.join("analysis_configurations", "quantities"),
+            os.path.join(analysis_dir, "cpp_addons"),
+            os.path.join(analysis_dir, "quantities"),
             "cmake",
             "tests",
             "code_generation",
         ]
-        # friend builds get only the modules their config imports, main builds the whole analysis
-        if friend_config:
-            subdirs += [os.path.join(analysis_dir, "cpp_addons"), os.path.join(analysis_dir, "quantities")]
-            configs = friend_config_modules(os.path.join(crown_path, analysis_dir), friend_config)
-        else:
-            subdirs.append(analysis_dir)
-            configs = glob.glob(os.path.join(crown_path, analysis_dir, "**", "*.py"), recursive=True)
+        # only the generate script, the config and the modules they import
+        configs = config_modules(
+            os.path.join(crown_path, analysis_dir),
+            "generate_friends" if friend_config else "generate",
+            friend_config or str(self.config),
+        )
         for subdir in subdirs:
             src = os.path.join(crown_path, subdir)
             if os.path.exists(src):
@@ -398,12 +426,12 @@ class CROWNBuildBase:
                         "__pycache__", ".git", "generation_logs", "payloads"
                     ),
                 )
-        if friend_config:
-            for module in configs:
-                dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-                shutil.copy2(module, dst)
+        for module in configs:
+            dst = os.path.join(staging_dir, os.path.relpath(module, crown_path))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(module, dst)
         # ship only data/payloads paths the config names, f-string fields as wildcards
+        os.makedirs(os.path.join(staging_dir, "data"), exist_ok=True)
         references = set()
         for config in configs:
             with open(config) as f:
@@ -420,12 +448,6 @@ class CROWNBuildBase:
                 else:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
-        # friend jobs have no sample_database: ship the tables built on demand by samplemanager.scripts.build_norm_table
-        if friend_config:
-            norm_tables = os.path.abspath(os.path.join("sample_database", "norm_tables"))
-            if not os.path.exists(os.path.join(norm_tables, "norm_table.json")):
-                raise FileNotFoundError(f"{norm_tables} has no norm_table.json: run `python -m samplemanager.scripts.build_norm_table` in sample_database")
-            shutil.copytree(norm_tables, os.path.join(staging_dir, "data", "normalization"), dirs_exist_ok=True)
         for filename in ("CMakeLists.txt", "generate.py"):
             shutil.copy2(
                 os.path.join(crown_path, filename),
@@ -483,34 +505,6 @@ class CROWNBuildBase:
         if self.effective_workflow == "local":
             return os.path.abspath("CROWN")
         return os.path.abspath(os.path.join("build_staging", "CROWN_src"))
-
-    def get_tarball_hash(self):
-        """
-        The function `get_tarball_hash` generates a SHA-256 hash based on concatenated and sorted lists of
-        sample types, eras, scopes, and shifts.
-        :return: The `get_tarball_hash` method returns a SHA-256 hash of a string created by concatenating
-        sorted and comma-separated lists of sample types, eras, scopes, and shifts.
-        """
-
-        sample_types = list(self.all_sample_types)
-        eras = list(self.all_eras)
-        scopes = list(self.scopes)
-        if self.shifts is not None and self.shifts != "None":
-            shifts = list(self.shifts)
-        else:
-            shifts = ["None"]
-        sample_types.sort()
-        eras.sort()
-        scopes.sort()
-        shifts.sort()
-        # convert the lists to a single comma separated string
-        sample_types = convert_to_comma_seperated(sample_types)
-        eras = convert_to_comma_seperated(eras)
-        scopes = convert_to_comma_seperated(scopes)
-        shifts = convert_to_comma_seperated(shifts)
-        id_list = f"{sample_types};{eras};{scopes};{shifts}"
-        hash = hashlib.sha256(str(id_list).encode()).hexdigest()
-        return hash
 
     def setup_build_environment(self, build_dir, install_dir, crownlib):
         """
