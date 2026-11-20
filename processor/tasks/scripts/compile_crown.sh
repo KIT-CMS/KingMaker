@@ -13,6 +13,7 @@ TARBALLNAME=${10}
 EXECUTABLE_THREADS=${11}
 SPDLOG_PREBUILT_LIB=${12}
 SPDLOG_PREBUILT_INCLUDE=${13}
+NANOAOD_VERSION=${14:-none}
 
 echo "--- CROWN Production Compilation ---"
 echo "Crown folder: ${CROWNFOLDER}"
@@ -56,6 +57,7 @@ if cmake "${CROWNFOLDER}" \
     -DERAS="${ERAS}" \
     -DSCOPES="${SCOPE}" \
     -DSHIFTS="${SHIFTS}" \
+    -DNANOAOD_VERSION="${NANOAOD_VERSION}" \
     -DTHREADS="${EXECUTABLE_THREADS}" \
     -DINSTALLDIR="${INSTALLDIR}" \
     -DPRODUCTION=True \

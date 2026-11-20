@@ -69,7 +69,26 @@ else:
 class NanoAODVersions(Enum):
     v9 = "nanoAOD_v9"
     v12 = "nanoAOD_v12"
+    v14 = "nanoAOD_v14"
     v15 = "nanoAOD_v15"
+
+
+# NanoAOD version of the samples of each era (as CROWN's ERA_NANOAOD_VERSION_DEFAULTS)
+ERA_NANOAOD_VERSION_DEFAULTS = {
+    **{era: NanoAODVersions.v9.value for era in ["2016preVFP", "2016postVFP", "2017", "2018"]},
+    **{era: NanoAODVersions.v12.value for era in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]},
+    **{era: NanoAODVersions.v15.value for era in ["2024", "2025", "2026"]},
+}
+
+
+def build_version(era, nanoAOD_version):
+    """
+    The NanoAOD version a sample needs its own CROWN executable for (e.g. "v14" for the 2022/2023 v14 skims),
+    "" if it is the default of its era.
+    """
+    if nanoAOD_version in ("", ERA_NANOAOD_VERSION_DEFAULTS.get(era)):
+        return ""
+    return nanoAOD_version.replace("nanoAOD_", "")
 
 
 def resolve_nanoAOD_version(relative_path, requested_version):

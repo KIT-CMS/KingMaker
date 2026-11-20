@@ -11,7 +11,7 @@ import time
 import json
 import hashlib
 from CROWNBase import CROWNBuildBase, CROWNLocalBuildBase
-from framework import console, Task, resolve_nanoAOD_version, HTCondorWorkflow
+from framework import console, Task, resolve_nanoAOD_version, build_version, HTCondorWorkflow
 from helpers.helpers import create_abspath
 from CROWNBase import CROWNExecuteBase
 from helpers.helpers import get_alternate_file_uri
@@ -142,9 +142,10 @@ class CROWNRun(CROWNExecuteBase):
         _outputfile = str(
             outputs[0].basename.replace("_{}.root".format(self.scopes[0]), ".root")
         )
-        _tarball_name = (
-            f"crown_{self.analysis}_{self.config}_{_sample_type}_{_era}.tar.gz"
-        )
+        # samples with another NanoAOD version than the default of their era have their own executable
+        _version = build_version(_era, self.nanoAOD_version)
+        _executable_tag = "_".join(filter(None, [self.config, _sample_type, _era, _version]))
+        _tarball_name = f"crown_{self.analysis}_{_executable_tag}.tar.gz"
         _tarball = next(
             t
             for t in inputs["crown_build"]["collection"]._flat_target_list
@@ -154,7 +155,7 @@ class CROWNRun(CROWNExecuteBase):
         with _tarball.localize("r") as _file:
             _tarballpath = _file.path
         # first unpack the tarball if the exec is not there yet
-        _unpack_tag = "{}_{}_{}".format(self.config, _sample_type, _era)
+        _unpack_tag = _executable_tag
         _lockfile = os.path.join(_workdir, f".unpack_{_unpack_tag}.lock")
         _donefile = os.path.join(_workdir, f".unpacked_{_unpack_tag}")
         with open(_lockfile, "w") as _lock:
@@ -173,7 +174,7 @@ class CROWNRun(CROWNExecuteBase):
         os.replace(_tmp_sample_json, _abs_sample_json)
         _crown_env = dict(os.environ, CROWN_SAMPLE_INFO=_sample_json)
         _crown_args = [_outputfile] + _inputfiles
-        _executable = "./{}_{}_{}".format(self.config, _sample_type, _era)
+        _executable = f"./{_executable_tag}"
         # actual payload:
         console.rule("Starting CROWNRun")
         console.log("Executable: {}".format(_executable))
@@ -246,13 +247,13 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
     nanoAOD_version = luigi.Parameter(default="", significant=False)
 
     def create_branch_map(self):
-        # one branch per (sample_type, era) pair actually needed by the requested
-        # samples, not the full cross product of all_sample_types x all_eras - e.g.
+        # one branch per (sample_type, era, NanoAOD version) actually needed by the
+        # requested samples, not the full cross product of all_sample_types x all_eras - e.g.
         # a list spanning data/2024 and mc/2023 shouldn't also build data/2023.
         return {
-            i: {"sample_type": sample_type, "era": era}
-            for i, (sample_type, era) in enumerate(
-                tuple(pair) for pair in self.required_build_combinations
+            i: {"sample_type": sample_type, "era": era, "version": version}
+            for i, (sample_type, era, version) in enumerate(
+                tuple(combination) for combination in self.required_build_combinations
             )
         }
 
@@ -276,11 +277,10 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         return config
 
     def output(self):
-        sample_type = self.branch_data["sample_type"]
-        era = self.branch_data["era"]
-        return self.remote_target(
-            f"crown_{self.analysis}_{self.config}_{sample_type}_{era}.tar.gz"
+        _executable_tag = "_".join(
+            filter(None, [self.config] + [self.branch_data[k] for k in ("sample_type", "era", "version")])
         )
+        return self.remote_target(f"crown_{self.analysis}_{_executable_tag}.tar.gz")
 
     def run(self):
         crownlib = self.workflow_input()["crownlib"]
@@ -290,9 +290,8 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         _threads = str(self.htcondor_request_cpus)
         _sample_type = self.branch_data["sample_type"]
         _era = self.branch_data["era"]
-        _tag = (
-            f"{self.production_tag}/CROWN_{_analysis}_{_config}_{_sample_type}_{_era}"
-        )
+        _version = self.branch_data["version"]
+        _tag = f"{self.production_tag}/CROWN_{_analysis}_" + "_".join(filter(None, [_config, _sample_type, _era, _version]))
         _install_dir = os.path.join(str(self.install_dir), _tag)
         _build_dir = os.path.join(str(self.build_dir), _tag)
         _crown_path = self.crown_source_path()
@@ -318,6 +317,7 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
         console.log(f"Config: {_config}")
         console.log(f"Sampletype: {_sample_type}")
         console.log(f"Era: {_era}")
+        console.log(f"NanoAOD version: {_version or 'era default'}")
         console.log(f"Scopes: {_scopes}")
         console.log(f"Shifts: {_shifts}")
         console.rule("")
@@ -346,6 +346,7 @@ class CROWNBuild(CROWNBuildBase, HTCondorWorkflow, law.LocalWorkflow):
             _threads,  # THREADS=$11
             _spdlog_lib,  # SPDLOG_PREBUILT_LIB=$12
             _spdlog_include,  # SPDLOG_PREBUILT_INCLUDE=$13
+            _version or "none",  # NANOAOD_VERSION=$14
         ]
         self.run_command_readable(self.wrap_command(command))
         console.rule("Finished CROWN compilation")
