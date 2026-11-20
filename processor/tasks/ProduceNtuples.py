@@ -5,7 +5,7 @@ import yaml
 from concurrent.futures import ThreadPoolExecutor
 from CROWNBase import ProduceBase
 from collections import defaultdict
-from framework import console
+from framework import console, build_version
 from CROWNFriend import CROWNFriend
 from CROWNMain import CROWNRun, ConfigureDatasets, load_dataset_filelist
 
@@ -170,9 +170,12 @@ class ProduceNtuples(ProduceBase):
 
         self.preload_dataset_configs(data)
 
-        # only build the (sample_type, era) pairs actually used by the requested samples
+        # only build the (sample_type, era, NanoAOD version) combinations actually used by the requested samples
         required_build_combinations = sorted(
-            {(info["sample_type"], info["era"]) for info in data["details"].values()}
+            {
+                (info["sample_type"], info["era"], build_version(info["era"], info["nanoAOD_version"]))
+                for info in data["details"].values()
+            }
         )
 
         requirements = {}
